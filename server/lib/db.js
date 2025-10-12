@@ -7,15 +7,27 @@ dotenv.config();
 const { Pool } = pg;
 
 // Database configuration from environment variables
-// Support both connection string and individual params (like user's working app)
+// Support both connection string (Supabase/Production) and individual params (Local Dev)
+const isProduction = process.env.NODE_ENV === 'production';
+const isSupabase = process.env.DATABASE_URL && process.env.DATABASE_URL.includes('supabase');
+
 const config = process.env.DATABASE_URL 
   ? {
       connectionString: process.env.DATABASE_URL,
+      // Supabase and production settings
+      ssl: isSupabase || isProduction ? {
+        rejectUnauthorized: false // Required for Supabase pooler
+      } : false,
       max: 20,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
+      connectionTimeoutMillis: 10000, // Increased for cloud connections
+      // Connection pool settings for Supabase
+      ...(isSupabase && {
+        application_name: 'udrive_lms',
+      })
     }
   : {
+      // Local development configuration
       host: process.env.PGHOST || process.env.DATABASE_HOST || 'localhost',
       port: parseInt(process.env.PGPORT || process.env.DATABASE_PORT || '5432'),
       database: process.env.PGDATABASE || process.env.DATABASE_NAME || 'udrive-from-bolt',
@@ -24,6 +36,7 @@ const config = process.env.DATABASE_URL
       max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
+      ssl: false,
     };
 
 // Create connection pool
@@ -37,7 +50,19 @@ pool.on('error', (err) => {
 
 // Test connection
 pool.on('connect', () => {
-  console.log('✅ Connected to PostgreSQL database:', config.database);
+  const dbName = config.database || process.env.DATABASE_URL ? 'Supabase PostgreSQL' : 'Unknown';
+  const environment = isProduction ? '🚀 PRODUCTION' : '🔧 DEVELOPMENT';
+  const dbType = isSupabase ? '☁️  Supabase' : '💻 Local PostgreSQL';
+  
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log(`✅ Database Connected`);
+  console.log(`   Environment: ${environment}`);
+  console.log(`   Type: ${dbType}`);
+  console.log(`   Database: ${dbName}`);
+  if (config.ssl) {
+    console.log(`   SSL: ✅ Enabled`);
+  }
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 });
 
 /**

@@ -18,7 +18,10 @@
     "db:reset": "npm run db:schema && npm run db:seed",
     "db:setup": "npm run db:reset",
     "db:fix-passwords": "node database/fix-seed-passwords.js",
-    "db:reset-passwords": "node database/reset-all-passwords.js"
+    "db:reset-passwords": "node database/reset-all-passwords.js",
+    "db:test": "node database/test-supabase-connection.js",
+    "db:test:local": "node database/test-connection.js",
+    "db:test:supabase": "node database/test-supabase-connection.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.5",
