@@ -1,0 +1,87 @@
+==============================================
+VERCEL ENVIRONMENT VARIABLES - COPY/PASTE READY
+==============================================
+Add these in Vercel Dashboard → Settings → Environment Variables
+Copy each value EXACTLY as shown (no spaces, no quotes)
+==============================================
+
+Variable 1: NODE_ENV
+Value:
+production
+
+---
+
+Variable 2: DATABASE_URL
+Value:
+postgresql://postgres.zrwrdfkntrfqarbidtou:%3AnN9D%26GE-%25-s5%24~M@aws-0-us-east-1.pooler.supabase.com:6543/postgres
+
+---
+
+Variable 3: JWT_SECRET
+Value:
+8c3f0d27d574dbf2c3cb9536cdcddb3eab201dd0118d3d503dd781e9e87fefe8076100c9c2fbbc45537cfab0583da9acd5d6e345db1ce036a84a393636bb4e60
+
+---
+
+Variable 4: JWT_EXPIRES_IN
+Value:
+7d
+
+---
+
+Variable 5: VITE_API_URL
+Value (REPLACE YOUR-APP-NAME):
+https://your-app-name.vercel.app/api
+
+---
+
+Variable 6: FRONTEND_URL
+Value (REPLACE YOUR-APP-NAME):
+https://your-app-name.vercel.app
+
+---
+
+Variable 7: VITE_TINYMCE_API_KEY (Optional)
+Value:
+no-api-key
+
+==============================================
+INSTRUCTIONS
+==============================================
+
+For each variable above:
+
+1. In Vercel, click "Add New" button
+2. Enter the "Variable name" (e.g., NODE_ENV)
+3. Copy/paste the "Value" exactly as shown
+4. Select ALL environments:
+   ✅ Production
+   ✅ Preview
+   ✅ Development
+5. Click "Save"
+6. Repeat for all 7 variables
+
+After adding ALL variables:
+- Go to Deployments tab
+- Click ⋮ (three dots) on latest deployment
+- Click "Redeploy"
+- Wait for deployment to complete
+
+==============================================
+IMPORTANT NOTES
+==============================================
+
+✅ DATABASE_URL uses URL-encoded password:
+   %3AnN9D%26GE-%25-s5%24~M
+
+❌ DO NOT use raw password:
+   :nN9D&GE-%-s5$~M
+
+✅ Find your Vercel URL:
+   - Go to your project dashboard
+   - Look at the "Domains" section
+   - Copy the URL (e.g., udrive-lms-abc123.vercel.app)
+   - Replace "your-app-name.vercel.app" in VITE_API_URL and FRONTEND_URL
+
+==============================================
+

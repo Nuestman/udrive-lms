@@ -76,15 +76,17 @@ async function testConnection() {
       console.log(`✅ Found ${tablesResult.rows.length} tables:\n`);
       
       const expectedTables = [
+        'tenants',
         'user_profiles',
         'courses',
         'modules',
         'lessons',
         'enrollments',
         'lesson_progress',
-        'schools',
+        'quizzes',
         'quiz_questions',
-        'quiz_attempts'
+        'quiz_attempts',
+        'notifications'
       ];
 
       expectedTables.forEach(tableName => {

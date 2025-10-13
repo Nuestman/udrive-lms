@@ -1,0 +1,74 @@
+==============================================
+VERCEL ENVIRONMENT VARIABLES - FINAL CORRECT VERSION
+==============================================
+Use these EXACT values in Vercel Dashboard
+==============================================
+
+Variable 1: NODE_ENV
+Value:
+production
+
+---
+
+Variable 2: DATABASE_URL
+Value (Use Transaction Pooler for Vercel):
+postgresql://postgres.zrwrdfkntrfqarbidtou:uwykGPTyCQo8jRa9@aws-0-eu-west-2.pooler.supabase.com:5432/postgres
+
+---
+
+Variable 3: JWT_SECRET
+Value:
+8c3f0d27d574dbf2c3cb9536cdcddb3eab201dd0118d3d503dd781e9e87fefe8076100c9c2fbbc45537cfab0583da9acd5d6e345db1ce036a84a393636bb4e60
+
+---
+
+Variable 4: JWT_EXPIRES_IN
+Value:
+7d
+
+---
+
+Variable 5: VITE_API_URL
+Value (REPLACE with your actual Vercel URL):
+https://your-app-name.vercel.app/api
+
+---
+
+Variable 6: FRONTEND_URL
+Value (REPLACE with your actual Vercel URL):
+https://your-app-name.vercel.app
+
+---
+
+Variable 7: VITE_SUPABASE_URL (Optional)
+Value:
+https://zrwrdfkntrfqarbidtou.supabase.co
+
+---
+
+Variable 8: VITE_SUPABASE_ANON_KEY (Optional)
+Value:
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpyd3JkZmtudHJmcWFyYmlkdG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIzMDIyNDgsImV4cCI6MjA2Nzg3ODI0OH0.QlEzPw9vXhNrmNtsVHeIGvxrKAR_NOGAjiZYpe
+
+==============================================
+KEY POINTS:
+==============================================
+
+✅ Region: EU West 2 (not US East 1)
+✅ New password: uwykGPTyCQo8jRa9 (no special characters!)
+✅ No URL encoding needed
+✅ Use Transaction Pooler for Vercel (better for serverless)
+✅ Use Direct Connection for local testing (simpler)
+
+==============================================
+WHY TRANSACTION POOLER FOR VERCEL?
+==============================================
+
+Vercel Functions are serverless and ephemeral.
+Transaction Pooler (port 5432 with pooler host) handles:
+- Connection pooling automatically
+- Better performance for serverless
+- Prevents "too many connections" errors
+
+==============================================
+
