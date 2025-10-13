@@ -128,7 +128,7 @@ const StudentLessonViewer: React.FC = () => {
               isOpen: true,
               type: 'course',
               title: 'Course Complete!',
-              message: `Congratulations! You've completed "${course?.title}". You can now access your certificate.`,
+              message: `Congratulations! You have completed "${course?.title}". You can now access your certificate.`,
               hasNextModule: false
             });
           } else if (moduleCompleted) {
@@ -143,8 +143,8 @@ const StudentLessonViewer: React.FC = () => {
               type: 'module',
               title: 'Module Complete!',
               message: hasNextModule 
-                ? `Great job! You've completed this module. Ready to start "${nextModule?.title}"?`
-                : 'Great job! You've completed this module.',
+                ? `Great job! You have completed this module. Ready to start "${nextModule?.title}"?`
+                : 'Great job! You have completed this module.',
               hasNextModule
             });
           }
