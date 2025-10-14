@@ -15,6 +15,9 @@ import progressRoutes from './routes/progress.js';
 import quizRoutes from './routes/quiz.js';
 import certificateRoutes from './routes/certificate.js';
 import goalsRoutes from './routes/goals.js';
+import usersRoutes from './routes/users.js';
+import instructorsRoutes from './routes/instructors.js';
+import mediaRoutes from './routes/media.js';
 import { pool } from './lib/db.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -59,6 +62,9 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/goals', goalsRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api/instructors', instructorsRoutes);
+app.use('/api/media', mediaRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

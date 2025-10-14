@@ -15,7 +15,8 @@ import {
   FileStack,
   Home,
   TrendingUp,
-  UserCheck
+  UserCheck,
+  GraduationCap
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -90,10 +91,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             isActive: location === '/school/enrollments'
           },
           { 
-            icon: <Users size={20} />, 
-            label: 'All Instructors', 
-            href: '/school/instructors',
-            isActive: location === '/school/instructors'
+            icon: <GraduationCap size={20} />, 
+            label: 'Instructors', 
+            href: '/admin/instructors',
+            isActive: location === '/admin/instructors'
           },
           { 
             icon: <Award size={20} />, 
@@ -149,7 +150,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             isActive: location === '/school/enrollments'
           },
           { 
-            icon: <Users size={20} />, 
+            icon: <GraduationCap size={20} />, 
             label: 'Instructors', 
             href: '/school/instructors',
             isActive: location === '/school/instructors'

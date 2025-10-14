@@ -249,7 +249,7 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
     if (!newLessonTitle.trim()) return;
 
     try {
-      await createLesson({
+      const newLesson = await createLesson({
         module_id: module.id,
         title: newLessonTitle,
         content: [],  // Valid JSON array, not empty string!
@@ -257,6 +257,11 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
       });
       setNewLessonTitle('');
       setShowAddLesson(false);
+      
+      // Automatically open the TinyMCE editor for the new lesson
+      if (newLesson) {
+        setEditingLesson(newLesson);
+      }
     } catch (err: any) {
       alert(err.message || 'Failed to create lesson');
     }
@@ -277,7 +282,9 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
               <p className="text-sm text-gray-600 mt-1">{module.description}</p>
             )}
             <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-              <span>{lessons.length || module.lesson_count || 0} lessons</span>
+              <span>
+                {isExpanded ? lessons.length : (module.lesson_count || 0)} lesson{(isExpanded ? lessons.length : (module.lesson_count || 0)) !== 1 ? 's' : ''}
+              </span>
               {module.estimated_duration_minutes && (
                 <span className="flex items-center">
                   <Clock size={14} className="mr-1" />
@@ -295,6 +302,8 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
               alert('Edit module - coming soon!');
             }}
             className="p-2 text-gray-600 hover:bg-gray-100 rounded"
+            aria-label="Edit module"
+            title="Edit module"
           >
             <Edit size={18} />
           </button>
@@ -304,6 +313,8 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
               onDelete();
             }}
             className="p-2 text-red-600 hover:bg-red-50 rounded"
+            aria-label="Delete module"
+            title="Delete module"
           >
             <Trash2 size={18} />
           </button>
@@ -352,6 +363,8 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
                             setEditingLesson(lesson);
                           }}
                           className="p-1 text-gray-600 hover:bg-gray-100 rounded"
+                          aria-label={`Edit lesson: ${lesson.title}`}
+                          title="Edit lesson"
                         >
                           <Edit size={14} />
                         </button>
@@ -367,6 +380,8 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
                             }
                           }}
                           className="p-1 text-red-600 hover:bg-red-50 rounded"
+                          aria-label={`Delete lesson: ${lesson.title}`}
+                          title="Delete lesson"
                         >
                           <Trash2 size={14} />
                         </button>

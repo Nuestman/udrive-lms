@@ -22,7 +22,8 @@
     "db:reset-passwords": "node database/reset-all-passwords.js",
     "db:test": "node database/test-supabase-connection.js",
     "db:test:local": "node database/test-connection.js",
-    "db:test:supabase": "node database/test-supabase-connection.js"
+    "db:test:supabase": "node database/test-supabase-connection.js",
+    "test:blob": "node server/test-vercel-blob.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.5",
@@ -31,6 +32,7 @@
     "@types/canvas-confetti": "^1.9.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.7.2",
+    "@vercel/blob": "^2.0.0",
     "bcryptjs": "^3.0.2",
     "canvas-confetti": "^1.9.3",
     "cookie-parser": "^1.4.7",
@@ -40,6 +42,7 @@
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^2.5.1",
     "lucide-react": "^0.344.0",
+    "multer": "^2.0.2",
     "pg": "^8.16.3",
     "qrcode": "^1.5.3",
     "react": "^18.3.1",

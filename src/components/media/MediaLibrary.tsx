@@ -17,19 +17,10 @@ import {
   FolderPlus,
   Tag
 } from 'lucide-react';
-
-interface MediaFile {
-  id: string;
-  name: string;
-  type: 'image' | 'video' | 'audio' | 'document';
-  size: number;
-  url: string;
-  thumbnailUrl?: string;
-  uploadDate: string;
-  tags: string[];
-  usageCount: number;
-  folder?: string;
-}
+import { useMedia, useMediaOperations } from '../../hooks/useMedia';
+import { useToast } from '../../contexts/ToastContext';
+import { formatFileSize } from '../../utils/upload.utils';
+import { MediaFile } from '../../types/database.types';
 
 interface MediaLibraryProps {
   onSelectFile?: (file: MediaFile) => void;
@@ -42,69 +33,28 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
   allowMultiple = false,
   fileTypes = ['image', 'video', 'audio', 'document']
 }) => {
-  const [files, setFiles] = useState<MediaFile[]>([
-    {
-      id: '1',
-      name: 'driving-lesson-hero.jpg',
-      type: 'image',
-      size: 2048000,
-      url: 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg',
-      thumbnailUrl: 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=300&h=200&dpr=2',
-      uploadDate: '2024-03-10',
-      tags: ['driving', 'lesson', 'hero'],
-      usageCount: 5,
-      folder: 'images'
-    },
-    {
-      id: '2',
-      name: 'traffic-rules-video.mp4',
-      type: 'video',
-      size: 15728640,
-      url: '/videos/traffic-rules.mp4',
-      thumbnailUrl: 'https://images.pexels.com/photos/2116475/pexels-photo-2116475.jpeg?auto=compress&cs=tinysrgb&w=300&h=200&dpr=2',
-      uploadDate: '2024-03-08',
-      tags: ['traffic', 'rules', 'education'],
-      usageCount: 12,
-      folder: 'videos'
-    },
-    {
-      id: '3',
-      name: 'course-handbook.pdf',
-      type: 'document',
-      size: 5242880,
-      url: '/documents/handbook.pdf',
-      uploadDate: '2024-03-05',
-      tags: ['handbook', 'course', 'reference'],
-      usageCount: 8,
-      folder: 'documents'
-    }
-  ]);
-
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
-  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [showUploadModal, setShowUploadModal] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
 
-  const filteredFiles = files.filter(file => {
-    const matchesSearch = file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         file.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesType = selectedType === 'all' || file.type === selectedType;
-    const matchesAllowedTypes = fileTypes.includes(file.type);
-    
-    return matchesSearch && matchesType && matchesAllowedTypes;
+  // Use real media hooks
+  const { files, loading, error, refreshFiles } = useMedia({
+    fileType: selectedType !== 'all' ? selectedType : undefined,
+    search: searchTerm || undefined,
+    limit: 50
   });
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+  const { uploadFiles, uploading, deleteFile, deleteMultipleFiles, deleting } = useMediaOperations();
+
+  const filteredFiles = files.filter(file => {
+    const matchesAllowedTypes = fileTypes.includes(file.file_type);
+    return matchesAllowedTypes;
+  });
 
   const getFileIcon = (type: string) => {
     switch (type) {
@@ -121,50 +71,30 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
     }
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFiles = Array.from(event.target.files || []);
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files || []);
     
-    uploadedFiles.forEach((file, index) => {
-      const fileId = `upload-${Date.now()}-${index}`;
+    if (selectedFiles.length === 0) return;
+
+    try {
+      // Determine category based on first file type
+      const firstFileType = selectedFiles[0].type;
+      let category = 'document';
+      if (firstFileType.startsWith('image/')) category = 'image';
+      else if (firstFileType.startsWith('video/')) category = 'video';
+      else if (firstFileType.startsWith('audio/')) category = 'audio';
+
+      await uploadFiles(selectedFiles, category);
       
-      // Simulate upload progress
-      setUploadProgress(prev => ({ ...prev, [fileId]: 0 }));
+      // Refresh the file list
+      refreshFiles();
       
-      const interval = setInterval(() => {
-        setUploadProgress(prev => {
-          const currentProgress = prev[fileId] || 0;
-          if (currentProgress >= 100) {
-            clearInterval(interval);
-            
-            // Add file to library
-            const newFile: MediaFile = {
-              id: fileId,
-              name: file.name,
-              type: file.type.startsWith('image/') ? 'image' :
-                    file.type.startsWith('video/') ? 'video' :
-                    file.type.startsWith('audio/') ? 'audio' : 'document',
-              size: file.size,
-              url: URL.createObjectURL(file),
-              uploadDate: new Date().toISOString().split('T')[0],
-              tags: [],
-              usageCount: 0
-            };
-            
-            setFiles(prev => [newFile, ...prev]);
-            
-            // Remove from upload progress
-            setUploadProgress(prev => {
-              const { [fileId]: removed, ...rest } = prev;
-              return rest;
-            });
-            
-            return prev;
-          }
-          
-          return { ...prev, [fileId]: currentProgress + 10 };
-        });
-      }, 200);
-    });
+      // Show success message
+      toast.success(`${selectedFiles.length} file(s) uploaded successfully!`);
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload files. Please try again.');
+    }
     
     // Reset file input
     if (fileInputRef.current) {
@@ -184,16 +114,38 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
     }
   };
 
-  const handleDeleteFile = (fileId: string) => {
-    if (confirm('Are you sure you want to delete this file?')) {
-      setFiles(prev => prev.filter(f => f.id !== fileId));
+  const handleDeleteFile = async (fileId: string) => {
+    if (!confirm('Are you sure you want to delete this file?')) return;
+
+    try {
+      await deleteFile(fileId);
       setSelectedFiles(prev => prev.filter(id => id !== fileId));
+      refreshFiles();
+      toast.success('File deleted successfully!');
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete file. Please try again.');
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedFiles.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedFiles.length} file(s)?`)) return;
+
+    try {
+      await deleteMultipleFiles(selectedFiles);
+      setSelectedFiles([]);
+      refreshFiles();
+      toast.success(`${selectedFiles.length} file(s) deleted successfully!`);
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete files. Please try again.');
     }
   };
 
   const copyFileUrl = (url: string) => {
     navigator.clipboard.writeText(url);
-    // You could add a toast notification here
+    toast.success('File URL copied to clipboard!');
   };
 
   const renderGridView = () => (
@@ -207,27 +159,26 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
           onClick={() => handleFileSelect(file)}
         >
           <div className="aspect-square p-3">
-            {file.type === 'image' && file.thumbnailUrl ? (
+            {file.file_type === 'image' && file.thumbnail_url ? (
               <img
-                src={file.thumbnailUrl}
-                alt={file.name}
+                src={file.thumbnail_url}
+                alt={file.filename}
                 className="w-full h-full object-cover rounded-md"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-md">
                 <div className="text-gray-400">
-                  {getFileIcon(file.type)}
+                  {getFileIcon(file.file_type)}
                 </div>
               </div>
             )}
           </div>
           
           <div className="p-3 pt-0">
-            <p className="text-sm font-medium text-gray-900 truncate" title={file.name}>
-              {file.name}
+            <p className="text-sm font-medium text-gray-900 truncate" title={file.original_filename}>
+              {file.original_filename}
             </p>
-            <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
-            <p className="text-xs text-gray-400">Used {file.usageCount} times</p>
+            <p className="text-xs text-gray-500">{formatFileSize(file.file_size)}</p>
           </div>
 
           {/* Action buttons */}
@@ -236,7 +187,7 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  copyFileUrl(file.url);
+                  copyFileUrl(file.file_url);
                 }}
                 className="p-1 bg-white rounded shadow hover:bg-gray-50"
                 title="Copy URL"
@@ -246,7 +197,7 @@ const MediaLibrary: React.FC<MediaLibraryProps> = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  window.open(file.url, '_blank');
+                  window.open(file.file_url, '_blank');
                 }}
                 className="p-1 bg-white rounded shadow hover:bg-gray-50"
                 title="View"

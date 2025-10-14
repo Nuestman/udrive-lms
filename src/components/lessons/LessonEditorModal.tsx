@@ -10,6 +10,9 @@ interface LessonEditorModalProps {
   onSave: (lessonId: string, updates: any) => Promise<void>;
 }
 
+// Get TinyMCE API key from environment variables
+const TINYMCE_API_KEY = import.meta.env.VITE_TINYMCE_API_KEY;
+
 const LessonEditorModal: React.FC<LessonEditorModalProps> = ({ isOpen, lesson, onClose, onSave }) => {
   const editorRef = useRef<any>(null);
   const [title, setTitle] = useState(lesson?.title || '');
@@ -88,6 +91,8 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({ isOpen, lesson, o
             onClick={onClose}
             disabled={saving}
             className="text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="Close editor"
+            title="Close editor"
           >
             <X size={24} />
           </button>
@@ -118,13 +123,16 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({ isOpen, lesson, o
           {/* Lesson Type */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="lesson-type" className="block text-sm font-medium text-gray-700 mb-1">
                 Lesson Type
               </label>
               <select
+                id="lesson-type"
                 value={lessonType}
                 onChange={(e) => setLessonType(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                aria-label="Lesson Type"
+                title="Select lesson type"
               >
                 <option value="text">Text Content</option>
                 <option value="video">Video</option>
@@ -186,24 +194,39 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({ isOpen, lesson, o
               Lesson Content
             </label>
             <Editor
-              apiKey="no-api-key" // Using free version without API key
+              apiKey={TINYMCE_API_KEY}
               onInit={(evt, editor) => editorRef.current = editor}
               initialValue={initialContent}
               init={{
                 height: 400,
                 menubar: false,
-                plugins: [
-                  'advlist', 'autolink', 'lists', 'link', 'image', 'charmap',
-                  'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                  'insertdatetime', 'media', 'table', 'preview', 'help', 'wordcount'
-                ],
-                toolbar: 'undo redo | blocks | ' +
-                  'bold italic forecolor | alignleft aligncenter ' +
-                  'alignright alignjustify | bullist numlist outdent indent | ' +
-                  'removeformat | help',
-                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                plugins: 'anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount code fullscreen',
+                toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table | align lineheight | numlist bullist indent outdent | emoticons charmap | code fullscreen | removeformat',
+                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; }',
                 branding: false,
-                promotion: false
+                promotion: false,
+                // Additional settings for better editor experience
+                resize: true,
+                statusbar: true,
+                elementpath: false,
+                // Image upload settings (can be configured later with backend)
+                images_upload_handler: (blobInfo: any) => {
+                  return new Promise((resolve, reject) => {
+                    // For now, convert to base64 (you can implement server upload later)
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      resolve(reader.result as string);
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blobInfo.blob());
+                  });
+                },
+                // Auto-save settings
+                setup: (editor: any) => {
+                  editor.on('change', () => {
+                    editor.save();
+                  });
+                }
               }}
             />
           </div>

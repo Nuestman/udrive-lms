@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import DashboardLayout from './components/dashboard/DashboardLayout';
 import BlockEditor from './components/lesson/BlockEditor';
@@ -17,6 +17,8 @@ import CourseDetailsPage from './components/courses/CourseDetailsPage';
 import StudentsPage from './components/students/StudentsPage';
 import EnrollmentsPage from './components/enrollments/EnrollmentsPage';
 import SchoolsPage from './components/schools/SchoolsPage';
+import UsersPage from './components/users/UsersPage';
+import InstructorsPage from './components/instructors/InstructorsPage';
 import AnalyticsPage from './components/pages/AnalyticsPage';
 import SettingsPage from './components/pages/SettingsPage';
 import CertificatesPage from './components/pages/CertificatesPage';
@@ -305,6 +307,7 @@ function App() {
           <Route path="/school/courses" element={<CoursesPage role="school_admin" />} />
           <Route path="/school/courses/:id" element={<CourseDetailsPage />} />
           <Route path="/school/students" element={<StudentsPage />} />
+          <Route path="/school/instructors" element={<InstructorsPage />} />
           <Route path="/school/enrollments" element={<EnrollmentsPage />} />
           <Route path="/school/analytics" element={<AnalyticsPage role="school_admin" />} />
           <Route path="/school/settings" element={<SettingsPage role="school_admin" />} />
@@ -314,7 +317,8 @@ function App() {
           {/* Super Admin Routes */}
           <Route path="/admin/dashboard" element={<SuperAdminDashboard />} />
           <Route path="/admin/schools" element={<SchoolsPage />} />
-          <Route path="/admin/users" element={<div className="p-6">System Users - Coming Soon</div>} />
+          <Route path="/admin/users" element={<UsersPage />} />
+          <Route path="/admin/instructors" element={<InstructorsPage />} />
           <Route path="/admin/analytics" element={<AnalyticsPage role="super_admin" />} />
           <Route path="/admin/settings" element={<SettingsPage role="super_admin" />} />
           

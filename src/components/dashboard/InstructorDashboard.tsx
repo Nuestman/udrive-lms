@@ -1,4 +1,4 @@
-// Instructor Dashboard - Course creation and student management
+// Instructor Dashboard - Course creation and student management (Tenant-Isolated)
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, Users, TrendingUp, Award, Plus, FileText, BarChart3 } from 'lucide-react';
@@ -12,19 +12,20 @@ const InstructorDashboard: React.FC = () => {
   const { enrollments, loading: enrollmentsLoading } = useEnrollments();
   const navigate = useNavigate();
 
-  // Filter courses created by this instructor
-  const myCourses = courses.filter(c => c.created_by === profile?.id);
+  // Filter courses created by this instructor AND within their tenant
+  const myCourses = courses.filter(c => 
+    c.created_by === profile?.id && 
+    c.tenant_id === profile?.tenant_id
+  );
   
-  // Count students enrolled in instructor's courses
-  const myStudents = new Set(
-    enrollments
-      .filter(e => myCourses.some(c => c.id === e.course_id))
-      .map(e => e.student_id)
-  ).size;
+  // Count students enrolled in instructor's courses (tenant-isolated)
+  const myEnrollments = enrollments.filter(e => 
+    myCourses.some(c => c.id === e.course_id)
+  );
+  
+  const myStudents = new Set(myEnrollments.map(e => e.student_id)).size;
 
-  const activeEnrollments = enrollments.filter(e => 
-    myCourses.some(c => c.id === e.course_id) && e.status === 'active'
-  ).length;
+  const activeEnrollments = myEnrollments.filter(e => e.status === 'active').length;
 
   const quickActions = [
     {
@@ -105,17 +106,14 @@ const InstructorDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Avg Progress */}
+        {/* Avg Progress (Tenant-Isolated) */}
         <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Avg Progress</p>
               <p className="text-3xl font-bold text-gray-900 mt-2">
-                {enrollments.length > 0 
-                  ? Math.round(enrollments
-                      .filter(e => myCourses.some(c => c.id === e.course_id))
-                      .reduce((sum, e) => sum + (e.progress_percentage || 0), 0) / 
-                      enrollments.filter(e => myCourses.some(c => c.id === e.course_id)).length || 1)
+                {myEnrollments.length > 0 
+                  ? Math.round(myEnrollments.reduce((sum, e) => sum + (e.progress_percentage || 0), 0) / myEnrollments.length)
                   : 0}%
               </p>
               <p className="text-sm text-gray-600 mt-1">
@@ -128,13 +126,13 @@ const InstructorDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Completion Rate */}
+        {/* Completion Rate (Tenant-Isolated) */}
         <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Completion Rate</p>
               <p className="text-3xl font-bold text-gray-900 mt-2">
-                {enrollments.filter(e => myCourses.some(c => c.id === e.course_id) && e.status === 'completed').length}
+                {myEnrollments.filter(e => e.status === 'completed').length}
               </p>
               <p className="text-sm text-gray-600 mt-1">
                 Completed enrollments
@@ -199,7 +197,7 @@ const InstructorDashboard: React.FC = () => {
           <div className="p-6">
             <div className="space-y-3">
               {myCourses.slice(0, 5).map((course) => {
-                const courseEnrollments = enrollments.filter(e => e.course_id === course.id);
+                const courseEnrollments = myEnrollments.filter(e => e.course_id === course.id);
                 const avgProgress = courseEnrollments.length > 0
                   ? Math.round(courseEnrollments.reduce((sum, e) => sum + (e.progress_percentage || 0), 0) / courseEnrollments.length)
                   : 0;

@@ -4,14 +4,23 @@ import { Plus, Search, Building2, Users, BookOpen, TrendingUp, MoreVertical, Edi
 import { useSchools } from '../../hooks/useSchools';
 import PageLayout from '../ui/PageLayout';
 import CreateSchoolModal from './CreateSchoolModal';
+import EditSchoolModal from './EditSchoolModal';
 
 const SchoolsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedSchool, setSelectedSchool] = useState<any>(null);
   
   const { schools, loading, error, deleteSchool } = useSchools();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  const handleEdit = (school: any) => {
+    setSelectedSchool(school);
+    setShowEditModal(true);
+    setOpenDropdown(null);
+  };
 
   const handleDelete = async (school: any) => {
     if (window.confirm(`Deactivate school "${school.name}"? This will affect all users in this school.`)) {
@@ -103,8 +112,16 @@ const SchoolsPage: React.FC = () => {
                 <div className="p-6 border-b border-gray-200">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center">
-                      <div className="h-12 w-12 bg-primary-100 rounded-lg flex items-center justify-center">
-                        <Building2 className="h-6 w-6 text-primary-600" />
+                      <div className="h-12 w-12 bg-primary-100 rounded-lg flex items-center justify-center overflow-hidden">
+                        {school.logo_url ? (
+                          <img
+                            src={school.logo_url}
+                            alt={`${school.name} logo`}
+                            className="w-full h-full object-contain p-1"
+                          />
+                        ) : (
+                          <Building2 className="h-6 w-6 text-primary-600" />
+                        )}
                       </div>
                       <div className="ml-3">
                         <h3 className="text-lg font-semibold text-gray-900">{school.name}</h3>
@@ -135,8 +152,7 @@ const SchoolsPage: React.FC = () => {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setOpenDropdown(null);
-                                  alert('Edit school - coming soon!');
+                                  handleEdit(school);
                                 }}
                                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
                               >
@@ -228,9 +244,21 @@ const SchoolsPage: React.FC = () => {
       </PageLayout>
 
       {/* Create School Modal */}
-      <CreateSchoolModal
+      <CreateSchoolModal 
         isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
+        onClose={() => {
+          setShowCreateModal(false);
+          // Refresh schools list to show newly created school
+        }}
+      />
+
+      <EditSchoolModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedSchool(null);
+        }}
+        school={selectedSchool}
       />
     </>
   );

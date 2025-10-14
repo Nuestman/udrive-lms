@@ -1,17 +1,17 @@
-// Create School Modal - Super Admin Only
-import React, { useState, useRef } from 'react';
+// Edit School Modal - Super Admin Only
+import React, { useState, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useSchools } from '../../hooks/useSchools';
 import { useToast } from '../../contexts/ToastContext';
-import LogoUpload from './LogoUpload';
 
-interface CreateSchoolModalProps {
+interface EditSchoolModalProps {
   isOpen: boolean;
   onClose: () => void;
+  school: any;
 }
 
-const CreateSchoolModal: React.FC<CreateSchoolModalProps> = ({ isOpen, onClose }) => {
-  const { createSchool } = useSchools();
+const EditSchoolModal: React.FC<EditSchoolModalProps> = ({ isOpen, onClose, school }) => {
+  const { updateSchool } = useSchools();
   const toast = useToast();
   const [formData, setFormData] = useState({
     name: '',
@@ -25,20 +25,24 @@ const CreateSchoolModal: React.FC<CreateSchoolModalProps> = ({ isOpen, onClose }
   const [error, setError] = useState('');
   const logoInputRef = useRef<HTMLInputElement>(null);
 
+  // Initialize form with school data
+  useEffect(() => {
+    if (school) {
+      setFormData({
+        name: school.name || '',
+        subdomain: school.subdomain || '',
+        contact_email: school.contact_email || '',
+        contact_phone: school.contact_phone || '',
+        address: school.address || ''
+      });
+    }
+  }, [school]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
-    
-    // Auto-generate subdomain from name
-    if (e.target.name === 'name' && !formData.subdomain) {
-      const subdomain = e.target.value
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-      setFormData(prev => ({ ...prev, subdomain }));
-    }
   };
 
   const handleLogoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,16 +65,16 @@ const CreateSchoolModal: React.FC<CreateSchoolModalProps> = ({ isOpen, onClose }
     try {
       setSubmitting(true);
       
-      // Create school first
-      const newSchool = await createSchool(formData);
+      // Update school details
+      await updateSchool(school.id, formData);
       
       // If logo file is selected, upload it
-      if (logoFile && newSchool?.id) {
+      if (logoFile) {
         try {
           const formDataWithLogo = new FormData();
           formDataWithLogo.append('thumbnail', logoFile);
           
-          const uploadUrl = `${import.meta.env.VITE_API_URL}/media/tenant-logo/${newSchool.id}`;
+          const uploadUrl = `${import.meta.env.VITE_API_URL}/media/tenant-logo/${school.id}`;
           console.log('📤 Uploading logo to:', uploadUrl);
           
           const response = await fetch(uploadUrl, {
@@ -84,44 +88,36 @@ const CreateSchoolModal: React.FC<CreateSchoolModalProps> = ({ isOpen, onClose }
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             console.error('❌ Logo upload failed:', errorData);
-            toast.warning(`School created, but logo upload failed: ${errorData.message || 'Unknown error'}`);
+            toast.warning(`School updated, but logo upload failed: ${errorData.message || 'Unknown error'}`);
           } else {
             const result = await response.json();
             console.log('✅ Logo uploaded successfully:', result);
-            toast.success('School and logo created successfully!');
+            toast.success('School and logo updated successfully!');
           }
         } catch (error) {
           console.error('❌ Logo upload error:', error);
-          toast.warning('School created, but logo upload failed. You can edit the school to add a logo.');
+          toast.warning('School updated, but logo upload failed. Please try again.');
         }
-      } else if (newSchool?.id) {
-        toast.success('School created successfully!');
+      } else {
+        toast.success('School updated successfully!');
       }
       
-      // Reset form
-      setFormData({
-        name: '',
-        subdomain: '',
-        contact_email: '',
-        contact_phone: '',
-        address: ''
-      });
       setLogoFile(null);
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to create school');
+      setError(err.message || 'Failed to update school');
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !school) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Create New School</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Edit School</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -158,6 +154,20 @@ const CreateSchoolModal: React.FC<CreateSchoolModalProps> = ({ isOpen, onClose }
                   >
                     <X size={16} />
                   </button>
+                </div>
+              ) : school.logo_url ? (
+                <div className="relative w-full h-full">
+                  <img
+                    src={school.logo_url}
+                    alt="Current logo"
+                    className="w-full h-full object-contain p-4"
+                  />
+                  <div
+                    className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                    onClick={() => logoInputRef.current?.click()}
+                  >
+                    <span className="text-white text-sm">Click to change</span>
+                  </div>
                 </div>
               ) : (
                 <div
@@ -276,7 +286,7 @@ const CreateSchoolModal: React.FC<CreateSchoolModalProps> = ({ isOpen, onClose }
               disabled={submitting}
               className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Creating...' : 'Create School'}
+              {submitting ? 'Updating...' : 'Update School'}
             </button>
           </div>
         </form>
@@ -285,5 +295,5 @@ const CreateSchoolModal: React.FC<CreateSchoolModalProps> = ({ isOpen, onClose }
   );
 };
 
-export default CreateSchoolModal;
+export default EditSchoolModal;
 

@@ -10,9 +10,13 @@ JWT_SECRET=8c3f0d27d574dbf2c3cb9536cdcddb3eab201dd0118d3d503dd781e9e87fefe807610
 JWT_EXPIRES_IN=7d
 VITE_API_URL=http://localhost:5000/api
 FRONTEND_URL=http://localhost:5173
-VITE_TINYMCE_API_KEY=no-api-key
+VITE_TINYMCE_API_KEY=your-tinymce-api-key-here
 VITE_SUPABASE_URL=https://zrwrdfkntrfqarbidtou.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpyd3JkZmtudHJmcWFyYmlkdG91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIzMDIyNDgsImV4cCI6MjA2Nzg3ODI0OH0.QlEzPw9vXhNrmNtsVHeIGvxrKAR_NOGAjiZYpe
+
+# Vercel Blob Storage (REQUIRED for file uploads)
+# Get your token from: https://vercel.com/dashboard → Storage → Blob
+BLOB_READ_WRITE_TOKEN=your_vercel_blob_read_write_token_here
 
 ===================================================
 CRITICAL: The DATABASE_URL must be exactly as shown!
@@ -25,6 +29,21 @@ CRITICAL: The DATABASE_URL must be exactly as shown!
 
 This connection string was TESTED and WORKS!
 Shows: 9 users, 3 tenants, 5 courses
+
+===================================================
+IMPORTANT: TinyMCE API Key Required
+===================================================
+
+Replace 'your-tinymce-api-key-here' with your actual key.
+
+To get a FREE TinyMCE API key:
+1. Go to: https://www.tiny.cloud/auth/signup/
+2. Sign up for a free account
+3. Copy your API key from the dashboard
+4. Replace 'your-tinymce-api-key-here' in .env file
+5. Restart your dev server: npm run dev
+
+Without a valid API key, the lesson editor will not work!
 
 ===================================================
 
