@@ -33,7 +33,8 @@ const StudentDashboardPage: React.FC = () => {
         
         if (lessonsRes.success && lessonsRes.data.length > 0) {
           const firstLesson = lessonsRes.data[0];
-          navigate(`/student/courses/${slugOrId}/lessons/${firstLesson.id}`);
+          const slug = (firstLesson.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+          navigate(`/student/courses/${slugOrId}/lessons/${slug}-${firstLesson.id}`);
           return;
         }
       }

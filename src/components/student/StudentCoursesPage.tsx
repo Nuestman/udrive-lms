@@ -59,7 +59,8 @@ const StudentCoursesPage: React.FC = () => {
         
         if (lessonsRes.success && lessonsRes.data.length > 0) {
           const firstLesson = lessonsRes.data[0];
-          navigate(`/student/courses/${coursePathId}/lessons/${firstLesson.id}`);
+          const slug = (firstLesson.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+          navigate(`/student/courses/${coursePathId}/lessons/${slug}-${firstLesson.id}`);
           return;
         }
       }
@@ -86,7 +87,8 @@ const StudentCoursesPage: React.FC = () => {
         
         if (lessonsRes.success && lessonsRes.data.length > 0) {
           const firstLesson = lessonsRes.data[0];
-          navigate(`/student/courses/${coursePathId}/lessons/${firstLesson.id}`);
+          const slug = (firstLesson.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+          navigate(`/student/courses/${coursePathId}/lessons/${slug}-${firstLesson.id}`);
           return;
         }
       }

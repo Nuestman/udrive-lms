@@ -13,7 +13,7 @@ import { cleanLessonContent, convertYouTubeUrls, fixIframeAttributes } from '../
 import CelebrationModal from '../ui/CelebrationModal';
 
 const StudentLessonViewer: React.FC = () => {
-  const { courseId: courseSlugOrId, lessonId } = useParams<{ courseId: string; lessonId: string }>();
+  const { courseId: courseSlugOrId, lessonId: lessonParam } = useParams<{ courseId: string; lessonId: string }>();
   const navigate = useNavigate();
   const { profile } = useAuth();
   
@@ -25,6 +25,7 @@ const StudentLessonViewer: React.FC = () => {
   const [isCompleting, setIsCompleting] = useState(false);
   const [isNavigatingNext, setIsNavigatingNext] = useState(false);
   const [resolvedCourseId, setResolvedCourseId] = useState<string | null>(null);
+  const [resolvedLessonId, setResolvedLessonId] = useState<string | null>(null);
   
   // Celebration modal state
   const [celebrationModal, setCelebrationModal] = useState<{
@@ -54,11 +55,11 @@ const StudentLessonViewer: React.FC = () => {
   }, [courseSlugOrId]);
 
   useEffect(() => {
-    if (lessonId && allLessons.length > 0) {
-      const lesson = allLessons.find(l => l.id === lessonId);
+    if (resolvedLessonId && allLessons.length > 0) {
+      const lesson = allLessons.find(l => l.id === resolvedLessonId);
       setCurrentLesson(lesson);
     }
-  }, [lessonId, allLessons]);
+  }, [resolvedLessonId, allLessons]);
 
   const fetchCourseData = async () => {
     try {
@@ -78,9 +79,17 @@ const StudentLessonViewer: React.FC = () => {
       if (courseRes.success) {
         setCourse(courseRes.data);
         setResolvedCourseId(resolvedId);
-        // If URL used UUID but course has a slug, redirect to pretty URL
+        // Resolve lesson param (supports slug-uuid like slug-<uuid>)
+        let lessonUuid: string | null = null;
+        if (lessonParam) {
+          const match = lessonParam.match(/[0-9a-fA-F-]{36}$/);
+          lessonUuid = match ? match[0] : (/[0-9a-fA-F-]{36}/.test(lessonParam) ? lessonParam : null);
+        }
+        if (lessonUuid) setResolvedLessonId(lessonUuid);
+
+        // If course param is UUID but slug exists, redirect to pretty course slug, keeping lesson param as is
         if (isUuidParam && courseRes.data?.slug) {
-          navigate(`/student/courses/${courseRes.data.slug}/lessons/${lessonId || ''}`.replace(/\/$/, ''), { replace: true });
+          navigate(`/student/courses/${courseRes.data.slug}/lessons/${lessonParam || ''}`.replace(/\/$/, ''), { replace: true });
         }
       }
 
@@ -113,8 +122,10 @@ const StudentLessonViewer: React.FC = () => {
         setAllLessons(allLessonsFlat);
         
         // If no lesson selected, show first lesson
-        if (!lessonId && allLessonsFlat.length > 0) {
-          navigate(`/student/courses/${courseSlugOrId}/lessons/${allLessonsFlat[0].id}`, { replace: true });
+        if (!lessonParam && allLessonsFlat.length > 0) {
+          const first = allLessonsFlat[0];
+          const slug = (first.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+          navigate(`/student/courses/${courseSlugOrId}/lessons/${slug}-${first.id}`, { replace: true });
         }
       }
     } catch (err) {
@@ -238,13 +249,15 @@ const StudentLessonViewer: React.FC = () => {
   };
 
   const getCurrentLessonIndex = () => {
-    return allLessons.findIndex(l => l.id === lessonId);
+    return allLessons.findIndex(l => l.id === resolvedLessonId);
   };
 
   const goToNextLesson = () => {
     const currentIndex = getCurrentLessonIndex();
     if (currentIndex < allLessons.length - 1) {
-      navigate(`/student/courses/${courseSlugOrId}/lessons/${allLessons[currentIndex + 1].id}`);
+      const next = allLessons[currentIndex + 1];
+      const slug = (next.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+      navigate(`/student/courses/${courseSlugOrId}/lessons/${slug}-${next.id}`);
     }
   };
 
@@ -276,7 +289,9 @@ const StudentLessonViewer: React.FC = () => {
       // Find first lesson in next module
       const nextModuleLessons = allLessons.filter(l => l.module_id === nextModule.id);
       if (nextModuleLessons.length > 0) {
-        navigate(`/student/courses/${courseSlugOrId}/lessons/${nextModuleLessons[0].id}`);
+        const first = nextModuleLessons[0];
+        const slug = (first.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+        navigate(`/student/courses/${courseSlugOrId}/lessons/${slug}-${first.id}`);
       }
     }
   };
@@ -284,7 +299,9 @@ const StudentLessonViewer: React.FC = () => {
   const goToPreviousLesson = () => {
     const currentIndex = getCurrentLessonIndex();
     if (currentIndex > 0) {
-      navigate(`/student/courses/${courseSlugOrId}/lessons/${allLessons[currentIndex - 1].id}`);
+      const prev = allLessons[currentIndex - 1];
+      const slug = (prev.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+      navigate(`/student/courses/${courseSlugOrId}/lessons/${slug}-${prev.id}`);
     }
   };
 
@@ -412,12 +429,15 @@ const StudentLessonViewer: React.FC = () => {
                     </div>
                     {moduleLessons.map((lesson) => {
                       const completed = isLessonCompleted(lesson.id);
-                      const isCurrent = lesson.id === lessonId;
+                      const isCurrent = lesson.id === resolvedLessonId;
                       
                       return (
                         <button
                           key={lesson.id}
-                          onClick={() => navigate(`/student/courses/${courseSlugOrId}/lessons/${lesson.id}`)}
+                          onClick={() => {
+                            const slug = (lesson.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+                            navigate(`/student/courses/${courseSlugOrId}/lessons/${slug}-${lesson.id}`);
+                          }}
                           className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 transition-colors ${
                             isCurrent
                               ? 'bg-primary-50 text-primary-700 font-medium'
