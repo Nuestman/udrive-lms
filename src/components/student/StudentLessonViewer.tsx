@@ -24,6 +24,7 @@ const StudentLessonViewer: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
   const [isNavigatingNext, setIsNavigatingNext] = useState(false);
+  const [resolvedCourseId, setResolvedCourseId] = useState<string | null>(null);
   
   // Celebration modal state
   const [celebrationModal, setCelebrationModal] = useState<{
@@ -40,17 +41,17 @@ const StudentLessonViewer: React.FC = () => {
     hasNextModule: false
   });
   
-  const { progress, markLessonComplete, markLessonIncomplete, refresh: refreshProgress } = useProgress(profile?.id, courseId);
-  const enrollmentFilters = useMemo(() => (courseId ? { course_id: courseId } : undefined), [courseId]);
+  const { progress, markLessonComplete, markLessonIncomplete, refresh: refreshProgress } = useProgress(profile?.id, resolvedCourseId || undefined);
+  const enrollmentFilters = useMemo(() => (resolvedCourseId ? { course_id: resolvedCourseId } : undefined), [resolvedCourseId]);
   const { enrollments, refreshEnrollments } = useEnrollments(enrollmentFilters as any);
   const { info, success } = useToast();
 
   useEffect(() => {
-    if (courseId) {
+    if (courseSlugOrId) {
       fetchCourseData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courseId]);
+  }, [courseSlugOrId]);
 
   useEffect(() => {
     if (lessonId && allLessons.length > 0) {
@@ -65,20 +66,26 @@ const StudentLessonViewer: React.FC = () => {
       
       // Fetch course details
       // Resolve course by slug or id
-      let resolvedCourseId = courseSlugOrId;
-      if (courseSlugOrId && !/^[0-9a-fA-F-]{36}$/.test(courseSlugOrId)) {
+      let resolvedId = courseSlugOrId;
+      const isUuidParam = /^[0-9a-fA-F-]{36}$/.test(courseSlugOrId || '');
+      if (courseSlugOrId && !isUuidParam) {
         const bySlug = await api.get(`/courses/slug/${courseSlugOrId}`);
         if (bySlug.success && bySlug.data?.id) {
-          resolvedCourseId = bySlug.data.id;
+          resolvedId = bySlug.data.id;
         }
       }
-      const courseRes = await api.get(`/courses/${resolvedCourseId}`);
+      const courseRes = await api.get(`/courses/${resolvedId}`);
       if (courseRes.success) {
         setCourse(courseRes.data);
+        setResolvedCourseId(resolvedId);
+        // If URL used UUID but course has a slug, redirect to pretty URL
+        if (isUuidParam && courseRes.data?.slug) {
+          navigate(`/student/courses/${courseRes.data.slug}/lessons/${lessonId || ''}`.replace(/\/$/, ''), { replace: true });
+        }
       }
 
       // Fetch modules with lessons
-      const modulesRes = await api.get(`/modules/course/${resolvedCourseId}`);
+      const modulesRes = await api.get(`/modules/course/${resolvedId}`);
       if (modulesRes.success) {
         const mods = modulesRes.data;
         setModules(mods);
@@ -185,7 +192,7 @@ const StudentLessonViewer: React.FC = () => {
   };
 
   const getEnrollmentIdForCourse = () => {
-    const enrollment = enrollments?.find((e: any) => e.course_id === courseId);
+    const enrollment = enrollments?.find((e: any) => e.course_id === resolvedCourseId);
     return enrollment?.id as string | undefined;
   };
 
@@ -237,7 +244,7 @@ const StudentLessonViewer: React.FC = () => {
   const goToNextLesson = () => {
     const currentIndex = getCurrentLessonIndex();
     if (currentIndex < allLessons.length - 1) {
-      navigate(`/student/courses/${courseId}/lessons/${allLessons[currentIndex + 1].id}`);
+      navigate(`/student/courses/${courseSlugOrId}/lessons/${allLessons[currentIndex + 1].id}`);
     }
   };
 
@@ -269,7 +276,7 @@ const StudentLessonViewer: React.FC = () => {
       // Find first lesson in next module
       const nextModuleLessons = allLessons.filter(l => l.module_id === nextModule.id);
       if (nextModuleLessons.length > 0) {
-        navigate(`/student/courses/${courseId}/lessons/${nextModuleLessons[0].id}`);
+        navigate(`/student/courses/${courseSlugOrId}/lessons/${nextModuleLessons[0].id}`);
       }
     }
   };
@@ -277,7 +284,7 @@ const StudentLessonViewer: React.FC = () => {
   const goToPreviousLesson = () => {
     const currentIndex = getCurrentLessonIndex();
     if (currentIndex > 0) {
-      navigate(`/student/courses/${courseId}/lessons/${allLessons[currentIndex - 1].id}`);
+      navigate(`/student/courses/${courseSlugOrId}/lessons/${allLessons[currentIndex - 1].id}`);
     }
   };
 
@@ -410,7 +417,7 @@ const StudentLessonViewer: React.FC = () => {
                       return (
                         <button
                           key={lesson.id}
-                          onClick={() => navigate(`/student/courses/${courseId}/lessons/${lesson.id}`)}
+                          onClick={() => navigate(`/student/courses/${courseSlugOrId}/lessons/${lesson.id}`)}
                           className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 transition-colors ${
                             isCurrent
                               ? 'bg-primary-50 text-primary-700 font-medium'
