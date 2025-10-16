@@ -28,6 +28,15 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /api/courses/slug/:slug
+ * Get single course by slug (tenant scoped)
+ */
+router.get('/slug/:slug', asyncHandler(async (req, res) => {
+  const course = await coursesService.getCourseBySlug(req.params.slug, req.tenantId);
+  res.json({ success: true, data: course });
+}));
+
+/**
  * GET /api/courses/:id
  * Get single course by ID
  * - Super Admin: Any course
@@ -40,15 +49,6 @@ router.get('/:id', asyncHandler(async (req, res) => {
     success: true,
     data: course
   });
-}));
-
-/**
- * GET /api/courses/slug/:slug
- * Get single course by slug (tenant scoped)
- */
-router.get('/slug/:slug', asyncHandler(async (req, res) => {
-  const course = await coursesService.getCourseBySlug(req.params.slug, req.tenantId);
-  res.json({ success: true, data: course });
 }));
 
 /**
