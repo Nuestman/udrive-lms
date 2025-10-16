@@ -22,7 +22,7 @@ export async function getDashboardStats(tenantId, isSuperAdmin = false) {
         COUNT(*) as total_students,
         COUNT(*) FILTER (WHERE is_active = true) as active_students,
         COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '30 days') as new_this_month
-       FROM user_profiles 
+       FROM users 
        ${isSuperAdmin ? "WHERE role = 'student'" : "WHERE tenant_id = $1 AND role = 'student'"}`,
       params
     ),
@@ -66,7 +66,7 @@ export async function getDashboardStats(tenantId, isSuperAdmin = false) {
         COUNT(*) as total_certificates,
         COUNT(*) FILTER (WHERE issued_at > NOW() - INTERVAL '30 days') as monthly_certificates
        FROM certificates cert
-       JOIN user_profiles u ON cert.student_id = u.id
+       JOIN users u ON cert.student_id = u.id
        ${isSuperAdmin ? '' : 'WHERE u.tenant_id = $1'}`,
       params
     )
@@ -75,8 +75,8 @@ export async function getDashboardStats(tenantId, isSuperAdmin = false) {
   // Get instructor count
   const instructorStats = await query(
     isSuperAdmin
-      ? 'SELECT COUNT(*) as count FROM user_profiles WHERE role = \'instructor\' AND is_active = true'
-      : 'SELECT COUNT(*) as count FROM user_profiles WHERE tenant_id = $1 AND role = \'instructor\' AND is_active = true',
+      ? 'SELECT COUNT(*) as count FROM users WHERE role = \'instructor\' AND is_active = true'
+      : 'SELECT COUNT(*) as count FROM users WHERE tenant_id = $1 AND role = \'instructor\' AND is_active = true',
     params
   );
 
@@ -116,10 +116,11 @@ export async function getRecentActivity(tenantId, limit = 10) {
   // Recent enrollments
   const enrollments = await query(
     `SELECT e.enrolled_at as timestamp, 'enrollment' as type,
-      u.first_name || ' ' || u.last_name as user_name,
+      p.first_name || ' ' || p.last_name as user_name,
       c.title as course_title
      FROM enrollments e
-     JOIN user_profiles u ON e.student_id = u.id
+     JOIN users u ON e.student_id = u.id
+     LEFT JOIN user_profiles p ON p.user_id = u.id
      JOIN courses c ON e.course_id = c.id
      WHERE c.tenant_id = $1
      ORDER BY e.enrolled_at DESC
@@ -139,10 +140,11 @@ export async function getRecentActivity(tenantId, limit = 10) {
   // Recent certificates
   const certificates = await query(
     `SELECT cert.issued_at as timestamp, 'certificate' as type,
-      u.first_name || ' ' || u.last_name as user_name,
+      p.first_name || ' ' || p.last_name as user_name,
       c.title as course_title
      FROM certificates cert
-     JOIN user_profiles u ON cert.student_id = u.id
+     JOIN users u ON cert.student_id = u.id
+     LEFT JOIN user_profiles p ON p.user_id = u.id
      JOIN courses c ON cert.course_id = c.id
      WHERE u.tenant_id = $1
      ORDER BY cert.issued_at DESC

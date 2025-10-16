@@ -2,8 +2,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { query } from '../lib/db.js';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+import { APP_CONFIG } from '../config/app.js';
 
 /**
  * Login user
@@ -11,9 +10,20 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 export async function login(credentials) {
   const { email, password } = credentials;
   
-  // Get user
+  // Get user with ALL profile data
   const result = await query(
-    'SELECT * FROM user_profiles WHERE email = $1 AND is_active = true',
+    `SELECT 
+       u.id, u.tenant_id, u.email, u.role, u.settings, u.is_active, u.last_login,
+       u.created_at, u.updated_at, u.password_hash,
+       p.first_name, p.last_name, p.avatar_url, p.phone, p.bio, p.date_of_birth,
+       p.address_line1, p.address_line2, p.city, p.state_province, p.postal_code, p.country,
+       p.emergency_contact_name, p.emergency_contact_phone, p.emergency_contact_email, p.emergency_contact_relationship,
+       p.guardian_name, p.guardian_email, p.guardian_phone, p.guardian_relationship, p.guardian_address,
+       p.nationality, p.preferred_language, p.timezone, p.profile_preferences,
+       p.linkedin_url, p.twitter_url, p.website_url
+     FROM users u
+     LEFT JOIN user_profiles p ON p.user_id = u.id
+     WHERE u.email = $1 AND u.is_active = true`,
     [email]
   );
 
@@ -32,7 +42,7 @@ export async function login(credentials) {
 
   // Update last login
   await query(
-    'UPDATE user_profiles SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
+    'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
     [user.id]
   );
 
@@ -44,8 +54,8 @@ export async function login(credentials) {
       role: user.role,
       tenant_id: user.tenant_id
     },
-    JWT_SECRET,
-    { expiresIn: '7d' }
+    APP_CONFIG.JWT_SECRET,
+    { expiresIn: APP_CONFIG.JWT_EXPIRES_IN }
   );
 
   // Remove password from response
@@ -98,7 +108,7 @@ export async function signup(userData) {
 
   // Check if email already exists
   const existingUser = await query(
-    'SELECT id FROM user_profiles WHERE email = $1',
+    'SELECT id FROM users WHERE email = $1',
     [email]
   );
 
@@ -109,15 +119,22 @@ export async function signup(userData) {
   // Hash password
   const password_hash = await bcrypt.hash(password, 10);
 
-  // Create user
-  const result = await query(
-    `INSERT INTO user_profiles (email, password_hash, first_name, last_name, phone, tenant_id, role, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+  // Create user (auth table only)
+  const userResult = await query(
+    `INSERT INTO users (email, password_hash, tenant_id, role, is_active)
+     VALUES ($1, $2, $3, $4, true)
      RETURNING *`,
-    [email, password_hash, first_name, last_name, phone, tenantIdToUse, role || 'student']
+    [email, password_hash, tenantIdToUse, role || 'student']
   );
 
-  const user = result.rows[0];
+  const user = userResult.rows[0];
+
+  // Create profile
+  await query(
+    `INSERT INTO user_profiles (user_id, first_name, last_name, phone)
+     VALUES ($1, $2, $3, $4)`,
+    [user.id, first_name, last_name, phone]
+  );
 
   // Generate token
   const token = jwt.sign(
@@ -127,13 +144,22 @@ export async function signup(userData) {
       role: user.role,
       tenant_id: user.tenant_id
     },
-    JWT_SECRET,
-    { expiresIn: '7d' }
+    APP_CONFIG.JWT_SECRET,
+    { expiresIn: APP_CONFIG.JWT_EXPIRES_IN }
   );
 
   const { password_hash: _, ...userWithoutPassword } = user;
 
-  return { user: userWithoutPassword, token };
+  // Add profile fields to response
+  return { 
+    user: {
+      ...userWithoutPassword,
+      first_name,
+      last_name,
+      phone
+    }, 
+    token 
+  };
 }
 
 /**
@@ -160,7 +186,7 @@ export async function signupWithSchool(userData, schoolData) {
 
   // Check if email already exists
   const existingUser = await query(
-    'SELECT id FROM user_profiles WHERE email = $1',
+    'SELECT id FROM users WHERE email = $1',
     [email]
   );
 
@@ -181,15 +207,22 @@ export async function signupWithSchool(userData, schoolData) {
   // Hash password
   const password_hash = await bcrypt.hash(password, 10);
 
-  // Create school admin user
+  // Create school admin user (auth table only)
   const userResult = await query(
-    `INSERT INTO user_profiles (email, password_hash, first_name, last_name, phone, tenant_id, role, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, 'school_admin', true)
+    `INSERT INTO users (email, password_hash, tenant_id, role, is_active)
+     VALUES ($1, $2, $3, 'school_admin', true)
      RETURNING *`,
-    [email, password_hash, first_name, last_name, phone, tenant.id]
+    [email, password_hash, tenant.id]
   );
 
   const user = userResult.rows[0];
+
+  // Create profile
+  await query(
+    `INSERT INTO user_profiles (user_id, first_name, last_name, phone)
+     VALUES ($1, $2, $3, $4)`,
+    [user.id, first_name, last_name, phone]
+  );
 
   // Generate token
   const token = jwt.sign(
@@ -199,14 +232,19 @@ export async function signupWithSchool(userData, schoolData) {
       role: user.role,
       tenant_id: user.tenant_id
     },
-    JWT_SECRET,
-    { expiresIn: '7d' }
+    APP_CONFIG.JWT_SECRET,
+    { expiresIn: APP_CONFIG.JWT_EXPIRES_IN }
   );
 
   const { password_hash: _, ...userWithoutPassword } = user;
 
   return { 
-    user: userWithoutPassword, 
+    user: {
+      ...userWithoutPassword,
+      first_name,
+      last_name,
+      phone
+    }, 
     token,
     school: tenant
   };
@@ -218,7 +256,7 @@ export async function signupWithSchool(userData, schoolData) {
 export async function signupSuperAdmin(userData) {
   // Check if super admin already exists
   const existingSuperAdmin = await query(
-    "SELECT id FROM user_profiles WHERE role = 'super_admin' AND is_active = true"
+    "SELECT id FROM users WHERE role = 'super_admin' AND is_active = true"
   );
 
   if (existingSuperAdmin.rows.length > 0) {
@@ -229,7 +267,7 @@ export async function signupSuperAdmin(userData) {
 
   // Check if email exists
   const existingUser = await query(
-    'SELECT id FROM user_profiles WHERE email = $1',
+    'SELECT id FROM users WHERE email = $1',
     [email]
   );
 
@@ -241,14 +279,21 @@ export async function signupSuperAdmin(userData) {
   const password_hash = await bcrypt.hash(password, 10);
 
   // Create super admin (no tenant)
-  const result = await query(
-    `INSERT INTO user_profiles (email, password_hash, first_name, last_name, tenant_id, role, is_active)
-     VALUES ($1, $2, $3, $4, NULL, 'super_admin', true)
+  const userResult = await query(
+    `INSERT INTO users (email, password_hash, tenant_id, role, is_active)
+     VALUES ($1, $2, NULL, 'super_admin', true)
      RETURNING *`,
-    [email, password_hash, first_name, last_name]
+    [email, password_hash]
   );
 
-  const user = result.rows[0];
+  const user = userResult.rows[0];
+
+  // Create profile
+  await query(
+    `INSERT INTO user_profiles (user_id, first_name, last_name)
+     VALUES ($1, $2, $3)`,
+    [user.id, first_name, last_name]
+  );
 
   // Generate token
   const token = jwt.sign(
@@ -258,13 +303,20 @@ export async function signupSuperAdmin(userData) {
       role: user.role,
       tenant_id: null
     },
-    JWT_SECRET,
-    { expiresIn: '7d' }
+    APP_CONFIG.JWT_SECRET,
+    { expiresIn: APP_CONFIG.JWT_EXPIRES_IN }
   );
 
   const { password_hash: _, ...userWithoutPassword } = user;
 
-  return { user: userWithoutPassword, token };
+  return { 
+    user: {
+      ...userWithoutPassword,
+      first_name,
+      last_name
+    }, 
+    token 
+  };
 }
 
 /**
@@ -272,11 +324,22 @@ export async function signupSuperAdmin(userData) {
  */
 export async function verifyToken(token) {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, APP_CONFIG.JWT_SECRET);
     
-    // Get fresh user data
+    // Get fresh user data with ALL profile fields
     const result = await query(
-      'SELECT * FROM user_profiles WHERE id = $1 AND is_active = true',
+      `SELECT 
+         u.id, u.tenant_id, u.email, u.role, u.settings, u.is_active, u.last_login,
+         u.created_at, u.updated_at,
+         p.first_name, p.last_name, p.avatar_url, p.phone, p.bio, p.date_of_birth,
+         p.address_line1, p.address_line2, p.city, p.state_province, p.postal_code, p.country,
+         p.emergency_contact_name, p.emergency_contact_phone, p.emergency_contact_email, p.emergency_contact_relationship,
+         p.guardian_name, p.guardian_email, p.guardian_phone, p.guardian_relationship, p.guardian_address,
+         p.nationality, p.preferred_language, p.timezone, p.profile_preferences,
+         p.linkedin_url, p.twitter_url, p.website_url
+       FROM users u
+       LEFT JOIN user_profiles p ON p.user_id = u.id
+       WHERE u.id = $1 AND u.is_active = true`,
       [decoded.id]
     );
 
@@ -295,22 +358,70 @@ export async function verifyToken(token) {
  * Update user profile
  */
 export async function updateProfile(userId, updates) {
-  const { first_name, last_name, phone, avatar_url } = updates;
+  // Define allowed profile fields
+  const profileFields = [
+    'first_name', 'last_name', 'phone', 'avatar_url', 'bio', 'date_of_birth',
+    'address_line1', 'address_line2', 'city', 'state_province', 'postal_code', 'country',
+    'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_email', 'emergency_contact_relationship',
+    'guardian_name', 'guardian_email', 'guardian_phone', 'guardian_relationship', 'guardian_address',
+    'nationality', 'preferred_language', 'timezone', 'profile_preferences',
+    'linkedin_url', 'twitter_url', 'website_url'
+  ];
 
-  const result = await query(
+  // Build dynamic UPDATE query for profile fields only
+  const updateFields = [];
+  const values = [userId]; // $1 is userId
+  let paramIndex = 2;
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (profileFields.includes(key)) {
+      updateFields.push(`${key} = $${paramIndex}`);
+      values.push(value);
+      paramIndex++;
+    }
+  }
+
+  if (updateFields.length === 0) {
+    throw new Error('No valid profile fields to update');
+  }
+
+  // Update profile table
+  await query(
     `UPDATE user_profiles
-     SET first_name = COALESCE($2, first_name),
-         last_name = COALESCE($3, last_name),
-         phone = COALESCE($4, phone),
-         avatar_url = COALESCE($5, avatar_url),
-         updated_at = CURRENT_TIMESTAMP
-     WHERE id = $1
-     RETURNING *`,
-    [userId, first_name, last_name, phone, avatar_url]
+     SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+     WHERE user_id = $1`,
+    values
   );
 
-  const { password_hash, ...userWithoutPassword } = result.rows[0];
-  return userWithoutPassword;
+  // Return updated user with ALL profile fields
+  const result = await query(
+    `SELECT 
+       u.id, u.tenant_id, u.email, u.role, u.settings, u.is_active, u.last_login,
+       u.created_at as user_created_at, u.updated_at as user_updated_at,
+       p.first_name, p.last_name, p.avatar_url, p.phone, p.bio, p.date_of_birth,
+       p.address_line1, p.address_line2, p.city, p.state_province, p.postal_code, p.country,
+       p.emergency_contact_name, p.emergency_contact_phone, p.emergency_contact_email, p.emergency_contact_relationship,
+       p.guardian_name, p.guardian_email, p.guardian_phone, p.guardian_relationship, p.guardian_address,
+       p.nationality, p.preferred_language, p.timezone, p.profile_preferences,
+       p.linkedin_url, p.twitter_url, p.website_url,
+       p.created_at as profile_created_at, p.updated_at as profile_updated_at
+     FROM users u
+     LEFT JOIN user_profiles p ON p.user_id = u.id
+     WHERE u.id = $1`,
+    [userId]
+  );
+
+  if (result.rows.length === 0) {
+    throw new Error('User not found');
+  }
+
+  const { password_hash, user_created_at, profile_created_at, profile_updated_at, ...userWithProfile } = result.rows[0];
+  
+  // Use user table timestamps as primary
+  userWithProfile.created_at = user_created_at;
+  userWithProfile.updated_at = profile_updated_at || userWithProfile.user_updated_at;
+  
+  return userWithProfile;
 }
 
 /**
@@ -319,7 +430,7 @@ export async function updateProfile(userId, updates) {
 export async function changePassword(userId, currentPassword, newPassword) {
   // Get user
   const result = await query(
-    'SELECT password_hash FROM user_profiles WHERE id = $1',
+    'SELECT password_hash FROM users WHERE id = $1',
     [userId]
   );
 
@@ -339,7 +450,7 @@ export async function changePassword(userId, currentPassword, newPassword) {
 
   // Update password
   await query(
-    'UPDATE user_profiles SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+    'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
     [newPasswordHash, userId]
   );
 
@@ -352,7 +463,7 @@ export async function changePassword(userId, currentPassword, newPassword) {
 export async function requestPasswordReset(email) {
   // Check if user exists
   const result = await query(
-    'SELECT id FROM user_profiles WHERE email = $1',
+    'SELECT id FROM users WHERE email = $1',
     [email]
   );
 
@@ -364,7 +475,7 @@ export async function requestPasswordReset(email) {
   // Generate reset token
   const resetToken = jwt.sign(
     { id: result.rows[0].id, purpose: 'reset_password' },
-    JWT_SECRET,
+    APP_CONFIG.JWT_SECRET,
     { expiresIn: '1h' }
   );
 
@@ -379,7 +490,7 @@ export async function requestPasswordReset(email) {
  */
 export async function resetPassword(resetToken, newPassword) {
   try {
-    const decoded = jwt.verify(resetToken, JWT_SECRET);
+    const decoded = jwt.verify(resetToken, APP_CONFIG.JWT_SECRET);
 
     if (decoded.purpose !== 'reset_password') {
       throw new Error('Invalid reset token');
@@ -390,7 +501,7 @@ export async function resetPassword(resetToken, newPassword) {
 
     // Update password
     await query(
-      'UPDATE user_profiles SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
       [password_hash, decoded.id]
     );
 

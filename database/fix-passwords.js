@@ -21,14 +21,14 @@ async function fixPasswords() {
     
     console.log('\n📊 Updating all user passwords...');
     const result = await pool.query(
-      'UPDATE user_profiles SET password_hash = $1 WHERE password_hash LIKE $2',
+      'UPDATE users SET password_hash = $1 WHERE password_hash LIKE $2',
       [passwordHash, '%YourBcryptHashHere%']
     );
     
     console.log(`✅ Updated ${result.rowCount} user(s)`);
     
     // Verify
-    const users = await pool.query('SELECT email, role FROM user_profiles ORDER BY role');
+    const users = await pool.query('SELECT email, role FROM users ORDER BY role');
     console.log('\n👥 Users with updated passwords:');
     users.rows.forEach(user => {
       console.log(`  ✓ ${user.email} (${user.role})`);

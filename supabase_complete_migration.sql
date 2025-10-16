@@ -66,7 +66,7 @@ DROP TABLE IF EXISTS public.goals CASCADE;
 DROP TABLE IF EXISTS public.courses CASCADE;
 DROP TABLE IF EXISTS public.notifications CASCADE;
 DROP TABLE IF EXISTS public.media_files CASCADE;
-DROP TABLE IF EXISTS public.user_profiles CASCADE;
+DROP TABLE IF EXISTS public.users CASCADE;
 DROP TABLE IF EXISTS public.tenants CASCADE;
 
 -- =============================================
@@ -90,7 +90,7 @@ CREATE TABLE public.tenants (
 );
 
 -- USER PROFILES
-CREATE TABLE public.user_profiles (
+CREATE TABLE public.users (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL PRIMARY KEY,
     tenant_id uuid REFERENCES public.tenants(id) ON DELETE CASCADE,
     email text NOT NULL UNIQUE,
@@ -117,7 +117,7 @@ CREATE TABLE public.courses (
     status text DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'published'::text, 'archived'::text])),
     duration_weeks integer,
     price numeric(10,2) DEFAULT 0,
-    created_by uuid REFERENCES public.user_profiles(id),
+    created_by uuid REFERENCES public.users(id),
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now()
 );
@@ -154,7 +154,7 @@ CREATE TABLE public.lessons (
 -- ENROLLMENTS
 CREATE TABLE public.enrollments (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL PRIMARY KEY,
-    student_id uuid REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    student_id uuid REFERENCES public.users(id) ON DELETE CASCADE,
     course_id uuid REFERENCES public.courses(id) ON DELETE CASCADE,
     status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['pending'::text, 'active'::text, 'completed'::text, 'suspended'::text])),
     enrolled_at timestamp with time zone DEFAULT now(),
@@ -169,7 +169,7 @@ CREATE TABLE public.enrollments (
 -- LESSON PROGRESS
 CREATE TABLE public.lesson_progress (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL PRIMARY KEY,
-    student_id uuid REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    student_id uuid REFERENCES public.users(id) ON DELETE CASCADE,
     lesson_id uuid REFERENCES public.lessons(id) ON DELETE CASCADE,
     status text DEFAULT 'not_started'::text CHECK (status = ANY (ARRAY['not_started'::text, 'in_progress'::text, 'completed'::text])),
     started_at timestamp with time zone,
@@ -184,7 +184,7 @@ CREATE TABLE public.lesson_progress (
 -- GOALS
 CREATE TABLE public.goals (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL PRIMARY KEY,
-    student_id uuid REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    student_id uuid REFERENCES public.users(id) ON DELETE CASCADE,
     course_id uuid REFERENCES public.courses(id) ON DELETE CASCADE,
     title text NOT NULL,
     description text,
@@ -230,7 +230,7 @@ CREATE TABLE public.quiz_questions (
 -- QUIZ ATTEMPTS
 CREATE TABLE public.quiz_attempts (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL PRIMARY KEY,
-    student_id uuid REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    student_id uuid REFERENCES public.users(id) ON DELETE CASCADE,
     quiz_id uuid REFERENCES public.quizzes(id) ON DELETE CASCADE,
     status text DEFAULT 'in_progress'::text CHECK (status = ANY (ARRAY['in_progress'::text, 'completed'::text, 'abandoned'::text])),
     score integer,
@@ -244,7 +244,7 @@ CREATE TABLE public.quiz_attempts (
 -- NOTIFICATIONS
 CREATE TABLE public.notifications (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL PRIMARY KEY,
-    user_id uuid REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    user_id uuid REFERENCES public.users(id) ON DELETE CASCADE,
     type text NOT NULL,
     title text NOT NULL,
     message text NOT NULL,
@@ -256,7 +256,7 @@ CREATE TABLE public.notifications (
 -- CERTIFICATES
 CREATE TABLE public.certificates (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL PRIMARY KEY,
-    student_id uuid REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    student_id uuid REFERENCES public.users(id) ON DELETE CASCADE,
     course_id uuid REFERENCES public.courses(id) ON DELETE CASCADE,
     certificate_number text NOT NULL UNIQUE,
     verification_code text NOT NULL UNIQUE,
@@ -288,13 +288,13 @@ CREATE TABLE public.assignments (
 CREATE TABLE public.assignment_submissions (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL PRIMARY KEY,
     assignment_id uuid REFERENCES public.assignments(id) ON DELETE CASCADE,
-    student_id uuid REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+    student_id uuid REFERENCES public.users(id) ON DELETE CASCADE,
     content text,
     file_urls jsonb,
     status text DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'submitted'::text, 'graded'::text, 'returned'::text])),
     score integer,
     feedback text,
-    graded_by uuid REFERENCES public.user_profiles(id),
+    graded_by uuid REFERENCES public.users(id),
     graded_at timestamp with time zone,
     submitted_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now(),
@@ -306,7 +306,7 @@ CREATE TABLE public.assignment_submissions (
 CREATE TABLE public.media_files (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL PRIMARY KEY,
     tenant_id uuid REFERENCES public.tenants(id) ON DELETE CASCADE,
-    uploaded_by uuid REFERENCES public.user_profiles(id),
+    uploaded_by uuid REFERENCES public.users(id),
     filename text NOT NULL,
     original_filename text NOT NULL,
     file_type text NOT NULL,
@@ -323,7 +323,7 @@ CREATE TABLE public.media_files (
 CREATE TABLE public.audit_log (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL PRIMARY KEY,
     tenant_id uuid REFERENCES public.tenants(id),
-    user_id uuid REFERENCES public.user_profiles(id),
+    user_id uuid REFERENCES public.users(id),
     action text NOT NULL,
     entity_type text NOT NULL,
     entity_id uuid,
@@ -337,9 +337,9 @@ CREATE TABLE public.audit_log (
 -- CREATE INDEXES
 -- =============================================
 
-CREATE INDEX idx_user_profiles_tenant_id ON public.user_profiles(tenant_id);
-CREATE INDEX idx_user_profiles_email ON public.user_profiles(email);
-CREATE INDEX idx_user_profiles_role ON public.user_profiles(role);
+CREATE INDEX idx_users_tenant_id ON public.users(tenant_id);
+CREATE INDEX idx_users_email ON public.users(email);
+CREATE INDEX idx_users_role ON public.users(role);
 
 CREATE INDEX idx_courses_tenant_id ON public.courses(tenant_id);
 CREATE INDEX idx_courses_status ON public.courses(status);
@@ -390,7 +390,7 @@ CREATE INDEX idx_audit_log_created_at ON public.audit_log(created_at);
 -- =============================================
 
 CREATE TRIGGER update_tenants_updated_at BEFORE UPDATE ON public.tenants FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-CREATE TRIGGER update_user_profiles_updated_at BEFORE UPDATE ON public.user_profiles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER update_courses_updated_at BEFORE UPDATE ON public.courses FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER update_modules_updated_at BEFORE UPDATE ON public.modules FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER update_lessons_updated_at BEFORE UPDATE ON public.lessons FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -413,7 +413,7 @@ INSERT INTO public.tenants (id, name, subdomain, settings, subscription_tier, su
 ('145d918b-65f1-43c3-a812-ac2f5baa1fdc', 'Uptown Driving School', 'uptown', '{}', 'premium', 'active', '2025-10-12 05:53:27.06998-07', '2025-10-12 06:00:38.238526-07', 'uptown@udrivelms.com', '0546979534', 'Somewhere, Uptown.', true);
 
 -- USER PROFILES DATA
-INSERT INTO public.user_profiles (id, tenant_id, email, password_hash, first_name, last_name, role, avatar_url, phone, settings, is_active, last_login, created_at, updated_at) VALUES
+INSERT INTO public.users (id, tenant_id, email, password_hash, first_name, last_name, role, avatar_url, phone, settings, is_active, last_login, created_at, updated_at) VALUES
 ('660e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440000', 'instructor@premier.com', '$2b$10$I3E5zmQo9hAzGbyffKMm0OzpDBLZHb73E6G.hf9Lndna81cdeNgYm', 'John', 'Smith', 'instructor', NULL, '+1234567890', '{}', true, '2025-10-12 08:03:13.69457-07', '2025-10-11 16:45:09.16363-07', '2025-10-12 08:03:13.69457-07'),
 ('660e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440000', 'student1@example.com', '$2b$10$I3E5zmQo9hAzGbyffKMm0OzpDBLZHb73E6G.hf9Lndna81cdeNgYm', 'Michael', 'Chen', 'student', NULL, NULL, '{}', true, '2025-10-12 08:06:19.327666-07', '2025-10-11 16:45:09.16363-07', '2025-10-12 08:06:19.327666-07'),
 ('660e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440000', 'schooladmin@premier.com', '$2b$10$I3E5zmQo9hAzGbyffKMm0OzpDBLZHb73E6G.hf9Lndna81cdeNgYm', 'Sarah', 'Johnson', 'school_admin', NULL, NULL, '{}', true, NULL, '2025-10-11 16:45:09.16363-07', '2025-10-12 08:03:12.753423-07'),
@@ -485,7 +485,7 @@ INSERT INTO public.quiz_questions (id, quiz_id, question_type, question_text, op
 -- Verify data
 SELECT 'Tenants' as table_name, COUNT(*) as row_count FROM public.tenants
 UNION ALL
-SELECT 'Users', COUNT(*) FROM public.user_profiles
+SELECT 'Users', COUNT(*) FROM public.users
 UNION ALL
 SELECT 'Courses', COUNT(*) FROM public.courses
 UNION ALL

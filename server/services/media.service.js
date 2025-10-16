@@ -109,7 +109,7 @@ export async function getMediaFiles(tenantId, filters = {}) {
       up.last_name,
       up.email
     FROM media_files mf
-    LEFT JOIN user_profiles up ON mf.uploaded_by = up.id
+    LEFT JOIN users up ON mf.uploaded_by = up.id
     WHERE mf.tenant_id = $1
   `;
   
@@ -164,7 +164,7 @@ export async function getMediaFileById(fileId, tenantId) {
   const result = await query(
     `SELECT mf.*, up.first_name, up.last_name, up.email
      FROM media_files mf
-     LEFT JOIN user_profiles up ON mf.uploaded_by = up.id
+     LEFT JOIN users up ON mf.uploaded_by = up.id
      WHERE mf.id = $1 AND mf.tenant_id = $2`,
     [fileId, tenantId]
   );
@@ -267,9 +267,9 @@ export async function uploadAvatar(fileBuffer, originalFilename, mimetype, userI
     { contentType: mimetype }
   );
   
-  // Update user profile
+  // Update user profile (avatar_url is in user_profiles table)
   await query(
-    'UPDATE user_profiles SET avatar_url = $1 WHERE id = $2',
+    'UPDATE user_profiles SET avatar_url = $1, updated_at = NOW() WHERE user_id = $2',
     [uploadResult.url, userId]
   );
   

@@ -151,7 +151,7 @@ isActive: location.startsWith('/school/courses')
 ### Add Lesson Failing:
 1. Check backend terminal - is it running?
 2. Check browser console - what's the error?
-3. Test endpoint manually: `http://localhost:3000/api/lessons`
+3. Test endpoint manually: `http://localhost:5000/api/lessons`
 
 ---
 

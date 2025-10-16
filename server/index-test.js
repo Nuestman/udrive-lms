@@ -5,7 +5,7 @@ import { pool } from './lib/db.js';
 console.log('1. Starting server...');
 
 const app = express();
-const PORT = 3000;
+const PORT = 5000;
 
 app.get('/api/health', (req, res) => {
   console.log('Health check hit');

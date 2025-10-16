@@ -21,9 +21,13 @@ export async function tenantContext(req, res, next) {
     });
   }
 
-  // Fetch fresh user data to get tenant_id
+  // Fetch fresh user data with profile to get tenant_id
   const result = await query(
-    'SELECT id, email, first_name, last_name, role, tenant_id, is_active FROM user_profiles WHERE id = $1',
+    `SELECT u.id, u.email, u.role, u.tenant_id, u.is_active,
+            p.first_name, p.last_name
+     FROM users u
+     LEFT JOIN user_profiles p ON p.user_id = u.id
+     WHERE u.id = $1`,
     [req.user.id]
   );
 

@@ -47,7 +47,7 @@ npm run dev:all
 ```
 
 This starts:
-- Backend API: http://localhost:3000
+- Backend API: http://localhost:5000
 - Frontend: http://localhost:5173
 
 ### 4. Login
@@ -181,7 +181,7 @@ npm test               # Run tests
 
 17 tables including:
 - `tenants` - Multi-tenant organizations
-- `user_profiles` - User accounts
+- `users` - User accounts
 - `courses` - Course catalog
 - `modules` - Course modules
 - `lessons` - Lesson content

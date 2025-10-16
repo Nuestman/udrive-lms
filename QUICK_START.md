@@ -24,7 +24,7 @@ DATABASE_PASSWORD=PUT_YOUR_PASSWORD_HERE
 JWT_SECRET=udrive_secret_key_change_in_production_2024
 JWT_EXPIRES_IN=7d
 
-VITE_API_URL=http://localhost:3000/api
+VITE_API_URL=http://localhost:5000/api
 NODE_ENV=development
 ```
 
@@ -71,7 +71,7 @@ $ npm run db:setup
 
 📋 Created tables:
   - tenants
-  - user_profiles
+  - users
   - courses
   - modules
   - lessons

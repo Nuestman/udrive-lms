@@ -40,7 +40,7 @@ export function useCourses(): UseCoursesReturn {
     } finally {
       setLoading(false);
     }
-  }, [profile]);
+  }, [profile?.id]); // ✅ Use profile.id instead of profile object
 
   // Initial load
   useEffect(() => {

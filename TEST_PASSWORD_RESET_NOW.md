@@ -90,7 +90,7 @@ Login Page
 
 **Step 1: Login as School Admin**
 ```http
-POST http://localhost:3000/api/auth/login
+POST http://localhost:5000/api/auth/login
 Content-Type: application/json
 
 {
@@ -103,7 +103,7 @@ Content-Type: application/json
 
 **Step 2: Reset Student Password**
 ```http
-POST http://localhost:3000/api/students/{student_id}/reset-password
+POST http://localhost:5000/api/students/{student_id}/reset-password
 Authorization: Bearer {your_token_here}
 Content-Type: application/json
 
@@ -114,7 +114,7 @@ Content-Type: application/json
 
 **To find student_id:**
 ```http
-GET http://localhost:3000/api/students
+GET http://localhost:5000/api/students
 Authorization: Bearer {your_token_here}
 ```
 
@@ -241,7 +241,7 @@ POST /api/auth/change-password (Own password)
 ┌─────────────────────────────────────────────────┐
 │  Backend Verifies Token                         │
 │  Hashes New Password (bcrypt)                   │
-│  Updates user_profiles.password_hash            │
+│  Updates users.password_hash            │
 └─────────────────────────────────────────────────┘
                      │
                      ↓
@@ -284,7 +284,7 @@ POST /api/auth/change-password (Own password)
                      ↓
 ┌─────────────────────────────────────────────────┐
 │  Hashes New Password                            │
-│  Updates user_profiles.password_hash            │
+│  Updates users.password_hash            │
 │  Returns temp password to admin                 │
 └─────────────────────────────────────────────────┘
                      │
@@ -361,7 +361,7 @@ npm run db:reset-passwords
 # Start dev servers
 npm run dev
 
-# Server runs on: http://localhost:3000
+# Server runs on: http://localhost:5000
 # Frontend runs on: http://localhost:5173
 ```
 

@@ -13,7 +13,7 @@ Run this SQL in pgAdmin to verify data integrity:
 SELECT 
   'Users without tenant (non-super admin)' as issue,
   COUNT(*) as count
-FROM user_profiles
+FROM users
 WHERE role != 'super_admin' AND tenant_id IS NULL;
 
 -- Should return 0
@@ -26,7 +26,7 @@ WHERE role != 'super_admin' AND tenant_id IS NULL;
 ### A. Make Yourself Super Admin
 ```sql
 -- Run in pgAdmin
-UPDATE user_profiles 
+UPDATE users 
 SET role = 'super_admin' 
 WHERE email = 'nuestman17@gmail.com';
 ```
@@ -65,7 +65,7 @@ Expected log:
 ### A. Create School Admin for Testing
 ```sql
 -- Run in pgAdmin - Create a school admin in your tenant
-INSERT INTO user_profiles (
+INSERT INTO users (
   email, 
   password_hash, 
   first_name, 
@@ -116,7 +116,7 @@ INSERT INTO user_profiles (
 SELECT id, name FROM tenants WHERE subdomain = 'second-school';
 
 -- Create admin for that school
-INSERT INTO user_profiles (
+INSERT INTO users (
   email, 
   password_hash,
   first_name,

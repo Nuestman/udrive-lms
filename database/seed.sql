@@ -16,28 +16,28 @@ ON CONFLICT (id) DO NOTHING;
 -- =============================================
 
 -- Super Admin
-INSERT INTO user_profiles (id, tenant_id, email, password_hash, first_name, last_name, role, is_active)
+INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, is_active)
 VALUES 
     ('660e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440000', 
      'admin@udrive.com', '$2a$10$YourBcryptHashHere', 'Admin', 'User', 'super_admin', true)
 ON CONFLICT (email) DO NOTHING;
 
 -- School Admin
-INSERT INTO user_profiles (id, tenant_id, email, password_hash, first_name, last_name, role, is_active)
+INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, is_active)
 VALUES 
     ('660e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440000', 
      'schooladmin@premier.com', '$2a$10$YourBcryptHashHere', 'Sarah', 'Johnson', 'school_admin', true)
 ON CONFLICT (email) DO NOTHING;
 
 -- Instructor
-INSERT INTO user_profiles (id, tenant_id, email, password_hash, first_name, last_name, role, is_active, phone)
+INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, is_active, phone)
 VALUES 
     ('660e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440000', 
      'instructor@premier.com', '$2a$10$YourBcryptHashHere', 'John', 'Smith', 'instructor', true, '+1234567890')
 ON CONFLICT (email) DO NOTHING;
 
 -- Students
-INSERT INTO user_profiles (id, tenant_id, email, password_hash, first_name, last_name, role, is_active)
+INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, is_active)
 VALUES 
     ('660e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440000', 
      'student1@example.com', '$2a$10$YourBcryptHashHere', 'Michael', 'Chen', 'student', true),
@@ -178,7 +178,7 @@ ON CONFLICT DO NOTHING;
 -- =============================================
 SELECT 'Seed data inserted successfully!' AS message;
 SELECT COUNT(*) AS tenant_count FROM tenants;
-SELECT COUNT(*) AS user_count FROM user_profiles;
+SELECT COUNT(*) AS user_count FROM users;
 SELECT COUNT(*) AS course_count FROM courses;
 SELECT COUNT(*) AS module_count FROM modules;
 SELECT COUNT(*) AS lesson_count FROM lessons;

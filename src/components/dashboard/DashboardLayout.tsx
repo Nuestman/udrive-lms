@@ -16,7 +16,8 @@ import {
   Home,
   TrendingUp,
   UserCheck,
-  GraduationCap
+  GraduationCap,
+  User
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -120,6 +121,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             href: '/admin/settings',
             isActive: location === '/admin/settings'
           },
+          { 
+            icon: <User size={20} />, 
+            label: 'My Profile', 
+            href: '/admin/profile',
+            isActive: location === '/admin/profile'
+          },
           ...commonItems
         ];
       
@@ -173,6 +180,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             href: '/school/settings',
             isActive: location === '/school/settings'
           },
+          { 
+            icon: <User size={20} />, 
+            label: 'My Profile', 
+            href: '/school/profile',
+            isActive: location === '/school/profile'
+          },
           ...commonItems
         ];
       
@@ -208,6 +221,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             href: '/instructor/progress',
             isActive: location === '/instructor/progress'
           },
+          { 
+            icon: <User size={20} />, 
+            label: 'My Profile', 
+            href: '/instructor/profile',
+            isActive: location === '/instructor/profile'
+          },
           ...commonItems
         ];
       
@@ -236,6 +255,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             label: 'Certificates', 
             href: '/student/certificates',
             isActive: location === '/student/certificates'
+          },
+          { 
+            icon: <User size={20} />, 
+            label: 'My Profile', 
+            href: '/student/profile',
+            isActive: location === '/student/profile'
           },
           ...commonItems
         ];

@@ -12,7 +12,7 @@ You're currently a student. To test CRUD features:
 
 ### In pgAdmin, Run:
 ```sql
-UPDATE user_profiles 
+UPDATE users 
 SET role = 'school_admin' 
 WHERE email = 'nuestman17@gmail.com';
 ```
@@ -108,7 +108,7 @@ WHERE title = 'My First Real Course';
 ### In Browser Console (F12):
 ```javascript
 // Get all students
-fetch('http://localhost:3000/api/students', {
+fetch('http://localhost:5000/api/students', {
   credentials: 'include'
 }).then(r => r.json()).then(console.log);
 
@@ -118,8 +118,8 @@ fetch('http://localhost:3000/api/students', {
 ### Or In pgAdmin:
 ```sql
 SELECT id, email, first_name, last_name, role, 
-       (SELECT COUNT(*) FROM enrollments WHERE student_id = user_profiles.id) as enrollments
-FROM user_profiles 
+       (SELECT COUNT(*) FROM enrollments WHERE student_id = users.id) as enrollments
+FROM users 
 WHERE role = 'student';
 ```
 
@@ -131,7 +131,7 @@ Shows all students in database!
 
 ### Browser Console:
 ```javascript
-fetch('http://localhost:3000/api/enrollments', {
+fetch('http://localhost:5000/api/enrollments', {
   credentials: 'include'
 }).then(r => r.json()).then(console.log);
 ```
@@ -144,7 +144,7 @@ Returns all enrollments!
 
 From your terminal, I can see:
 ```
-✅ Backend running on port 3000
+✅ Backend running on port 5000
 ✅ Database connected
 ✅ GET /api/courses returning 3 courses
 ✅ Query executing in 3-7ms

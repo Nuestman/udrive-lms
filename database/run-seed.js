@@ -41,7 +41,7 @@ async function runSeed() {
     console.log('✅ Seed data inserted successfully!');
     
     // Show what was created
-    const users = await client.query('SELECT email, role FROM user_profiles ORDER BY role');
+    const users = await client.query('SELECT email, role FROM users ORDER BY role');
     const courses = await client.query('SELECT title, status FROM courses');
     
     console.log('\n👥 Created users:');

@@ -7,7 +7,7 @@
 -- =============================================
 
 -- Clear existing data (optional - comment out if you want to keep existing data)
-TRUNCATE TABLE lesson_progress, enrollments, lessons, modules, courses, user_profiles, tenants RESTART IDENTITY CASCADE;
+TRUNCATE TABLE lesson_progress, enrollments, lessons, modules, courses, users, tenants RESTART IDENTITY CASCADE;
 
 -- =============================================
 -- 1. INSERT TENANTS (Schools)
@@ -23,7 +23,7 @@ INSERT INTO tenants (id, name, subdomain, settings, subscription_tier, subscript
 
 -- Password hash for "password123"
 -- Generated with: bcrypt.hash('password123', 10)
-INSERT INTO user_profiles (id, tenant_id, email, password_hash, first_name, last_name, role, is_active) VALUES
+INSERT INTO users (id, tenant_id, email, password_hash, first_name, last_name, role, is_active) VALUES
 
 -- Super Admin (No tenant - manages everything)
 ('67e0428c-44fd-4fc8-b195-ffe33c2366bb', NULL, 'admin@udrivelms.com', '$2b$10$I3E5zmQo9hAzGbyffKMm0OzpDBLZHb73E6G.hf9Lndna81cdeNgYm', 'Super', 'Admin', 'super_admin', true),
@@ -82,7 +82,7 @@ DECLARE
     lesson_count INTEGER;
 BEGIN
     SELECT COUNT(*) INTO tenant_count FROM tenants;
-    SELECT COUNT(*) INTO user_count FROM user_profiles;
+    SELECT COUNT(*) INTO user_count FROM users;
     SELECT COUNT(*) INTO course_count FROM courses;
     SELECT COUNT(*) INTO module_count FROM modules;
     SELECT COUNT(*) INTO lesson_count FROM lessons;

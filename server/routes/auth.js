@@ -118,17 +118,17 @@ router.put('/profile', async (req, res) => {
     const token = req.cookies.auth_token || req.headers.authorization?.replace('Bearer ', '');
 
     if (!token) {
-      return res.status(401).json({ error: 'Not authenticated' });
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
     }
 
     const currentUser = await authService.verifyToken(token);
     const updates = req.body;
 
     const updatedUser = await authService.updateProfile(currentUser.id, updates);
-    res.json({ success: true, user: updatedUser });
+    res.json({ success: true, user: updatedUser, message: 'Profile updated successfully' });
   } catch (error) {
     console.error('Update profile error:', error);
-    res.status(400).json({ error: error.message });
+    res.status(400).json({ success: false, error: error.message });
   }
 });
 

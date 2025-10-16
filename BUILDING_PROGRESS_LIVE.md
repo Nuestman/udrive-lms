@@ -61,7 +61,7 @@
 **Expected Backend Log:**
 ```
 POST /api/students
-INSERT INTO user_profiles...
+INSERT INTO users...
 rows: 1
 ```
 

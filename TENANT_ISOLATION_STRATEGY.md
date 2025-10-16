@@ -75,21 +75,21 @@ tenant_id UUID NOT NULL REFERENCES tenants(id)
 ```
 
 **Tables requiring tenant_id:**
-- ✅ user_profiles
+- ✅ users
 - ✅ courses
 - ✅ modules (via courses)
 - ✅ lessons (via modules → courses)
 - ✅ enrollments (via courses)
 - ✅ quizzes (via courses)
-- ✅ certificates (via user_profiles)
+- ✅ certificates (via users)
 - ✅ assignments (via courses)
-- ✅ notifications (via user_profiles)
-- ✅ goals (via user_profiles)
-- ✅ achievements (via user_profiles)
+- ✅ notifications (via users)
+- ✅ goals (via users)
+- ✅ achievements (via users)
 
 #### Indexes for Performance:
 ```sql
-CREATE INDEX idx_user_profiles_tenant_id ON user_profiles(tenant_id);
+CREATE INDEX idx_users_tenant_id ON users(tenant_id);
 CREATE INDEX idx_courses_tenant_id ON courses(tenant_id);
 CREATE INDEX idx_enrollments_tenant_id ON enrollments(tenant_id);
 -- etc for all tables
@@ -258,7 +258,7 @@ export async function getCourses(filters, req) {
       u.first_name || ' ' || u.last_name as instructor_name,
       (SELECT COUNT(*) FROM modules WHERE course_id = c.id) as module_count
     FROM courses c
-    LEFT JOIN user_profiles u ON c.created_by = u.id
+    LEFT JOIN users u ON c.created_by = u.id
   `;
   
   const params = [];

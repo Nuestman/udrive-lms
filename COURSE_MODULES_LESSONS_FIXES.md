@@ -405,3 +405,4 @@ The `lesson_count` subquery is efficient:
 **Last Updated:** October 13, 2025  
 **Tested:** Ready for user testing
 
+

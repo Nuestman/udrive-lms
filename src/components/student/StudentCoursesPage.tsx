@@ -1,15 +1,17 @@
 // Student Courses Page - Browse and enroll in available courses
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Clock, Users, Play, CheckCircle, Star } from 'lucide-react';
+import { BookOpen, Clock, Users, Play, CheckCircle } from 'lucide-react';
 import { useCourses } from '../../hooks/useCourses';
 import { useEnrollments } from '../../hooks/useEnrollments';
+import { useToast } from '../../contexts/ToastContext';
 import PageLayout from '../ui/PageLayout';
 import api from '../../lib/api';
 
 const StudentCoursesPage: React.FC = () => {
   const { courses, loading: coursesLoading } = useCourses();
   const { enrollments, loading: enrollmentsLoading, createEnrollment } = useEnrollments();
+  const { success, error: showError } = useToast();
   const navigate = useNavigate();
   const [enrollingCourseId, setEnrollingCourseId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,10 +42,11 @@ const StudentCoursesPage: React.FC = () => {
       setEnrollingCourseId(courseId);
       await createEnrollment({
         course_id: courseId,
-        status: 'active',
-        progress_percentage: 0
+        status: 'active'
       });
       
+      success('Enrolled successfully');
+
       // Navigate to first lesson
       const modulesRes = await api.get(`/modules/course/${courseId}`);
       if (modulesRes.success && modulesRes.data.length > 0) {
@@ -59,9 +62,10 @@ const StudentCoursesPage: React.FC = () => {
       
       // Fallback
       navigate(`/student/dashboard`);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error enrolling:', error);
-      alert('Failed to enroll in course');
+      const message = (error as Error)?.message || 'Failed to enroll in course';
+      showError(message);
     } finally {
       setEnrollingCourseId(null);
     }
@@ -85,6 +89,14 @@ const StudentCoursesPage: React.FC = () => {
     }
     
     navigate(`/student/dashboard`);
+  };
+
+  const handleViewCertificate = (courseId: string) => {
+    const enrollment = getEnrollmentForCourse(courseId);
+    if (enrollment) {
+      return navigate(`/student/certificates/${enrollment.id}`);
+    }
+    return navigate('/student/certificates');
   };
 
   const getEnrollmentForCourse = (courseId: string) => {
@@ -243,15 +255,34 @@ const StudentCoursesPage: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Action Button */}
+                    {/* Action Buttons */}
                     {isEnrolled ? (
-                      <button
-                        onClick={() => handleContinueCourse(course.id)}
-                        className="w-full flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-                      >
-                        <Play size={16} className="mr-2" />
-                        {progress > 0 ? 'Continue Learning' : 'Start Course'}
-                      </button>
+                      progress >= 100 ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => handleViewCertificate(course.id)}
+                            className="flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                          >
+                            <CheckCircle size={16} className="mr-2" />
+                            View Certificate
+                          </button>
+                          <button
+                            onClick={() => handleContinueCourse(course.id)}
+                            className="flex items-center justify-center px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors"
+                          >
+                            <Play size={16} className="mr-2" />
+                            Review Course
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleContinueCourse(course.id)}
+                          className="w-full flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                        >
+                          <Play size={16} className="mr-2" />
+                          {progress > 0 ? 'Continue Learning' : 'Start Course'}
+                        </button>
+                      )
                     ) : (
                       <button
                         onClick={() => handleEnroll(course.id)}

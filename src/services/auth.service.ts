@@ -48,9 +48,14 @@ export interface SignupData {
 export async function login(credentials: LoginCredentials): Promise<AuthResponse> {
   const { email, password } = credentials;
 
-  // Find user by email
-  const result = await query<UserProfile>(
-    'SELECT * FROM user_profiles WHERE email = $1 AND is_active = true',
+  // Find user by email with profile join
+  const result = await query<any>(
+    `SELECT 
+       u.id, u.tenant_id, u.email, u.role, u.is_active, u.created_at, u.updated_at, u.password_hash,
+       p.first_name, p.last_name, p.phone, p.avatar_url
+     FROM users u
+     LEFT JOIN user_profiles p ON p.user_id = u.id
+     WHERE u.email = $1 AND u.is_active = true`,
     [email]
   );
 
@@ -68,10 +73,7 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
   }
 
   // Update last login
-  await query(
-    'UPDATE user_profiles SET last_login = NOW() WHERE id = $1',
-    [user.id]
-  );
+  await query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
 
   // Generate JWT token
   const token = jwt.sign(
@@ -102,7 +104,7 @@ export async function signup(data: SignupData): Promise<AuthResponse> {
 
   // Check if user already exists
   const existingUser = await query(
-    'SELECT id FROM user_profiles WHERE email = $1',
+    'SELECT id FROM users WHERE email = $1',
     [email]
   );
 
@@ -123,15 +125,22 @@ export async function signup(data: SignupData): Promise<AuthResponse> {
   // Hash password
   const password_hash = await bcrypt.hash(password, 10);
 
-  // Create user
-  const result = await query<UserProfile>(
-    `INSERT INTO user_profiles (email, password_hash, first_name, last_name, phone, tenant_id, role, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+  // Create user (auth table only)
+  const userResult = await query<any>(
+    `INSERT INTO users (email, password_hash, tenant_id, role, is_active)
+     VALUES ($1, $2, $3, $4, true)
      RETURNING *`,
-    [email, password_hash, first_name, last_name, phone, tenant_id, role]
+    [email, password_hash, tenant_id, role]
   );
 
-  const user = result.rows[0];
+  const user = userResult.rows[0];
+
+  // Create profile row
+  await query(
+    `INSERT INTO user_profiles (user_id, first_name, last_name, phone)
+     VALUES ($1, $2, $3, $4)`,
+    [user.id, first_name, last_name, phone]
+  );
 
   // Generate JWT token
   const token = jwt.sign(
@@ -163,7 +172,7 @@ export async function verifyToken(token: string): Promise<UserProfile> {
     
     // Get fresh user data from database
     const result = await query<UserProfile>(
-      'SELECT * FROM user_profiles WHERE id = $1 AND is_active = true',
+      'SELECT * FROM users WHERE id = $1 AND is_active = true',
       [decoded.userId]
     );
 
@@ -183,7 +192,7 @@ export async function verifyToken(token: string): Promise<UserProfile> {
  */
 export async function getUserById(userId: string): Promise<UserProfile | null> {
   const result = await query<UserProfile>(
-    'SELECT * FROM user_profiles WHERE id = $1 AND is_active = true',
+    'SELECT * FROM users WHERE id = $1 AND is_active = true',
     [userId]
   );
 
@@ -211,7 +220,7 @@ export async function updateProfile(userId: string, updates: Partial<UserProfile
   const values = [userId, ...updateFields.map(field => (updates as any)[field])];
 
   const result = await query<UserProfile>(
-    `UPDATE user_profiles SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING *`,
+    `UPDATE users SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING *`,
     values
   );
 
@@ -229,7 +238,7 @@ export async function updateProfile(userId: string, updates: Partial<UserProfile
 export async function changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
   // Get current password hash
   const result = await query(
-    'SELECT password_hash FROM user_profiles WHERE id = $1',
+    'SELECT password_hash FROM users WHERE id = $1',
     [userId]
   );
 
@@ -249,7 +258,7 @@ export async function changePassword(userId: string, currentPassword: string, ne
 
   // Update password
   await query(
-    'UPDATE user_profiles SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+    'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
     [newPasswordHash, userId]
   );
 }
@@ -259,7 +268,7 @@ export async function changePassword(userId: string, currentPassword: string, ne
  */
 export async function requestPasswordReset(email: string): Promise<string> {
   const result = await query(
-    'SELECT id FROM user_profiles WHERE email = $1 AND is_active = true',
+    'SELECT id FROM users WHERE email = $1 AND is_active = true',
     [email]
   );
 
@@ -298,7 +307,7 @@ export async function resetPassword(resetToken: string, newPassword: string): Pr
 
     // Update password
     await query(
-      'UPDATE user_profiles SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
       [passwordHash, decoded.userId]
     );
   } catch (error) {

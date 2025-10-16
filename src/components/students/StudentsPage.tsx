@@ -4,14 +4,16 @@ import { Plus, Search, Users, Mail, Phone, MoreVertical, Edit, Trash2, BookOpen 
 import { useStudents } from '../../hooks/useStudents';
 import PageLayout from '../ui/PageLayout';
 import AddStudentModal from './AddStudentModal';
+import EditStudentModal from './EditStudentModal';
 import type { UserProfile } from '../../types/database.types';
 
 const StudentsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<UserProfile | null>(null);
   
-  const { students, loading, error, createStudent, deleteStudent } = useStudents({
+  const { students, loading, error, createStudent, deleteStudent, refreshStudents } = useStudents({
     search: searchTerm,
     status: statusFilter
   });
@@ -207,7 +209,7 @@ const StudentsPage: React.FC = () => {
                               <button
                                 onClick={() => {
                                   setOpenDropdown(null);
-                                  alert('Edit student - modal coming soon!');
+                                  setEditingStudent(student);
                                 }}
                                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
                               >
@@ -250,6 +252,18 @@ const StudentsPage: React.FC = () => {
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddStudent}
       />
+
+      {/* Edit Student Modal */}
+      {editingStudent && (
+        <EditStudentModal
+          student={editingStudent}
+          onClose={() => setEditingStudent(null)}
+          onSuccess={() => {
+            refreshStudents();
+            setEditingStudent(null);
+          }}
+        />
+      )}
     </PageLayout>
   );
 };

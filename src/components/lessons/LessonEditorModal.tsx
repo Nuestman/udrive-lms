@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { Editor } from '@tinymce/tinymce-react';
 import { X, Save } from 'lucide-react';
+import { cleanLessonContent, sanitizeEditorContent } from '../../utils/htmlUtils';
 
 interface LessonEditorModalProps {
   isOpen: boolean;
@@ -25,21 +26,7 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({ isOpen, lesson, o
 
   // Initialize editor content from lesson
   const initialContent = React.useMemo(() => {
-    if (!lesson?.content) return '';
-    
-    // If content is a JSON array (block editor format), extract text
-    if (Array.isArray(lesson.content)) {
-      return lesson.content
-        .map((block: any) => block.content || block.text || '')
-        .join('<br>');
-    }
-    
-    // If it's already HTML string
-    if (typeof lesson.content === 'string') {
-      return lesson.content;
-    }
-    
-    return '';
+    return cleanLessonContent(lesson?.content);
   }, [lesson]);
 
   const handleSave = async () => {
@@ -53,13 +40,18 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({ isOpen, lesson, o
     try {
       setSaving(true);
       
-      // Get content from TinyMCE
-      const editorContent = editorRef.current ? editorRef.current.getContent() : '';
+      // Get content from TinyMCE and sanitize it
+      const rawEditorContent = editorRef.current ? editorRef.current.getContent() : '';
+      const sanitizedContent = sanitizeEditorContent(rawEditorContent);
+      
+      // Debug: Log the content to see what's being saved
+      console.log('Raw editor content:', rawEditorContent);
+      console.log('Sanitized content:', sanitizedContent);
       
       // Store as simple JSON block for now (compatible with JSONB)
       const contentBlock = [{
         type: 'html',
-        content: editorContent
+        content: sanitizedContent
       }];
 
       await onSave(lesson.id, {
@@ -73,7 +65,14 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({ isOpen, lesson, o
 
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to save lesson');
+      console.error('Lesson save error:', err);
+      if (err.message?.includes('request entity too large')) {
+        setError('Content too large. Please reduce image sizes or remove some content.');
+      } else if (err.message?.includes('network')) {
+        setError('Network error. Please check your connection and try again.');
+      } else {
+        setError(err.message || 'Failed to save lesson');
+      }
     } finally {
       setSaving(false);
     }
@@ -193,6 +192,9 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({ isOpen, lesson, o
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Lesson Content
             </label>
+            <p className="text-xs text-gray-500 mb-2">
+              💡 Tip: Keep images under 2MB for best performance. You can upload images via the Upload tab or drag & drop them directly into the editor. For YouTube videos, use the Media button and paste the YouTube URL.
+            </p>
             <Editor
               apiKey={TINYMCE_API_KEY}
               onInit={(evt, editor) => editorRef.current = editor}
@@ -212,6 +214,12 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({ isOpen, lesson, o
                 // Image upload settings (can be configured later with backend)
                 images_upload_handler: (blobInfo: any) => {
                   return new Promise((resolve, reject) => {
+                    // Check file size (limit to 2MB for base64 conversion)
+                    if (blobInfo.blob().size > 2 * 1024 * 1024) {
+                      reject('Image size must be less than 2MB');
+                      return;
+                    }
+                    
                     // For now, convert to base64 (you can implement server upload later)
                     const reader = new FileReader();
                     reader.onloadend = () => {
@@ -220,6 +228,37 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({ isOpen, lesson, o
                     reader.onerror = reject;
                     reader.readAsDataURL(blobInfo.blob());
                   });
+                },
+                // Image settings
+                image_advtab: true,
+                image_uploadtab: true,
+                // Auto-resize images to prevent huge content
+                automatic_uploads: true,
+                file_picker_types: 'image',
+                // Enable drag and drop for images
+                paste_data_images: true,
+                // Image dialog settings
+                image_caption: true,
+                image_title: true,
+                // File picker callback for additional file handling
+                file_picker_callback: (callback: any, value: any, meta: any) => {
+                  if (meta.filetype === 'image') {
+                    const input = document.createElement('input');
+                    input.setAttribute('type', 'file');
+                    input.setAttribute('accept', 'image/*');
+                    input.click();
+                    
+                    input.onchange = function() {
+                      const file = (input.files as FileList)[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function() {
+                          callback(reader.result, { alt: file.name });
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    };
+                  }
                 },
                 // Auto-save settings
                 setup: (editor: any) => {

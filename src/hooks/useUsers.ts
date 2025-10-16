@@ -1,20 +1,10 @@
 // User Management Hook
 import { useState, useEffect } from 'react';
 import { usersApi } from '../lib/api';
+import { UserWithProfile } from '../types/database.types';
 
-export interface User {
-  id: string;
-  tenant_id: string;
-  email: string;
-  first_name?: string;
-  last_name?: string;
-  role: 'super_admin' | 'school_admin' | 'instructor' | 'student';
-  avatar_url?: string;
-  phone?: string;
-  is_active: boolean;
-  last_login?: string;
-  created_at: string;
-  updated_at: string;
+// Extended User interface for admin management
+export interface User extends UserWithProfile {
   tenant_name?: string;
   tenant_subdomain?: string;
   enrollment_count?: number;

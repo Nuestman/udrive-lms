@@ -16,7 +16,6 @@ const EditInstructorModal: React.FC<EditInstructorModalProps> = ({ instructor, o
     first_name: instructor.first_name || '',
     last_name: instructor.last_name || '',
     phone: instructor.phone || '',
-    avatar_url: instructor.avatar_url || '',
     is_active: instructor.is_active
   });
 
@@ -81,10 +80,18 @@ const EditInstructorModal: React.FC<EditInstructorModalProps> = ({ instructor, o
             <input id="phone" type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
           </div>
 
-          <div>
-            <label htmlFor="avatar_url" className="block text-sm font-medium text-gray-700 mb-1">Avatar URL</label>
-            <input id="avatar_url" type="url" name="avatar_url" value={formData.avatar_url} onChange={handleChange} placeholder="https://example.com/avatar.jpg" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
-          </div>
+          {/* Show current avatar if exists */}
+          {instructor.avatar_url && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Current Profile Picture</label>
+              <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-200">
+                <img src={instructor.avatar_url} alt="Instructor avatar" className="w-full h-full object-cover" />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                The instructor can update this via Settings → Profile
+              </p>
+            </div>
+          )}
 
           <div className="flex items-center">
             <input type="checkbox" id="is_active" name="is_active" checked={formData.is_active} onChange={handleChange} className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded" />

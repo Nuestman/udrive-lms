@@ -24,9 +24,9 @@ npm run dev:all
 Wait for both servers to start. You should see:
 
 ```
-[0] 🚀 Server running on http://localhost:3000
-[0] 📡 API available at http://localhost:3000/api
-[0] 🔐 Auth endpoints at http://localhost:3000/api/auth
+[0] 🚀 Server running on http://localhost:5000
+[0] 📡 API available at http://localhost:5000/api
+[0] 🔐 Auth endpoints at http://localhost:5000/api/auth
 [1] 
 [1]   VITE v5.4.2  ready in 500 ms
 [1]   ➜  Local:   http://localhost:5173/
@@ -87,7 +87,7 @@ Switch to your terminal where servers are running.
 You should see backend logs like:
 ```
 POST /api/auth/login
-Executed query { text: 'SELECT * FROM user_profiles WHERE email = $1...', duration: 12, rows: 1 }
+Executed query { text: 'SELECT * FROM users WHERE email = $1...', duration: 12, rows: 1 }
 ```
 
 This confirms:
@@ -214,13 +214,13 @@ After testing, verify:
 **Problem:** Frontend can't reach backend
 
 **Check:**
-1. Backend running on port 3000?
+1. Backend running on port 5000?
 2. CORS enabled in backend?
 3. API_URL correct in frontend?
 
 **Fix:** Check `.env` file:
 ```env
-VITE_API_URL=http://localhost:3000/api
+VITE_API_URL=http://localhost:5000/api
 ```
 
 ### "Invalid email or password" (But credentials are correct)
@@ -268,12 +268,12 @@ POST /api/auth/login 200 OK
 ### Terminal Output (Backend)
 ```
 POST /api/auth/login
-Executed query { text: 'SELECT * FROM user_profiles WHERE...', duration: 15, rows: 1 }
+Executed query { text: 'SELECT * FROM users WHERE...', duration: 15, rows: 1 }
 ```
 
 ### Network Tab
 ```
-Request URL: http://localhost:3000/api/auth/login
+Request URL: http://localhost:5000/api/auth/login
 Status Code: 200 OK
 Response: { success: true, user: {...}, token: 'eyJhbG...' }
 ```

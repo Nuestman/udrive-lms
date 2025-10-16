@@ -232,7 +232,7 @@ npm run client
 
 ### Problem: Statistics showing 0
 **Solution**:
-- Check database has users: `SELECT COUNT(*) FROM user_profiles;`
+- Check database has users: `SELECT COUNT(*) FROM users;`
 - Verify API is running: Check console for errors
 - Refresh the page
 
@@ -318,7 +318,7 @@ const csv = [
 
 **Quick Links**:
 - Dashboard: `/admin/users`
-- API Health: `http://localhost:3000/api/health`
+- API Health: `http://localhost:5000/api/health`
 - Create User: Click "+ Add User"
 - View Stats: Scroll to analytics section
 

@@ -15,14 +15,14 @@ npm run dev:all
 ```
 
 This starts:
-- ✅ **Backend API** on http://localhost:3000
+- ✅ **Backend API** on http://localhost:5000
 - ✅ **Frontend React App** on http://localhost:5173
 
 You should see output like:
 ```
-[0] 🚀 Server running on http://localhost:3000
-[0] 📡 API available at http://localhost:3000/api
-[0] 🔐 Auth endpoints at http://localhost:3000/api/auth
+[0] 🚀 Server running on http://localhost:5000
+[0] 📡 API available at http://localhost:5000/api
+[0] 🔐 Auth endpoints at http://localhost:5000/api/auth
 [1] 
 [1]   VITE v5.4.2  ready in 500 ms
 [1] 
@@ -108,7 +108,7 @@ DATABASE_PASSWORD=your_actual_password
 ```
 
 ### Port Already in Use
-**Error:** `Port 3000 is already in use`
+**Error:** `Port 5000 is already in use`
 
 **Fix:** Kill the process or change port in `.env`:
 ```env
@@ -123,7 +123,7 @@ PORT=3001
 
 Open your browser to:
 ```
-http://localhost:3000/api/health
+http://localhost:5000/api/health
 ```
 
 Should see:
@@ -152,7 +152,7 @@ In terminal where backend is running, you should see:
 ```
 ✅ Connected to PostgreSQL database: udrive-from-bolt
 POST /api/auth/login
-Executed query { text: 'SELECT * FROM user_profiles...', duration: 15, rows: 1 }
+Executed query { text: 'SELECT * FROM users...', duration: 15, rows: 1 }
 ```
 
 ---

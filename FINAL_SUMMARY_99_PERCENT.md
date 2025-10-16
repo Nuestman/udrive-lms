@@ -220,7 +220,7 @@ All 9 users now have password: "password123"
 ### 3. Test Dashboard (Any Role)
 ```sql
 -- Change your role to test different dashboards:
-UPDATE user_profiles 
+UPDATE users 
 SET role = 'super_admin'  -- or school_admin, instructor, student
 WHERE email = 'your@email.com';
 
@@ -303,7 +303,7 @@ DB_PASSWORD=your_password
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
 
 # Server
-PORT=3000
+PORT=5000
 NODE_ENV=production
 
 # Optional (for production):

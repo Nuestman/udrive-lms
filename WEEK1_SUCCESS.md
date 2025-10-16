@@ -86,7 +86,7 @@ Just use the account you created via signup! It works perfectly.
 Open pgAdmin:
 ```sql
 SELECT email, first_name, last_name, role, created_at 
-FROM user_profiles 
+FROM users 
 ORDER BY created_at DESC;
 ```
 

@@ -1,5 +1,5 @@
 // API Client for Frontend
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -15,7 +15,10 @@ async function request<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${API_URL}${endpoint}`;
+  // Prevent double "/api" when API_URL already ends with /api and endpoint starts with /api
+  const shouldStripLeadingApi = API_URL.endsWith('/api') && endpoint.startsWith('/api/');
+  const normalizedEndpoint = shouldStripLeadingApi ? endpoint.slice(4) : endpoint;
+  const url = `${API_URL}${normalizedEndpoint}`;
   
   const config: RequestInit = {
     ...options,
@@ -265,6 +268,57 @@ export const instructorsApi = {
     }),
 };
 
+/**
+ * Students API
+ */
+export const studentsApi = {
+  getAll: (params?: {
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return get<{ success: boolean; data: any[]; pagination: any }>(
+      `/students${queryString ? `?${queryString}` : ''}`
+    );
+  },
+
+  getById: (id: string) =>
+    get<{ success: boolean; data: any }>(`/students/${id}`),
+
+  create: (data: {
+    email: string;
+    password: string;
+    first_name: string;
+    last_name: string;
+    tenant_id?: string;
+    phone?: string;
+  }) => post<{ success: boolean; data: any; message: string }>('/students', data),
+
+  update: (id: string, data: any) =>
+    put<{ success: boolean; data: any; message: string }>(`/students/${id}`, data),
+
+  delete: (id: string) =>
+    del<{ success: boolean; message: string }>(`/students/${id}`),
+
+  getEnrollments: (id: string) =>
+    get<{ success: boolean; data: any[] }>(`/students/${id}/enrollments`),
+
+  getProgress: (id: string) =>
+    get<{ success: boolean; data: any }>(`/students/${id}/progress`),
+};
+
 export default {
   get,
   post,
@@ -275,5 +329,6 @@ export default {
   modulesApi,
   usersApi,
   instructorsApi,
+  studentsApi,
 };
 

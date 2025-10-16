@@ -10,7 +10,7 @@ import { ValidationError, NotFoundError } from '../middleware/errorHandler.js';
 export async function getEnrollments(tenantId, filters = {}, isSuperAdmin = false) {
   let queryText = `
     SELECT e.*,
-      u.first_name || ' ' || u.last_name as student_name,
+      p.first_name || ' ' || p.last_name as student_name,
       u.email as student_email,
       c.title as course_title,
       c.status as course_status
@@ -20,7 +20,8 @@ export async function getEnrollments(tenantId, filters = {}, isSuperAdmin = fals
   if (isSuperAdmin) {
     queryText += `, t.name as school_name
     FROM enrollments e
-    JOIN user_profiles u ON e.student_id = u.id
+    JOIN users u ON e.student_id = u.id
+    LEFT JOIN user_profiles p ON p.user_id = u.id
     JOIN courses c ON e.course_id = c.id
     LEFT JOIN tenants t ON c.tenant_id = t.id
     WHERE 1=1
@@ -29,7 +30,8 @@ export async function getEnrollments(tenantId, filters = {}, isSuperAdmin = fals
     // Tenant-scoped: Only their enrollments
     queryText += `
     FROM enrollments e
-    JOIN user_profiles u ON e.student_id = u.id
+    JOIN users u ON e.student_id = u.id
+    LEFT JOIN user_profiles p ON p.user_id = u.id
     JOIN courses c ON e.course_id = c.id
     WHERE c.tenant_id = $1
   `;
@@ -82,7 +84,7 @@ export async function getStudentEnrollments(studentId, tenantId) {
        WHERE m.course_id = c.id AND lp.student_id = e.student_id AND lp.status = 'completed') as completed_lessons
      FROM enrollments e
      JOIN courses c ON e.course_id = c.id
-     JOIN user_profiles u ON e.student_id = u.id
+     JOIN users u ON e.student_id = u.id
      WHERE e.student_id = $1 AND u.tenant_id = $2
      ORDER BY e.enrolled_at DESC`,
     [studentId, tenantId]
@@ -104,7 +106,7 @@ export async function enrollStudent(enrollmentData, tenantId) {
 
   // Verify student exists and belongs to tenant
   const studentCheck = await query(
-    'SELECT id FROM user_profiles WHERE id = $1 AND tenant_id = $2 AND role = \'student\'',
+    'SELECT id FROM users WHERE id = $1 AND tenant_id = $2 AND role = \'student\'',
     [student_id, tenantId]
   );
 

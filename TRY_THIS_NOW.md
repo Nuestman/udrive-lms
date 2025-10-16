@@ -24,9 +24,9 @@ npm run dev
 ```
 [0] [nodemon] starting `node server/index.js`
 [0] [dotenv] injecting env...
-[0] 🚀 Server running on http://localhost:3000
-[0] 📡 API available at http://localhost:3000/api
-[0] 🔐 Auth endpoints at http://localhost:3000/api/auth
+[0] 🚀 Server running on http://localhost:5000
+[0] 📡 API available at http://localhost:5000/api
+[0] 🔐 Auth endpoints at http://localhost:5000/api/auth
 [0] ✅ Connected to PostgreSQL database: udrive-from-bolt
 [0] ✅ Database connected successfully
 [0] 🎯 Server is ready! Keep this terminal open.
@@ -63,7 +63,7 @@ The terminal should show what's happening. Look for:
 
 **Backend logs (should stay):**
 ```
-[0] 🚀 Server running on http://localhost:3000
+[0] 🚀 Server running on http://localhost:5000
 [0] [nodemon] watching...
 ```
 

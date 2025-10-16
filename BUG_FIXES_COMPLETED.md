@@ -173,7 +173,7 @@ DELETE /api/goals/:id          - Delete goal
 npm run dev
 
 # Test goal creation (API):
-POST http://localhost:3000/api/goals
+POST http://localhost:5000/api/goals
 Authorization: Bearer {student_token}
 {
   "title": "Test Goal",
@@ -182,7 +182,7 @@ Authorization: Bearer {student_token}
 }
 
 # Test get goals:
-GET http://localhost:3000/api/goals
+GET http://localhost:5000/api/goals
 Authorization: Bearer {student_token}
 ```
 

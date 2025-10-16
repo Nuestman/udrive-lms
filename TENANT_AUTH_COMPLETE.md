@@ -122,7 +122,7 @@ Restriction: Only works if no super admin exists
 ### Flow 3: Super Admin Setup (Database)
 ```sql
 -- Create super admin via database
-INSERT INTO user_profiles (
+INSERT INTO users (
   email, password_hash, first_name, last_name, 
   tenant_id, role, is_active
 ) VALUES (

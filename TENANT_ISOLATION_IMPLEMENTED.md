@@ -183,7 +183,7 @@ Flag: isSuperAdmin = false
 
 ```sql
 -- 1. Create or update a user to super_admin
-UPDATE user_profiles 
+UPDATE users 
 SET role = 'super_admin' 
 WHERE email = 'your.email@example.com';
 

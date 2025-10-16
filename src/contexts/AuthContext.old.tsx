@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       logAuthEvent('Fetching user profile', { userId });
       const { data, error } = await supabase
-        .from('user_profiles')
+        .from('users')
         .select('*')
         .eq('id', userId)
         .single();
@@ -171,7 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       
       const { error: profileError } = await supabase
-        .from('user_profiles')
+        .from('users')
         .insert(profileData);
       
       if (profileError) {
@@ -234,7 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       const { error } = await supabase
-        .from('user_profiles')
+        .from('users')
         .update(updates)
         .eq('id', user.id);
       

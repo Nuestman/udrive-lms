@@ -8,7 +8,7 @@ export async function getStudentProgress(studentId, tenantId, isSuperAdmin = fal
   // Verify student access
   if (!isSuperAdmin) {
     const studentCheck = await query(
-      'SELECT id FROM user_profiles WHERE id = $1 AND tenant_id = $2',
+      'SELECT id FROM users WHERE id = $1 AND tenant_id = $2',
       [studentId, tenantId]
     );
     
@@ -208,8 +208,7 @@ async function updateEnrollmentProgress(lessonId, studentId) {
      SET progress_percentage = $3,
          status = CASE 
            WHEN $3 >= 100 THEN 'completed'
-           WHEN $3 > 0 THEN 'active'
-           ELSE 'enrolled'
+           ELSE 'active'
          END,
          completed_at = CASE WHEN $3 >= 100 THEN CURRENT_TIMESTAMP ELSE NULL END,
          updated_at = CURRENT_TIMESTAMP

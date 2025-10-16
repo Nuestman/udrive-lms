@@ -47,7 +47,7 @@ DATABASE_PASSWORD=YOUR_ACTUAL_PASSWORD_HERE
 JWT_SECRET=udrive_secret_key_change_in_production_2024
 JWT_EXPIRES_IN=7d
 
-VITE_API_URL=http://localhost:3000/api
+VITE_API_URL=http://localhost:5000/api
 NODE_ENV=development
 ```
 
@@ -71,7 +71,7 @@ npm run db:setup
 1. Open pgAdmin
 2. Refresh your database
 3. Check `Tables` folder - you should see 17 tables
-4. Open `user_profiles` table - you should see 6 users
+4. Open `users` table - you should see 6 users
 
 ### Step 4: Test Login Credentials
 
@@ -85,7 +85,7 @@ You can now login with:
 
 ### Core Tables:
 1. ✅ `tenants` - Multi-tenant organizations
-2. ✅ `user_profiles` - User accounts with bcrypt passwords
+2. ✅ `users` - User accounts with bcrypt passwords
 3. ✅ `courses` - Course catalog
 4. ✅ `modules` - Course modules
 5. ✅ `lessons` - Lessons with JSONB content

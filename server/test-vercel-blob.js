@@ -43,11 +43,12 @@ async function testBlobConnection() {
     // 2. Test upload
     console.log('2️⃣ Testing file upload...');
     const testData = Buffer.from('Hello from UDrive LMS! Test file.', 'utf-8');
-    const testPath = 'test/connection-test.txt';
+    const testPath = `test/connection-test-${Date.now()}.txt`;
     
     const blob = await put(testPath, testData, {
       access: 'public',
-      contentType: 'text/plain'
+      contentType: 'text/plain',
+      addRandomSuffix: true // Prevent collisions
     });
     
     console.log('✅ Upload successful!');

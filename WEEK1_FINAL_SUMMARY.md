@@ -58,7 +58,7 @@ npm run dev
 ```
 
 This starts:
-- Backend API on http://localhost:3000
+- Backend API on http://localhost:5000
 - Frontend on http://localhost:5173
 
 ### Test Credentials:
@@ -287,7 +287,7 @@ JWT_EXPIRES_IN=7d
 
 # Environment
 NODE_ENV=development
-PORT=3000
+PORT=5000
 ```
 
 ---

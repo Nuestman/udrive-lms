@@ -183,20 +183,78 @@ export interface Notification {
   created_at: string;
 }
 
-export interface UserProfile {
+// User - Authentication & Authorization
+export interface User {
   id: string;
   tenant_id: string;
   email: string;
-  first_name?: string;
-  last_name?: string;
   role: 'super_admin' | 'school_admin' | 'instructor' | 'student';
-  avatar_url?: string;
-  phone?: string;
-  settings?: any; // JSONB
+  settings?: any; // JSONB - system settings
   is_active: boolean;
   last_login?: string;
   created_at: string;
   updated_at: string;
+}
+
+// UserProfile - Personal & Profile Data
+export interface UserProfile {
+  id: string;
+  user_id: string;
+  
+  // Basic Profile Information
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
+  phone?: string;
+  bio?: string;
+  date_of_birth?: string;
+  
+  // Address Information
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  state_province?: string;
+  postal_code?: string;
+  country?: string;
+  
+  // Emergency Contact Information
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  emergency_contact_relationship?: string;
+  emergency_contact_email?: string;
+  
+  // Guardian Information (for minor students)
+  guardian_name?: string;
+  guardian_email?: string;
+  guardian_phone?: string;
+  guardian_relationship?: string;
+  guardian_address?: string;
+  
+  // Additional Profile Data
+  nationality?: string;
+  preferred_language?: string;
+  timezone?: string;
+  
+  // User-editable preferences
+  profile_preferences?: any; // JSONB
+  
+  // Social/Professional Links
+  linkedin_url?: string;
+  twitter_url?: string;
+  website_url?: string;
+  
+  created_at: string;
+  updated_at: string;
+}
+
+// Combined view for convenience (when joining both tables)
+export interface UserWithProfile extends User {
+  profile?: UserProfile;
+  // Denormalized for convenience:
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
+  phone?: string;
 }
 
 export interface Tenant {

@@ -74,13 +74,13 @@ http://localhost:5173/student/dashboard
 ### When You Login:
 ```
 [0] POST /api/auth/login
-[0] Executed query { text: 'SELECT * FROM user_profiles...', rows: 1 }
+[0] Executed query { text: 'SELECT * FROM users...', rows: 1 }
 ```
 
 ### When Accessing Dashboard:
 ```
 [0] GET /api/auth/me
-[0] Executed query { text: 'SELECT * FROM user_profiles WHERE id = $1...', rows: 1 }
+[0] Executed query { text: 'SELECT * FROM users WHERE id = $1...', rows: 1 }
 ```
 
 ---

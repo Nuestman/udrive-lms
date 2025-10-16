@@ -56,8 +56,8 @@ export function sanitizeFilename(filename) {
 }
 
 /**
- * Generate human-readable timestamp
- * Format: YYYY-MM-DD_HH-MM-SS
+ * Generate human-readable timestamp with milliseconds for uniqueness
+ * Format: YYYY-MM-DD_HH-MM-SS-mmm
  */
 export function getTimestamp() {
   const now = new Date();
@@ -67,8 +67,9 @@ export function getTimestamp() {
   const hours = String(now.getHours()).padStart(2, '0');
   const minutes = String(now.getMinutes()).padStart(2, '0');
   const seconds = String(now.getSeconds()).padStart(2, '0');
+  const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
   
-  return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+  return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}-${milliseconds}`;
 }
 
 /**
@@ -221,8 +222,9 @@ export async function uploadFile(fileData, originalFilename, category, context =
     const blob = await put(fullPath, fileData, {
       access: 'public',
       contentType: options.contentType,
-      addRandomSuffix: false, // We handle uniqueness ourselves
-      ...options
+      cacheControlMaxAge: 31536000, // 1 year cache
+      ...options,
+      addRandomSuffix: true // MUST be after ...options to prevent override
     });
     
     console.log(`✅ File uploaded successfully: ${blob.url}`);

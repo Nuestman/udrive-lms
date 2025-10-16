@@ -20,18 +20,14 @@ CREATE TABLE IF NOT EXISTS tenants (
 );
 
 -- =============================================
--- USER PROFILES
+-- USERS (Authentication & Authorization)
 -- =============================================
-CREATE TABLE IF NOT EXISTS user_profiles (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
-    first_name TEXT,
-    last_name TEXT,
     role TEXT NOT NULL CHECK (role IN ('super_admin', 'school_admin', 'instructor', 'student')),
-    avatar_url TEXT,
-    phone TEXT,
     settings JSONB DEFAULT '{}',
     is_active BOOLEAN DEFAULT true,
     last_login TIMESTAMP WITH TIME ZONE,
@@ -39,9 +35,67 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_user_profiles_tenant_id ON user_profiles(tenant_id);
-CREATE INDEX idx_user_profiles_email ON user_profiles(email);
-CREATE INDEX idx_user_profiles_role ON user_profiles(role);
+CREATE INDEX idx_users_tenant_id ON users(tenant_id);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_role ON users(role);
+
+-- =============================================
+-- USER PROFILES (Personal & Profile Data)
+-- =============================================
+CREATE TABLE IF NOT EXISTS user_profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    
+    -- Basic Profile Information
+    first_name TEXT,
+    last_name TEXT,
+    avatar_url TEXT,
+    phone TEXT,
+    bio TEXT,
+    date_of_birth DATE,
+    
+    -- Address Information
+    address_line1 TEXT,
+    address_line2 TEXT,
+    city TEXT,
+    state_province TEXT,
+    postal_code TEXT,
+    country TEXT,
+    
+    -- Emergency Contact Information
+    emergency_contact_name TEXT,
+    emergency_contact_phone TEXT,
+    emergency_contact_relationship TEXT,
+    emergency_contact_email TEXT,
+    
+    -- Guardian Information (for minor students)
+    guardian_name TEXT,
+    guardian_email TEXT,
+    guardian_phone TEXT,
+    guardian_relationship TEXT,
+    guardian_address TEXT,
+    
+    -- Additional Profile Data
+    nationality TEXT,
+    preferred_language TEXT DEFAULT 'en',
+    timezone TEXT DEFAULT 'UTC',
+    
+    -- User-editable preferences (non-system settings)
+    profile_preferences JSONB DEFAULT '{}',
+    
+    -- Social/Professional Links
+    linkedin_url TEXT,
+    twitter_url TEXT,
+    website_url TEXT,
+    
+    -- Metadata
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_user_profiles_user_id ON user_profiles(user_id);
+CREATE INDEX idx_user_profiles_last_name ON user_profiles(last_name);
+CREATE INDEX idx_user_profiles_date_of_birth ON user_profiles(date_of_birth);
 
 -- =============================================
 -- COURSES
@@ -55,7 +109,7 @@ CREATE TABLE IF NOT EXISTS courses (
     status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
     duration_weeks INTEGER,
     price DECIMAL(10,2) DEFAULT 0,
-    created_by UUID REFERENCES user_profiles(id),
+    created_by UUID REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -145,7 +199,7 @@ CREATE INDEX idx_quiz_questions_quiz_id ON quiz_questions(quiz_id);
 -- =============================================
 CREATE TABLE IF NOT EXISTS enrollments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    student_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+    student_id UUID REFERENCES users(id) ON DELETE CASCADE,
     course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
     status TEXT DEFAULT 'active' CHECK (status IN ('pending', 'active', 'completed', 'suspended')),
     enrolled_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -164,7 +218,7 @@ CREATE INDEX idx_enrollments_status ON enrollments(status);
 -- =============================================
 CREATE TABLE IF NOT EXISTS lesson_progress (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    student_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+    student_id UUID REFERENCES users(id) ON DELETE CASCADE,
     lesson_id UUID REFERENCES lessons(id) ON DELETE CASCADE,
     status TEXT DEFAULT 'not_started' CHECK (status IN ('not_started', 'in_progress', 'completed')),
     started_at TIMESTAMP WITH TIME ZONE,
@@ -182,7 +236,7 @@ CREATE INDEX idx_lesson_progress_lesson_id ON lesson_progress(lesson_id);
 -- =============================================
 CREATE TABLE IF NOT EXISTS quiz_attempts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    student_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+    student_id UUID REFERENCES users(id) ON DELETE CASCADE,
     quiz_id UUID REFERENCES quizzes(id) ON DELETE CASCADE,
     status TEXT DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'completed', 'abandoned')),
     score INTEGER,
@@ -201,7 +255,7 @@ CREATE INDEX idx_quiz_attempts_quiz_id ON quiz_attempts(quiz_id);
 -- =============================================
 CREATE TABLE IF NOT EXISTS certificates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    student_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+    student_id UUID REFERENCES users(id) ON DELETE CASCADE,
     course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
     certificate_number TEXT UNIQUE NOT NULL,
     verification_code TEXT UNIQUE NOT NULL,
@@ -243,13 +297,13 @@ CREATE INDEX idx_assignments_module_id ON assignments(module_id);
 CREATE TABLE IF NOT EXISTS assignment_submissions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE,
-    student_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+    student_id UUID REFERENCES users(id) ON DELETE CASCADE,
     content TEXT,
     file_urls JSONB, -- Array of uploaded file URLs
     status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'submitted', 'graded', 'returned')),
     score INTEGER,
     feedback TEXT,
-    graded_by UUID REFERENCES user_profiles(id),
+    graded_by UUID REFERENCES users(id),
     graded_at TIMESTAMP WITH TIME ZONE,
     submitted_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -266,7 +320,7 @@ CREATE INDEX idx_assignment_submissions_student_id ON assignment_submissions(stu
 CREATE TABLE IF NOT EXISTS media_files (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
-    uploaded_by UUID REFERENCES user_profiles(id),
+    uploaded_by UUID REFERENCES users(id),
     filename TEXT NOT NULL,
     original_filename TEXT NOT NULL,
     file_type TEXT NOT NULL,
@@ -288,7 +342,7 @@ CREATE INDEX idx_media_files_file_type ON media_files(file_type);
 -- =============================================
 CREATE TABLE IF NOT EXISTS notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     type TEXT NOT NULL,
     title TEXT NOT NULL,
     message TEXT NOT NULL,
@@ -306,7 +360,7 @@ CREATE INDEX idx_notifications_is_read ON notifications(user_id, is_read);
 CREATE TABLE IF NOT EXISTS audit_log (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID REFERENCES tenants(id),
-    user_id UUID REFERENCES user_profiles(id),
+    user_id UUID REFERENCES users(id),
     action TEXT NOT NULL,
     entity_type TEXT NOT NULL,
     entity_id UUID,
@@ -332,6 +386,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER update_tenants_updated_at BEFORE UPDATE ON tenants FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_user_profiles_updated_at BEFORE UPDATE ON user_profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_courses_updated_at BEFORE UPDATE ON courses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_modules_updated_at BEFORE UPDATE ON modules FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

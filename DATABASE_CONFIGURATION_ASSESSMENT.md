@@ -101,7 +101,7 @@ DATABASE_PASSWORD=453241945
 JWT_SECRET=udrive_secret_key_change_in_production_2024
 JWT_EXPIRES_IN=7d
 
-VITE_API_URL=http://localhost:3000/api
+VITE_API_URL=http://localhost:5000/api
 ```
 
 **Connects to:** 💻 Local PostgreSQL (No SSL)
@@ -223,7 +223,7 @@ PostgreSQL Version: PostgreSQL 14.0
 🔍 Checking for UDrive LMS tables...
 ✅ Found 15 tables:
 
-   ✅ user_profiles
+   ✅ users
    ✅ courses
    ✅ modules
    ✅ lessons

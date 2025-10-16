@@ -2,7 +2,7 @@
 
 CREATE TABLE IF NOT EXISTS goals (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    student_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+    student_id UUID REFERENCES users(id) ON DELETE CASCADE,
     course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     description TEXT,

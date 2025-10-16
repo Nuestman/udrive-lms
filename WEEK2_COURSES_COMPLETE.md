@@ -303,7 +303,7 @@ Test these scenarios:
 **Debug:**
 ```bash
 # Test API directly
-curl http://localhost:3000/api/courses
+curl http://localhost:5000/api/courses
 ```
 
 ### Can't Create Course
@@ -362,7 +362,7 @@ With courses working, Week 3 will build:
 
 1. **Student Management** (same pattern)
    - List/create/edit/delete students
-   - Real data from user_profiles table
+   - Real data from users table
 
 2. **Enrollment System** (same pattern)
    - Enroll students in courses

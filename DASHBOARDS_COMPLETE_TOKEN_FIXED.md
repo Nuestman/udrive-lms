@@ -93,7 +93,7 @@ const result = await query(..., [decoded.id]);
 ### Test 1: Super Admin Dashboard
 ```
 1. Login as super admin (or update your role):
-   UPDATE user_profiles 
+   UPDATE users 
    SET role = 'super_admin' 
    WHERE email = 'your@email.com';
 
@@ -120,7 +120,7 @@ const result = await query(..., [decoded.id]);
 ### Test 3: Instructor Dashboard
 ```
 1. Login as instructor (or update role):
-   UPDATE user_profiles 
+   UPDATE users 
    SET role = 'instructor' 
    WHERE email = 'your@email.com';
 

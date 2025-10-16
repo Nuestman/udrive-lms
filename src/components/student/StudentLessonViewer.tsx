@@ -1,13 +1,15 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Student Lesson Viewer - View and complete lessons
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, Circle, ChevronLeft, ChevronRight, BookOpen, Clock } from 'lucide-react';
-import { useLessons } from '../../hooks/useLessons';
+import { ArrowLeft, CheckCircle, Circle, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { useProgress } from '../../hooks/useProgress';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEnrollments } from '../../hooks/useEnrollments';
+import { useToast } from '../../contexts/ToastContext';
 import api from '../../lib/api';
 import PageLayout from '../ui/PageLayout';
+import { cleanLessonContent, convertYouTubeUrls, fixIframeAttributes } from '../../utils/htmlUtils';
 import CelebrationModal from '../ui/CelebrationModal';
 
 const StudentLessonViewer: React.FC = () => {
@@ -20,6 +22,8 @@ const StudentLessonViewer: React.FC = () => {
   const [currentLesson, setCurrentLesson] = useState<any>(null);
   const [allLessons, setAllLessons] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [isNavigatingNext, setIsNavigatingNext] = useState(false);
   
   // Celebration modal state
   const [celebrationModal, setCelebrationModal] = useState<{
@@ -37,12 +41,15 @@ const StudentLessonViewer: React.FC = () => {
   });
   
   const { progress, markLessonComplete, markLessonIncomplete, refresh: refreshProgress } = useProgress(profile?.id, courseId);
-  const { refreshEnrollments } = useEnrollments();
+  const enrollmentFilters = useMemo(() => (courseId ? { course_id: courseId } : undefined), [courseId]);
+  const { enrollments, refreshEnrollments } = useEnrollments(enrollmentFilters as any);
+  const { info, success } = useToast();
 
   useEffect(() => {
     if (courseId) {
       fetchCourseData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
 
   useEffect(() => {
@@ -102,10 +109,11 @@ const StudentLessonViewer: React.FC = () => {
     }
   };
 
-  const handleToggleComplete = async () => {
+  const handleToggleComplete = async (options?: { silent?: boolean }) => {
     if (!currentLesson) return;
 
     try {
+      setIsCompleting(true);
       const isCompleted = isLessonCompleted(currentLesson.id);
       
       if (isCompleted) {
@@ -118,8 +126,8 @@ const StudentLessonViewer: React.FC = () => {
         await refreshProgress();
         await refreshEnrollments(); // Refresh enrollments for dashboard
         
-        // Check if module or course completed
-        if (response?.enrollment_progress) {
+        // Check if module or course completed (skip UI if silent)
+        if (!options?.silent && response?.enrollment_progress) {
           const { moduleCompleted, courseCompleted, moduleId } = response.enrollment_progress;
           
           if (courseCompleted) {
@@ -131,6 +139,17 @@ const StudentLessonViewer: React.FC = () => {
               message: `Congratulations! You have completed "${course?.title}". You can now access your certificate.`,
               hasNextModule: false
             });
+
+            // Attempt to generate certificate if not exists yet
+            try {
+              const enrollmentId = getEnrollmentIdForCourse();
+              if (enrollmentId) {
+                await api.post('/api/certificates/generate', { enrollment_id: enrollmentId });
+              }
+            } catch (e) {
+              // Non-blocking: certificate may already exist
+              console.warn('Certificate generation attempt skipped/failed:', e);
+            }
           } else if (moduleCompleted) {
             // Check if there's a next module
             const currentModuleIndex = modules.findIndex(m => m.id === moduleId);
@@ -152,7 +171,42 @@ const StudentLessonViewer: React.FC = () => {
       }
     } catch (err: any) {
       alert(err.message || 'Failed to update progress');
+    } finally {
+      setIsCompleting(false);
     }
+  };
+
+  const getEnrollmentIdForCourse = () => {
+    const enrollment = enrollments?.find((e: any) => e.course_id === courseId);
+    return enrollment?.id as string | undefined;
+  };
+
+  const navigateToCertificates = () => {
+    const enrollmentId = getEnrollmentIdForCourse();
+    if (enrollmentId) {
+      navigate(`/student/certificates/${enrollmentId}`);
+    } else {
+      navigate('/student/certificates');
+    }
+  };
+
+  const isCourseFullyCompleted = () => {
+    if (!allLessons || allLessons.length === 0) return false;
+    return allLessons.every((l) => isLessonCompleted(l.id));
+  };
+
+  const attemptCompleteCourse = () => {
+    const total = allLessons.length;
+    const done = allLessons.filter((l) => isLessonCompleted(l.id)).length;
+    const remaining = total - done;
+
+    if (remaining > 0) {
+      info(`You still have ${remaining} lesson${remaining === 1 ? '' : 's'} to complete.`);
+      return;
+    }
+
+    success('Course completed! Redirecting to your certificate...');
+    navigateToCertificates();
   };
 
   const isLessonCompleted = (lessonId: string) => {
@@ -176,6 +230,21 @@ const StudentLessonViewer: React.FC = () => {
     const currentIndex = getCurrentLessonIndex();
     if (currentIndex < allLessons.length - 1) {
       navigate(`/student/courses/${courseId}/lessons/${allLessons[currentIndex + 1].id}`);
+    }
+  };
+
+  const handleNextLessonClick = async () => {
+    if (!currentLesson) return;
+    const currentIndex = getCurrentLessonIndex();
+    if (currentIndex >= allLessons.length - 1) return;
+    try {
+      setIsNavigatingNext(true);
+      if (!isLessonCompleted(currentLesson.id)) {
+        await handleToggleComplete({ silent: true });
+      }
+      goToNextLesson();
+    } finally {
+      setIsNavigatingNext(false);
     }
   };
 
@@ -207,15 +276,18 @@ const StudentLessonViewer: React.FC = () => {
   const renderLessonContent = () => {
     if (!currentLesson) return null;
 
-    // Extract HTML content from JSONB
-    let htmlContent = '';
-    if (Array.isArray(currentLesson.content)) {
-      htmlContent = currentLesson.content
-        .map((block: any) => block.content || '')
-        .join('');
-    } else if (typeof currentLesson.content === 'string') {
-      htmlContent = currentLesson.content;
-    }
+    // Extract and clean HTML content
+    let htmlContent = cleanLessonContent(currentLesson.content);
+    
+    // Apply YouTube URL conversion again as a final step
+    htmlContent = convertYouTubeUrls(htmlContent);
+    
+    // Fix iframe attributes for better embedding
+    htmlContent = fixIframeAttributes(htmlContent);
+    
+    // Debug: Log the content to see what we're working with
+    console.log('Raw lesson content:', currentLesson.content);
+    console.log('Final HTML content:', htmlContent);
 
     return (
       <div className="prose max-w-none">
@@ -224,8 +296,10 @@ const StudentLessonViewer: React.FC = () => {
           <div className="mb-6">
             <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden">
               <iframe
-                src={currentLesson.video_url}
+                src={convertYouTubeUrls(currentLesson.video_url)}
                 className="w-full h-full"
+                frameBorder={0}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
                 title={currentLesson.title}
               />
@@ -284,9 +358,9 @@ const StudentLessonViewer: React.FC = () => {
         type={celebrationModal.type}
         title={celebrationModal.title}
         message={celebrationModal.message}
-        onNext={celebrationModal.hasNextModule ? goToNextModule : undefined}
+        onNext={celebrationModal.type === 'course' ? navigateToCertificates : (celebrationModal.hasNextModule ? goToNextModule : undefined)}
         onGoToDashboard={celebrationModal.type === 'course' ? () => navigate('/student/dashboard') : undefined}
-        nextButtonText={celebrationModal.hasNextModule ? 'Start Next Module' : undefined}
+        nextButtonText={celebrationModal.type === 'course' ? 'View Certificate' : (celebrationModal.hasNextModule ? 'Start Next Module' : undefined)}
       />
 
       <PageLayout
@@ -373,15 +447,16 @@ const StudentLessonViewer: React.FC = () => {
                   )}
                 </div>
                 <button
-                  onClick={handleToggleComplete}
+                  onClick={() => handleToggleComplete()}
                   className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${
                     isCompleted
                       ? 'bg-green-100 text-green-700 hover:bg-green-200'
                       : 'bg-primary-600 text-white hover:bg-primary-700'
                   }`}
+                  disabled={isCompleting}
                 >
                   <CheckCircle size={18} className="mr-2" />
-                  {isCompleted ? 'Completed' : 'Mark as Complete'}
+                  {isCompleting ? (isCompleted ? 'Updating...' : 'Completing...') : (isCompleted ? 'Completed' : 'Mark as Complete')}
                 </button>
               </div>
             </div>
@@ -406,14 +481,24 @@ const StudentLessonViewer: React.FC = () => {
                 Lesson {currentIndex + 1} of {allLessons.length}
               </div>
 
-              <button
-                onClick={goToNextLesson}
-                disabled={currentIndex === allLessons.length - 1}
-                className="flex items-center px-4 py-2 text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-                <ChevronRight size={18} className="ml-1" />
-              </button>
+              {currentIndex === allLessons.length - 1 ? (
+                <button
+                  onClick={isCourseFullyCompleted() ? navigateToCertificates : attemptCompleteCourse}
+                  className="flex items-center px-4 py-2 text-white bg-primary-600 rounded-lg hover:bg-primary-700"
+                >
+                  {isCourseFullyCompleted() ? 'View Certificate' : 'Complete Course'}
+                  <ChevronRight size={18} className="ml-1" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleNextLessonClick}
+                  disabled={currentIndex === allLessons.length - 1 || isNavigatingNext || isCompleting}
+                  className="flex items-center px-4 py-2 text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isNavigatingNext || isCompleting ? 'Completing...' : 'Next'}
+                  <ChevronRight size={18} className="ml-1" />
+                </button>
+              )}
             </div>
           </div>
         </div>

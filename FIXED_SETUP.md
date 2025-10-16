@@ -47,7 +47,7 @@ JWT_EXPIRES_IN=7d
 NODE_ENV=development
 
 # API Configuration
-PORT=3000
+PORT=5000
 ```
 
 ---
@@ -92,7 +92,7 @@ Your working app probably uses nodemon or a similar tool!
 3. **You should see:**
    ```
    [0] [nodemon] starting `node server/index.js`
-   [0] 🚀 Server running on http://localhost:3000
+   [0] 🚀 Server running on http://localhost:5000
    [0] ✅ Database connected successfully
    [1] VITE v5.4.8  ready in 500 ms
    [1] ➜  Local:   http://localhost:5173/

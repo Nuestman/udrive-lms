@@ -33,7 +33,7 @@ async function testConnection() {
     console.log('📊 Tables created:', tablesResult.rows[0].count);
     
     // Count users
-    const usersResult = await client.query('SELECT COUNT(*) as count FROM user_profiles');
+    const usersResult = await client.query('SELECT COUNT(*) as count FROM users');
     console.log('👥 Users in database:', usersResult.rows[0].count);
     
     // Count courses
@@ -43,7 +43,7 @@ async function testConnection() {
     // Show test users
     const testUsers = await client.query(`
       SELECT email, role, first_name, last_name 
-      FROM user_profiles 
+      FROM users 
       ORDER BY role, email
     `);
     console.log('\n🔑 Test user accounts:');

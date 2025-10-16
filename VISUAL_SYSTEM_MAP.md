@@ -56,7 +56,7 @@
 ├──────────────────────────────────────────────────────────────┤
 │                                                               │
 │  🟢 tenants (1 tenant: Premier Driving Academy)              │
-│  🟢 user_profiles (7 users: you + 6 test users)              │
+│  🟢 users (7 users: you + 6 test users)              │
 │  🟢 courses (3 courses ready)                                │
 │  🟢 modules (5 modules ready)                                │
 │  🟢 lessons (3 lessons ready)                                │

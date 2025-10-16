@@ -398,10 +398,10 @@ await usersService.bulkUpdateUsers(
 
 ## 📊 Database Schema
 
-The system uses the existing `user_profiles` table:
+The system uses the existing `users` table:
 
 ```sql
-CREATE TABLE user_profiles (
+CREATE TABLE users (
     id UUID PRIMARY KEY,
     tenant_id UUID REFERENCES tenants(id),
     email TEXT UNIQUE NOT NULL,
@@ -515,7 +515,7 @@ CREATE TABLE user_profiles (
 **Solution**: Ensure users are selected and you have permission for the operation
 
 ### Issue: Statistics not showing
-**Solution**: Check database connection and ensure user_profiles table has data
+**Solution**: Check database connection and ensure users table has data
 
 ### Issue: Search not working
 **Solution**: Verify search parameter is being passed correctly to API

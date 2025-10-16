@@ -153,7 +153,7 @@ fi
 echo -e "\n${CYAN}✔️  Verifying migration...${NC}"
 
 SUPABASE_TABLES=$(psql "$SUPABASE_URL" -t -A -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null)
-USER_COUNT=$(psql "$SUPABASE_URL" -t -A -c "SELECT COUNT(*) FROM user_profiles;" 2>/dev/null)
+USER_COUNT=$(psql "$SUPABASE_URL" -t -A -c "SELECT COUNT(*) FROM users;" 2>/dev/null)
 COURSE_COUNT=$(psql "$SUPABASE_URL" -t -A -c "SELECT COUNT(*) FROM courses;" 2>/dev/null)
 LESSON_COUNT=$(psql "$SUPABASE_URL" -t -A -c "SELECT COUNT(*) FROM lessons;" 2>/dev/null)
 

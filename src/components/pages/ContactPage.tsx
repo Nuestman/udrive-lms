@@ -19,7 +19,7 @@ const ContactPage: React.FC = () => {
     setTimeout(() => {
       setSubmitted(false);
       setFormData({ name: '', email: '', subject: '', message: '' });
-    }, 3000);
+    }, 5000);
   };
 
   return (

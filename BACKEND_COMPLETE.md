@@ -111,11 +111,11 @@ DELETE /api/enrollments/:id
 # Login first to get token (check browser cookies for auth_token)
 
 # Get all courses
-curl http://localhost:3000/api/courses \
+curl http://localhost:5000/api/courses \
   -H "Cookie: auth_token=your_token_here"
 
 # Create course (as admin)
-curl -X POST http://localhost:3000/api/courses \
+curl -X POST http://localhost:5000/api/courses \
   -H "Cookie: auth_token=your_token" \
   -H "Content-Type: application/json" \
   -d '{"title":"API Test Course","description":"Created via API"}'
@@ -124,14 +124,14 @@ curl -X POST http://localhost:3000/api/courses \
 ### Test Students API:
 ```bash
 # Get all students
-curl http://localhost:3000/api/students \
+curl http://localhost:5000/api/students \
   -H "Cookie: auth_token=your_token"
 ```
 
 ### Test Enrollments API:
 ```bash
 # Get enrollments
-curl http://localhost:3000/api/enrollments \
+curl http://localhost:5000/api/enrollments \
   -H "Cookie: auth_token=your_token"
 ```
 
@@ -209,7 +209,7 @@ To test all features, update your role:
 
 **In pgAdmin:**
 ```sql
-UPDATE user_profiles 
+UPDATE users 
 SET role = 'school_admin' 
 WHERE email = 'nuestman17@gmail.com';
 ```

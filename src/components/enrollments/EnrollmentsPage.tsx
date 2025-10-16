@@ -5,13 +5,15 @@ import { useEnrollments } from '../../hooks/useEnrollments';
 import { useCourses } from '../../hooks/useCourses';
 import { useStudents } from '../../hooks/useStudents';
 import PageLayout from '../ui/PageLayout';
+import { useToast } from '../../contexts/ToastContext';
 
 const EnrollmentsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   
-  const { enrollments, loading, error, createEnrollment, deleteEnrollment } = useEnrollments();
+  const { enrollments, loading, error, createEnrollment, unenrollStudent } = useEnrollments();
+  const { success, error: showError } = useToast();
   const { courses } = useCourses();
   const { students } = useStudents({});
 
@@ -22,10 +24,7 @@ const EnrollmentsPage: React.FC = () => {
 
   const handleEnroll = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedStudent || !selectedCourse) {
-      alert('Please select both student and course');
-      return;
-    }
+    if (!selectedStudent || !selectedCourse) return showError('Please select both student and course');
 
     try {
       setEnrolling(true);
@@ -39,21 +38,20 @@ const EnrollmentsPage: React.FC = () => {
       setSelectedStudent('');
       setSelectedCourse('');
       setShowEnrollModal(false);
-      alert('Student enrolled successfully!');
+      success('Student enrolled successfully');
     } catch (err: any) {
-      alert(err.message || 'Failed to enroll student');
+      showError(err.message || 'Failed to enroll student');
     } finally {
       setEnrolling(false);
     }
   };
 
   const handleUnenroll = async (enrollmentId: string, studentName: string, courseName: string) => {
-    if (window.confirm(`Unenroll ${studentName} from ${courseName}?`)) {
-      try {
-        await deleteEnrollment(enrollmentId);
-      } catch (err: any) {
-        alert(err.message || 'Failed to unenroll student');
-      }
+    try {
+      await unenrollStudent(enrollmentId);
+      success(`Unenrolled ${studentName} from ${courseName}`);
+    } catch (err: any) {
+      showError(err.message || 'Failed to unenroll student');
     }
   };
 
@@ -107,6 +105,7 @@ const EnrollmentsPage: React.FC = () => {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              aria-label="Filter by status"
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
@@ -244,6 +243,7 @@ const EnrollmentsPage: React.FC = () => {
               <button
                 onClick={() => setShowEnrollModal(false)}
                 className="text-gray-400 hover:text-gray-600"
+                aria-label="Close enroll modal"
               >
                 <X size={24} />
               </button>
@@ -259,6 +259,7 @@ const EnrollmentsPage: React.FC = () => {
                   onChange={(e) => setSelectedStudent(e.target.value)}
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  aria-label="Select student"
                 >
                   <option value="">Select a student</option>
                   {students.map((student) => (
@@ -278,6 +279,7 @@ const EnrollmentsPage: React.FC = () => {
                   onChange={(e) => setSelectedCourse(e.target.value)}
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  aria-label="Select course"
                 >
                   <option value="">Select a course</option>
                   {courses.map((course) => (

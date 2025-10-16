@@ -4,6 +4,9 @@ import DashboardLayout from './components/dashboard/DashboardLayout';
 import BlockEditor from './components/lesson/BlockEditor';
 import QuizEngine from './components/quiz/QuizEngine';
 import CertificateGenerator from './components/certificate/CertificateGenerator';
+import CertificateViewPage from './components/certificate/CertificateViewPage';
+import CertificateVerificationPage from './components/certificate/CertificateVerificationPage';
+import CertificateManagementPage from './components/certificate/CertificateManagementPage';
 import StudentManagement from './components/student/StudentManagement';
 import EnrollmentSystem from './components/enrollment/EnrollmentSystem';
 import MediaLibrary from './components/media/MediaLibrary';
@@ -45,6 +48,9 @@ import ResetPasswordPage from './components/pages/Auth/ResetPasswordPage';
 import PrivacyPage from './components/pages/PrivacyPage';
 import TermsPage from './components/pages/TermsPage';
 import ContactPage from './components/pages/ContactPage';
+
+// Profile Page
+import UserProfilePage from './components/profile/UserProfilePage';
 
 // Auth Context
 import { useAuth } from './contexts/AuthContext';
@@ -311,7 +317,8 @@ function App() {
           <Route path="/school/enrollments" element={<EnrollmentsPage />} />
           <Route path="/school/analytics" element={<AnalyticsPage role="school_admin" />} />
           <Route path="/school/settings" element={<SettingsPage role="school_admin" />} />
-          <Route path="/school/certificates" element={<CertificatesPage role="school_admin" />} />
+          <Route path="/school/certificates" element={<CertificateManagementPage />} />
+          <Route path="/school/profile" element={<UserProfilePage />} />
           <Route path="/media-library" element={<MediaLibrary />} />
 
           {/* Super Admin Routes */}
@@ -321,10 +328,14 @@ function App() {
           <Route path="/admin/instructors" element={<InstructorsPage />} />
           <Route path="/admin/analytics" element={<AnalyticsPage role="super_admin" />} />
           <Route path="/admin/settings" element={<SettingsPage role="super_admin" />} />
+          <Route path="/admin/certificates" element={<CertificateManagementPage />} />
+          <Route path="/admin/profile" element={<UserProfilePage />} />
           
           {/* Instructor Routes */}
           <Route path="/instructor/dashboard" element={<InstructorDashboard />} />
           <Route path="/instructor/courses" element={<CoursesPage role="instructor" />} />
+          <Route path="/instructor/certificates" element={<CertificateManagementPage />} />
+          <Route path="/instructor/profile" element={<UserProfilePage />} />
 
           {/* Student Routes */}
           <Route path="/student/dashboard" element={<StudentDashboardPage />} />
@@ -332,12 +343,17 @@ function App() {
           <Route path="/student/courses" element={<StudentCoursesPage />} />
           <Route path="/student/courses/:courseId/lessons/:lessonId" element={<StudentLessonViewer />} />
           <Route path="/student/certificates" element={<CertificatesPage role="student" />} />
+          <Route path="/student/certificates/:enrollmentId" element={<CertificateViewPage />} />
+          <Route path="/student/profile" element={<UserProfilePage />} />
 
           {/* Common Pages - Accessible to all roles */}
           <Route path="/help" element={<HelpPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/contact" element={<ContactPage />} />
+          
+          {/* Public Certificate Verification */}
+          <Route path="/verify/:verificationCode" element={<CertificateVerificationPage />} />
           
           {/* Demo Components */}
           <Route path="/block-editor-demo" element={<BlockEditor initialContent={sampleBlocks} showPreview={true} onChange={(blocks) => console.log('Content updated:', blocks)} />} />

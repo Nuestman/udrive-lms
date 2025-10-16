@@ -212,7 +212,7 @@ ORDER BY created_at DESC;
 
 ### Create Test Course via API:
 ```bash
-curl -X POST http://localhost:3000/api/courses \
+curl -X POST http://localhost:5000/api/courses \
   -H "Content-Type: application/json" \
   -b "auth_token=your_token" \
   -d '{"title":"API Test Course","description":"Created via curl"}'
@@ -220,7 +220,7 @@ curl -X POST http://localhost:3000/api/courses \
 
 ### Get Courses via API:
 ```bash
-curl http://localhost:3000/api/courses \
+curl http://localhost:5000/api/courses \
   -b "auth_token=your_token"
 ```
 

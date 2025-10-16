@@ -34,7 +34,7 @@ const config = hasConnectionString
       user: process.env.DATABASE_USER || 'postgres',
       password: process.env.DATABASE_PASSWORD || 'postgres',
       max: 1,
-      connectionTimeoutMillis: 5000,
+      connectionTimeoutMillis: 3000,
     };
 
 const pool = new Pool(config);
@@ -77,7 +77,7 @@ async function testConnection() {
       
       const expectedTables = [
         'tenants',
-        'user_profiles',
+        'users',
         'courses',
         'modules',
         'lessons',
@@ -99,7 +99,7 @@ async function testConnection() {
       // Count records in key tables
       console.log('📊 Record Counts:');
       const counts = await Promise.all([
-        client.query('SELECT COUNT(*) FROM user_profiles'),
+        client.query('SELECT COUNT(*) FROM users'),
         client.query('SELECT COUNT(*) FROM courses'),
         client.query('SELECT COUNT(*) FROM modules'),
         client.query('SELECT COUNT(*) FROM lessons'),

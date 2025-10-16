@@ -3,7 +3,7 @@
 
 -- 1. Verify super admin user (should NOT have tenant_id or can have special tenant)
 -- Option A: Super admin with NO tenant (recommended for true global access)
-UPDATE user_profiles 
+UPDATE users 
 SET tenant_id = NULL 
 WHERE role = 'super_admin' AND email = 'admin@udrivelms.com';
 
@@ -13,7 +13,7 @@ WHERE role = 'super_admin' AND email = 'admin@udrivelms.com';
 -- 2. Ensure all other users have valid tenant_id
 -- Check for orphaned users
 SELECT id, email, role, tenant_id 
-FROM user_profiles 
+FROM users 
 WHERE role != 'super_admin' AND tenant_id IS NULL;
 -- If any found, assign them to default tenant
 
@@ -55,7 +55,7 @@ SELECT
   'Users' as entity,
   COUNT(*) as total,
   COUNT(*) FILTER (WHERE is_active = true) as active
-FROM user_profiles
+FROM users
 UNION ALL
 SELECT 
   'Courses' as entity,
@@ -73,7 +73,7 @@ FROM enrollments;
 SELECT 
   'Users without tenant (non-super admin)' as check_name,
   COUNT(*) as count
-FROM user_profiles
+FROM users
 WHERE role != 'super_admin' AND tenant_id IS NULL
 
 UNION ALL

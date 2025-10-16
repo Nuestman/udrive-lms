@@ -21,8 +21,7 @@ const CreateInstructorModal: React.FC<CreateInstructorModalProps> = ({ onClose, 
     first_name: '',
     last_name: '',
     tenant_id: profile?.role === 'school_admin' ? profile.tenant_id : '',
-    phone: '',
-    avatar_url: ''
+    phone: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -170,19 +169,11 @@ const CreateInstructorModal: React.FC<CreateInstructorModalProps> = ({ onClose, 
             />
           </div>
 
-          <div>
-            <label htmlFor="avatar_url" className="block text-sm font-medium text-gray-700 mb-1">
-              Avatar URL
-            </label>
-            <input
-              id="avatar_url"
-              type="url"
-              name="avatar_url"
-              value={formData.avatar_url}
-              onChange={handleChange}
-              placeholder="https://example.com/avatar.jpg"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            />
+          {/* Note about profile picture */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800">
+              ℹ️ The instructor can upload their profile picture after logging in via Settings → Profile
+            </p>
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">

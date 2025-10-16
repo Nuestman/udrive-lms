@@ -216,7 +216,7 @@ WHERE c.tenant_id = $1
 ### Test 1: Super Admin Access
 ```
 1. Update your user to super_admin:
-   UPDATE user_profiles 
+   UPDATE users 
    SET role = 'super_admin' 
    WHERE email = 'your.email@example.com';
 

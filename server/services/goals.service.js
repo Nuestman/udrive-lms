@@ -8,7 +8,7 @@ export async function getStudentGoals(studentId, tenantId, isSuperAdmin = false)
   // Verify student access
   if (!isSuperAdmin) {
     const studentCheck = await query(
-      'SELECT id FROM user_profiles WHERE id = $1 AND tenant_id = $2',
+      'SELECT id FROM users WHERE id = $1 AND tenant_id = $2',
       [studentId, tenantId]
     );
     
@@ -58,7 +58,7 @@ export async function getGoalById(goalId, studentId, tenantId, isSuperAdmin = fa
         c.title as course_title
        FROM goals g
        LEFT JOIN courses c ON g.course_id = c.id
-       JOIN user_profiles u ON g.student_id = u.id
+       JOIN users u ON g.student_id = u.id
        WHERE g.id = $1 AND g.student_id = $2 AND u.tenant_id = $3`,
       [goalId, studentId, tenantId]
     );
@@ -80,7 +80,7 @@ export async function createGoal(goalData, studentId, tenantId, isSuperAdmin = f
   // Verify student access
   if (!isSuperAdmin) {
     const studentCheck = await query(
-      'SELECT id FROM user_profiles WHERE id = $1 AND tenant_id = $2',
+      'SELECT id FROM users WHERE id = $1 AND tenant_id = $2',
       [studentId, tenantId]
     );
     
@@ -121,7 +121,7 @@ export async function updateGoal(goalId, goalData, studentId, tenantId, isSuperA
   if (!isSuperAdmin) {
     const goalCheck = await query(
       `SELECT g.id FROM goals g
-       JOIN user_profiles u ON g.student_id = u.id
+       JOIN users u ON g.student_id = u.id
        WHERE g.id = $1 AND g.student_id = $2 AND u.tenant_id = $3`,
       [goalId, studentId, tenantId]
     );
@@ -155,7 +155,7 @@ export async function deleteGoal(goalId, studentId, tenantId, isSuperAdmin = fal
   if (!isSuperAdmin) {
     const goalCheck = await query(
       `SELECT g.id FROM goals g
-       JOIN user_profiles u ON g.student_id = u.id
+       JOIN users u ON g.student_id = u.id
        WHERE g.id = $1 AND g.student_id = $2 AND u.tenant_id = $3`,
       [goalId, studentId, tenantId]
     );

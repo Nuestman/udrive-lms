@@ -240,7 +240,7 @@ Login as student
 ### Test 2: Super Admin Access
 ```
 1. Make yourself super_admin:
-   UPDATE user_profiles 
+   UPDATE users 
    SET role = 'super_admin' 
    WHERE email = 'your@email.com';
 

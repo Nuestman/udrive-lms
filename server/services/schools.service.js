@@ -9,9 +9,9 @@ import { ValidationError, NotFoundError } from '../middleware/errorHandler.js';
 export async function getAllSchools() {
   const result = await query(
     `SELECT t.*,
-      (SELECT COUNT(*) FROM user_profiles WHERE tenant_id = t.id) as total_users,
-      (SELECT COUNT(*) FROM user_profiles WHERE tenant_id = t.id AND role = 'student') as student_count,
-      (SELECT COUNT(*) FROM user_profiles WHERE tenant_id = t.id AND role = 'instructor') as instructor_count,
+      (SELECT COUNT(*) FROM users WHERE tenant_id = t.id) as total_users,
+      (SELECT COUNT(*) FROM users WHERE tenant_id = t.id AND role = 'student') as student_count,
+      (SELECT COUNT(*) FROM users WHERE tenant_id = t.id AND role = 'instructor') as instructor_count,
       (SELECT COUNT(*) FROM courses WHERE tenant_id = t.id) as course_count,
       (SELECT COUNT(*) FROM enrollments e JOIN courses c ON e.course_id = c.id WHERE c.tenant_id = t.id) as enrollment_count
      FROM tenants t
@@ -27,9 +27,9 @@ export async function getAllSchools() {
 export async function getSchoolById(schoolId) {
   const result = await query(
     `SELECT t.*,
-      (SELECT COUNT(*) FROM user_profiles WHERE tenant_id = t.id) as total_users,
-      (SELECT COUNT(*) FROM user_profiles WHERE tenant_id = t.id AND role = 'student') as student_count,
-      (SELECT COUNT(*) FROM user_profiles WHERE tenant_id = t.id AND role = 'instructor') as instructor_count,
+      (SELECT COUNT(*) FROM users WHERE tenant_id = t.id) as total_users,
+      (SELECT COUNT(*) FROM users WHERE tenant_id = t.id AND role = 'student') as student_count,
+      (SELECT COUNT(*) FROM users WHERE tenant_id = t.id AND role = 'instructor') as instructor_count,
       (SELECT COUNT(*) FROM courses WHERE tenant_id = t.id) as course_count,
       (SELECT COUNT(*) FROM enrollments e JOIN courses c ON e.course_id = c.id WHERE c.tenant_id = t.id) as enrollment_count
      FROM tenants t
@@ -134,7 +134,7 @@ export async function deleteSchool(schoolId) {
 
   // Check if school has active users
   const usersCheck = await query(
-    'SELECT COUNT(*) as count FROM user_profiles WHERE tenant_id = $1 AND is_active = true',
+    'SELECT COUNT(*) as count FROM users WHERE tenant_id = $1 AND is_active = true',
     [schoolId]
   );
 
@@ -157,10 +157,10 @@ export async function deleteSchool(schoolId) {
 export async function getSchoolStats(schoolId) {
   const stats = await query(
     `SELECT 
-      (SELECT COUNT(*) FROM user_profiles WHERE tenant_id = $1) as total_users,
-      (SELECT COUNT(*) FROM user_profiles WHERE tenant_id = $1 AND role = 'student') as students,
-      (SELECT COUNT(*) FROM user_profiles WHERE tenant_id = $1 AND role = 'instructor') as instructors,
-      (SELECT COUNT(*) FROM user_profiles WHERE tenant_id = $1 AND role = 'school_admin') as admins,
+      (SELECT COUNT(*) FROM users WHERE tenant_id = $1) as total_users,
+      (SELECT COUNT(*) FROM users WHERE tenant_id = $1 AND role = 'student') as students,
+      (SELECT COUNT(*) FROM users WHERE tenant_id = $1 AND role = 'instructor') as instructors,
+      (SELECT COUNT(*) FROM users WHERE tenant_id = $1 AND role = 'school_admin') as admins,
       (SELECT COUNT(*) FROM courses WHERE tenant_id = $1) as courses,
       (SELECT COUNT(*) FROM courses WHERE tenant_id = $1 AND status = 'published') as published_courses,
       (SELECT COUNT(*) FROM enrollments e JOIN courses c ON e.course_id = c.id WHERE c.tenant_id = $1) as enrollments,

@@ -12,14 +12,15 @@ export async function getCourses(tenantId, isSuperAdmin = false) {
   if (isSuperAdmin) {
     const result = await query(
       `SELECT c.*, 
-        u.first_name || ' ' || u.last_name as instructor_name,
+        p.first_name || ' ' || p.last_name as instructor_name,
         u.email as instructor_email,
         t.name as school_name,
         t.id as school_id,
         (SELECT COUNT(*) FROM modules WHERE course_id = c.id) as module_count,
         (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as student_count
        FROM courses c
-       LEFT JOIN user_profiles u ON c.created_by = u.id
+       LEFT JOIN users u ON c.created_by = u.id
+       LEFT JOIN user_profiles p ON p.user_id = u.id
        LEFT JOIN tenants t ON c.tenant_id = t.id
        ORDER BY c.created_at DESC`
     );
@@ -29,12 +30,13 @@ export async function getCourses(tenantId, isSuperAdmin = false) {
   // Tenant-scoped: Only their courses
   const result = await query(
     `SELECT c.*, 
-      u.first_name || ' ' || u.last_name as instructor_name,
+      p.first_name || ' ' || p.last_name as instructor_name,
       u.email as instructor_email,
       (SELECT COUNT(*) FROM modules WHERE course_id = c.id) as module_count,
       (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as student_count
      FROM courses c
-     LEFT JOIN user_profiles u ON c.created_by = u.id
+     LEFT JOIN users u ON c.created_by = u.id
+     LEFT JOIN user_profiles p ON p.user_id = u.id
      WHERE c.tenant_id = $1
      ORDER BY c.created_at DESC`,
     [tenantId]
@@ -55,13 +57,14 @@ export async function getCourseById(courseId, tenantId, isSuperAdmin = false) {
     // Super Admin: Access any course
     result = await query(
       `SELECT c.*, 
-        u.first_name || ' ' || u.last_name as instructor_name,
+        p.first_name || ' ' || p.last_name as instructor_name,
         u.email as instructor_email,
         t.name as school_name,
         (SELECT COUNT(*) FROM modules WHERE course_id = c.id) as module_count,
         (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as student_count
        FROM courses c
-       LEFT JOIN user_profiles u ON c.created_by = u.id
+       LEFT JOIN users u ON c.created_by = u.id
+       LEFT JOIN user_profiles p ON p.user_id = u.id
        LEFT JOIN tenants t ON c.tenant_id = t.id
        WHERE c.id = $1`,
       [courseId]
@@ -70,12 +73,13 @@ export async function getCourseById(courseId, tenantId, isSuperAdmin = false) {
     // Tenant-scoped: Only their course
     result = await query(
       `SELECT c.*, 
-        u.first_name || ' ' || u.last_name as instructor_name,
+        p.first_name || ' ' || p.last_name as instructor_name,
         u.email as instructor_email,
         (SELECT COUNT(*) FROM modules WHERE course_id = c.id) as module_count,
         (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as student_count
        FROM courses c
-       LEFT JOIN user_profiles u ON c.created_by = u.id
+       LEFT JOIN users u ON c.created_by = u.id
+       LEFT JOIN user_profiles p ON p.user_id = u.id
        WHERE c.id = $1 AND c.tenant_id = $2`,
       [courseId, tenantId]
     );

@@ -22,7 +22,7 @@ CREATE TABLE tenants (
 );
 
 -- Users table (extends Supabase auth.users)
-CREATE TABLE user_profiles (
+CREATE TABLE users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
@@ -46,7 +46,7 @@ CREATE TABLE courses (
   status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
   duration_weeks INTEGER,
   price DECIMAL(10,2),
-  created_by UUID REFERENCES user_profiles(id),
+  created_by UUID REFERENCES users(id),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -80,7 +80,7 @@ CREATE TABLE lessons (
 -- Enrollments table
 CREATE TABLE enrollments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+  student_id UUID REFERENCES users(id) ON DELETE CASCADE,
   course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
   status TEXT DEFAULT 'active' CHECK (status IN ('pending', 'active', 'completed', 'suspended')),
   enrolled_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -92,7 +92,7 @@ CREATE TABLE enrollments (
 -- Progress tracking table
 CREATE TABLE lesson_progress (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+  student_id UUID REFERENCES users(id) ON DELETE CASCADE,
   lesson_id UUID REFERENCES lessons(id) ON DELETE CASCADE,
   status TEXT DEFAULT 'not_started' CHECK (status IN ('not_started', 'in_progress', 'completed')),
   started_at TIMESTAMP WITH TIME ZONE,
@@ -118,7 +118,7 @@ CREATE TABLE quizzes (
 -- Quiz attempts table
 CREATE TABLE quiz_attempts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+  student_id UUID REFERENCES users(id) ON DELETE CASCADE,
   quiz_id UUID REFERENCES quizzes(id) ON DELETE CASCADE,
   answers JSONB NOT NULL DEFAULT '{}',
   score INTEGER,
@@ -129,7 +129,7 @@ CREATE TABLE quiz_attempts (
 
 -- Enable Row Level Security
 ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE modules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lessons ENABLE ROW LEVEL SECURITY;
@@ -142,15 +142,15 @@ ALTER TABLE quiz_attempts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own tenant" ON tenants
   FOR SELECT USING (
     id IN (
-      SELECT tenant_id FROM user_profiles 
+      SELECT tenant_id FROM users 
       WHERE id = auth.uid()
     )
   );
 
-CREATE POLICY "Users can view profiles in their tenant" ON user_profiles
+CREATE POLICY "Users can view profiles in their tenant" ON users
   FOR SELECT USING (
     tenant_id IN (
-      SELECT tenant_id FROM user_profiles 
+      SELECT tenant_id FROM users 
       WHERE id = auth.uid()
     )
   );
@@ -231,7 +231,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchUserProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from('user_profiles')
+        .from('users')
         .select('*')
         .eq('id', userId)
         .single();
@@ -262,7 +262,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (data.user) {
       // Create user profile
       const { error: profileError } = await supabase
-        .from('user_profiles')
+        .from('users')
         .insert({
           id: data.user.id,
           email,
@@ -287,7 +287,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) throw new Error('No user logged in');
     
     const { error } = await supabase
-      .from('user_profiles')
+      .from('users')
       .update(updates)
       .eq('id', user.id);
     
@@ -479,7 +479,7 @@ export class DatabaseService {
   // Student operations
   static async getStudents(tenantId: string) {
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('users')
       .select('*')
       .eq('tenant_id', tenantId)
       .eq('role', 'student')
@@ -491,7 +491,7 @@ export class DatabaseService {
 
   static async createStudent(studentData: any) {
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('users')
       .insert({ ...studentData, role: 'student' })
       .select()
       .single();

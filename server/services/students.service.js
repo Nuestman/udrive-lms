@@ -14,7 +14,7 @@ class NotFoundError extends Error {
  */
 export async function getStudents(tenantId, filters = {}, isSuperAdmin = false) {
   let queryText = `
-    SELECT u.*,
+    SELECT u.*, p.first_name, p.last_name, p.avatar_url, p.phone,
       (SELECT COUNT(*) FROM enrollments WHERE student_id = u.id) as courses_enrolled,
       (SELECT COUNT(*) FROM enrollments WHERE student_id = u.id AND status = 'completed') as courses_completed,
       (SELECT AVG(progress_percentage) FROM enrollments WHERE student_id = u.id) as overall_progress
@@ -27,12 +27,14 @@ export async function getStudents(tenantId, filters = {}, isSuperAdmin = false) 
   // Super Admin: Include school name
   if (isSuperAdmin) {
     queryText += `, t.name as school_name, t.id as school_id
-    FROM user_profiles u
+    FROM users u
+    LEFT JOIN user_profiles p ON p.user_id = u.id
     LEFT JOIN tenants t ON u.tenant_id = t.id`;
   } else {
     // Tenant-scoped: Only their students
     queryText += `
-    FROM user_profiles u`;
+    FROM users u
+    LEFT JOIN user_profiles p ON p.user_id = u.id`;
     conditions.push(`u.tenant_id = $${paramIndex}`);
     params.push(tenantId);
     paramIndex++;
@@ -49,8 +51,8 @@ export async function getStudents(tenantId, filters = {}, isSuperAdmin = false) 
 
   if (filters.search) {
     conditions.push(`(
-      u.first_name ILIKE $${paramIndex} OR 
-      u.last_name ILIKE $${paramIndex} OR 
+      p.first_name ILIKE $${paramIndex} OR 
+      p.last_name ILIKE $${paramIndex} OR 
       u.email ILIKE $${paramIndex}
     )`);
     params.push(`%${filters.search}%`);
@@ -72,12 +74,13 @@ export async function getStudentById(studentId, tenantId, isSuperAdmin = false) 
   if (isSuperAdmin) {
     // Super Admin: Access any student
     result = await query(
-      `SELECT u.*,
+      `SELECT u.*, p.first_name, p.last_name, p.avatar_url, p.phone,
         t.name as school_name,
         (SELECT COUNT(*) FROM enrollments WHERE student_id = u.id) as courses_enrolled,
         (SELECT COUNT(*) FROM enrollments WHERE student_id = u.id AND status = 'completed') as courses_completed,
         (SELECT AVG(progress_percentage) FROM enrollments WHERE student_id = u.id) as overall_progress
-       FROM user_profiles u
+       FROM users u
+       LEFT JOIN user_profiles p ON p.user_id = u.id
        LEFT JOIN tenants t ON u.tenant_id = t.id
        WHERE u.id = $1 AND u.role = 'student'`,
       [studentId]
@@ -85,11 +88,12 @@ export async function getStudentById(studentId, tenantId, isSuperAdmin = false) 
   } else {
     // Tenant-scoped: Only their student
     result = await query(
-      `SELECT u.*,
+      `SELECT u.*, p.first_name, p.last_name, p.avatar_url, p.phone,
         (SELECT COUNT(*) FROM enrollments WHERE student_id = u.id) as courses_enrolled,
         (SELECT COUNT(*) FROM enrollments WHERE student_id = u.id AND status = 'completed') as courses_completed,
         (SELECT AVG(progress_percentage) FROM enrollments WHERE student_id = u.id) as overall_progress
-       FROM user_profiles u
+       FROM users u
+       LEFT JOIN user_profiles p ON p.user_id = u.id
        WHERE u.id = $1 AND u.tenant_id = $2 AND u.role = 'student'`,
       [studentId, tenantId]
     );
@@ -110,7 +114,7 @@ export async function createStudent(studentData, tenantId) {
 
   // Check if email already exists
   const existingUser = await query(
-    'SELECT id FROM user_profiles WHERE email = $1',
+    'SELECT id FROM users WHERE email = $1',
     [email]
   );
 
@@ -123,7 +127,7 @@ export async function createStudent(studentData, tenantId) {
 
   // Create student
   const result = await query(
-    `INSERT INTO user_profiles (email, password_hash, first_name, last_name, phone, tenant_id, role, is_active)
+    `INSERT INTO users (email, password_hash, first_name, last_name, phone, tenant_id, role, is_active)
      VALUES ($1, $2, $3, $4, $5, $6, 'student', true)
      RETURNING *`,
     [email, password_hash, first_name, last_name, phone, tenantId]
@@ -140,21 +144,29 @@ export async function updateStudent(studentId, studentData, tenantId, isSuperAdm
   const { first_name, last_name, phone, email, is_active } = studentData;
 
   // Verify student access
-  if (!isSuperAdmin) {
-    const studentCheck = await query(
-      'SELECT id FROM user_profiles WHERE id = $1 AND tenant_id = $2 AND role = \'student\'',
+  let studentCheck;
+  if (isSuperAdmin) {
+    // Super Admin: Just verify student exists
+    studentCheck = await query(
+      'SELECT id FROM users WHERE id = $1 AND role = \'student\'',
+      [studentId]
+    );
+  } else {
+    // Tenant-scoped: Verify student belongs to their tenant
+    studentCheck = await query(
+      'SELECT id FROM users WHERE id = $1 AND tenant_id = $2 AND role = \'student\'',
       [studentId, tenantId]
     );
+  }
 
-    if (studentCheck.rows.length === 0) {
-      throw new NotFoundError('Student not found or access denied');
-    }
+  if (studentCheck.rows.length === 0) {
+    throw new NotFoundError('Student not found or access denied');
   }
 
   // Check email uniqueness if updating email
   if (email) {
     const emailCheck = await query(
-      'SELECT id FROM user_profiles WHERE email = $1 AND id != $2',
+      'SELECT id FROM users WHERE email = $1 AND id != $2',
       [email, studentId]
     );
 
@@ -164,7 +176,7 @@ export async function updateStudent(studentId, studentData, tenantId, isSuperAdm
   }
 
   const result = await query(
-    `UPDATE user_profiles
+    `UPDATE users
      SET first_name = COALESCE($2, first_name),
          last_name = COALESCE($3, last_name),
          phone = COALESCE($4, phone),
@@ -189,12 +201,12 @@ export async function deleteStudent(studentId, tenantId, isSuperAdmin = false) {
   
   if (isSuperAdmin) {
     studentCheck = await query(
-      'SELECT id FROM user_profiles WHERE id = $1 AND role = \'student\'',
+      'SELECT id FROM users WHERE id = $1 AND role = \'student\'',
       [studentId]
     );
   } else {
     studentCheck = await query(
-      'SELECT id FROM user_profiles WHERE id = $1 AND tenant_id = $2 AND role = \'student\'',
+      'SELECT id FROM users WHERE id = $1 AND tenant_id = $2 AND role = \'student\'',
       [studentId, tenantId]
     );
   }
@@ -205,7 +217,7 @@ export async function deleteStudent(studentId, tenantId, isSuperAdmin = false) {
 
   // Soft delete - deactivate account
   await query(
-    'UPDATE user_profiles SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+    'UPDATE users SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
     [studentId]
   );
 
@@ -221,12 +233,18 @@ export async function adminResetPassword(studentId, tenantId, isSuperAdmin = fal
   
   if (isSuperAdmin) {
     studentCheck = await query(
-      'SELECT id, email, first_name, last_name FROM user_profiles WHERE id = $1 AND role = \'student\'',
+      `SELECT u.id, u.email, p.first_name, p.last_name 
+       FROM users u
+       LEFT JOIN user_profiles p ON p.user_id = u.id
+       WHERE u.id = $1 AND u.role = 'student'`,
       [studentId]
     );
   } else {
     studentCheck = await query(
-      'SELECT id, email, first_name, last_name FROM user_profiles WHERE id = $1 AND tenant_id = $2 AND role = \'student\'',
+      `SELECT u.id, u.email, p.first_name, p.last_name 
+       FROM users u
+       LEFT JOIN user_profiles p ON p.user_id = u.id
+       WHERE u.id = $1 AND u.tenant_id = $2 AND u.role = 'student'`,
       [studentId, tenantId]
     );
   }
@@ -242,7 +260,7 @@ export async function adminResetPassword(studentId, tenantId, isSuperAdmin = fal
 
   // Update password
   await query(
-    'UPDATE user_profiles SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+    'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
     [password_hash, studentId]
   );
 

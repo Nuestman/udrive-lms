@@ -261,7 +261,7 @@ psql $DB_URL -f database/seed.sql
 ### Verify Database
 
 In Supabase Dashboard → Table Editor, you should see:
-- ✅ user_profiles
+- ✅ users
 - ✅ courses
 - ✅ modules
 - ✅ lessons

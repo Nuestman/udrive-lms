@@ -115,7 +115,7 @@ npm run dev:all
 ```
 
 This starts:
-- Backend on http://localhost:3000
+- Backend on http://localhost:5000
 - Frontend on http://localhost:5173
 
 ### Test Authentication

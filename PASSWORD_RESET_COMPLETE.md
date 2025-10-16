@@ -114,7 +114,7 @@ Password: password123
 
 **Using API (Postman/Thunder Client):**
 ```http
-POST http://localhost:3000/api/students/{student_id}/reset-password
+POST http://localhost:5000/api/students/{student_id}/reset-password
 Authorization: Bearer {admin_token}
 Content-Type: application/json
 

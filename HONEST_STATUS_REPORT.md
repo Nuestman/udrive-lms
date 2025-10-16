@@ -21,7 +21,7 @@ Logout → Clear → Redirect
 
 ### ✅ Infrastructure (REAL)
 - PostgreSQL database with 17 tables
-- Express backend API on port 3000
+- Express backend API on port 5000
 - React frontend on port 5173
 - JWT authentication
 - Session management
@@ -37,7 +37,7 @@ Logout → Clear → Redirect
 | Component | File | Mock Data? | Database Table | Connected? |
 |-----------|------|------------|----------------|------------|
 | CoursesPage | CoursesPage.tsx | ✅ Yes | courses | ❌ No |
-| StudentManagement | StudentManagement.tsx | ✅ Yes | user_profiles | ❌ No |
+| StudentManagement | StudentManagement.tsx | ✅ Yes | users | ❌ No |
 | SchoolAdminDashboard | SchoolAdminDashboard.tsx | ✅ Yes | Multiple | ❌ No |
 | EnrollmentSystem | EnrollmentSystem.tsx | ✅ Yes | enrollments | ❌ No |
 | ProgressTracking | ProgressTracking.tsx | ✅ Yes | lesson_progress | ❌ No |
@@ -46,8 +46,8 @@ Logout → Clear → Redirect
 | QuizEngine | QuizEngine.tsx | ⚠️ Partial | quiz_attempts | ❌ No |
 | CertificateGenerator | CertificateGenerator.tsx | ⚠️ Partial | certificates | ❌ No |
 | AnalyticsPage | AnalyticsPage.tsx | ✅ Yes | Multiple | ❌ No |
-| SettingsPage | SettingsPage.tsx | ✅ Yes | user_profiles | ❌ No |
-| StudentsPage | StudentsPage.tsx | ✅ Yes | user_profiles | ❌ No |
+| SettingsPage | SettingsPage.tsx | ✅ Yes | users | ❌ No |
+| StudentsPage | StudentsPage.tsx | ✅ Yes | users | ❌ No |
 | CertificatesPage | CertificatesPage.tsx | ✅ Yes | certificates | ❌ No |
 
 **Total:** 13 components with mock data, 0 connected to database (except auth)
@@ -59,7 +59,7 @@ Logout → Clear → Redirect
 **We HAVE these tables (ready to use):**
 ```sql
 ✅ tenants (1 row)
-✅ user_profiles (6 rows - you + 5 test users)
+✅ users (6 rows - you + 5 test users)
 ✅ courses (3 rows)
 ✅ modules (5 rows)
 ✅ lessons (3 rows)
@@ -77,7 +77,7 @@ Logout → Clear → Redirect
 ```
 
 **We DON'T HAVE:**
-- Backend endpoints to access these tables (except user_profiles)
+- Backend endpoints to access these tables (except users)
 - React hooks to fetch from these tables
 - Components connected to these tables
 

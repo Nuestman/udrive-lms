@@ -128,7 +128,7 @@ If you want to migrate specific tables or have control over the process:
 
 ```bash
 # Export specific table
-pg_dump -U postgres -d udrive-from-bolt -t user_profiles -f user_profiles.sql
+pg_dump -U postgres -d udrive-from-bolt -t users -f users.sql
 pg_dump -U postgres -d udrive-from-bolt -t courses -f courses.sql
 pg_dump -U postgres -d udrive-from-bolt -t modules -f modules.sql
 # ... repeat for all tables
@@ -138,7 +138,7 @@ pg_dump -U postgres -d udrive-from-bolt -t modules -f modules.sql
 
 ```bash
 # Import each table
-psql "postgresql://postgres:[YOUR_PASSWORD]@db.zrwrdfkntrfqarbidtou.supabase.co:5432/postgres" -f user_profiles.sql
+psql "postgresql://postgres:[YOUR_PASSWORD]@db.zrwrdfkntrfqarbidtou.supabase.co:5432/postgres" -f users.sql
 ```
 
 ---
@@ -207,7 +207,7 @@ ORDER BY table_name;
 ```
 
 Expected tables:
-- user_profiles
+- users
 - courses
 - modules
 - lessons
@@ -223,7 +223,7 @@ Expected tables:
 
 ```sql
 -- Check record counts
-SELECT 'user_profiles' as table_name, COUNT(*) as count FROM user_profiles
+SELECT 'users' as table_name, COUNT(*) as count FROM users
 UNION ALL
 SELECT 'courses', COUNT(*) FROM courses
 UNION ALL
@@ -241,7 +241,7 @@ Compare with local:
 ```bash
 # Run locally
 psql -U postgres -d udrive-from-bolt -c "
-SELECT 'user_profiles' as table_name, COUNT(*) as count FROM user_profiles
+SELECT 'users' as table_name, COUNT(*) as count FROM users
 UNION ALL
 SELECT 'courses', COUNT(*) FROM courses
 UNION ALL
@@ -361,7 +361,7 @@ psql "postgresql://postgres:[YOUR_PASSWORD]@db.zrwrdfkntrfqarbidtou.supabase.co:
 psql "postgresql://postgres:[YOUR_PASSWORD]@db.zrwrdfkntrfqarbidtou.supabase.co:5432/postgres" -c "\dt"
 
 # 4. Count records
-psql "postgresql://postgres:[YOUR_PASSWORD]@db.zrwrdfkntrfqarbidtou.supabase.co:5432/postgres" -c "SELECT COUNT(*) FROM user_profiles;"
+psql "postgresql://postgres:[YOUR_PASSWORD]@db.zrwrdfkntrfqarbidtou.supabase.co:5432/postgres" -c "SELECT COUNT(*) FROM users;"
 ```
 
 ---

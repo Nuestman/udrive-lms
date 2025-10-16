@@ -7,7 +7,7 @@
 **Option A: Change your user to super admin**
 ```sql
 -- Run in pgAdmin:
-UPDATE user_profiles 
+UPDATE users 
 SET role = 'super_admin', tenant_id = NULL
 WHERE email = 'your@email.com';
 ```
@@ -32,7 +32,7 @@ WHERE email = 'your@email.com';
 **Option A: Change user to instructor**
 ```sql
 -- Run in pgAdmin:
-UPDATE user_profiles 
+UPDATE users 
 SET role = 'instructor'
 WHERE email = 'your@email.com';
 ```
@@ -56,7 +56,7 @@ WHERE email = 'your@email.com';
 
 **Change to school admin:**
 ```sql
-UPDATE user_profiles 
+UPDATE users 
 SET role = 'school_admin'
 WHERE email = 'your@email.com';
 ```
@@ -79,7 +79,7 @@ WHERE email = 'your@email.com';
 
 **Change to student:**
 ```sql
-UPDATE user_profiles 
+UPDATE users 
 SET role = 'student'
 WHERE email = 'your@email.com';
 ```
@@ -124,24 +124,24 @@ WHERE email = 'your@email.com';
 
 ```sql
 -- Switch to Super Admin
-UPDATE user_profiles 
+UPDATE users 
 SET role = 'super_admin', tenant_id = NULL
 WHERE email = 'your@email.com';
 
 -- Switch to School Admin
-UPDATE user_profiles 
+UPDATE users 
 SET role = 'school_admin', 
     tenant_id = (SELECT id FROM tenants LIMIT 1)
 WHERE email = 'your@email.com';
 
 -- Switch to Instructor
-UPDATE user_profiles 
+UPDATE users 
 SET role = 'instructor',
     tenant_id = (SELECT id FROM tenants LIMIT 1)
 WHERE email = 'your@email.com';
 
 -- Switch to Student
-UPDATE user_profiles 
+UPDATE users 
 SET role = 'student',
     tenant_id = (SELECT id FROM tenants LIMIT 1)
 WHERE email = 'your@email.com';
@@ -250,7 +250,7 @@ WHERE email = 'your@email.com';
 3. **Check console for errors**
 4. **Verify role in database:**
    ```sql
-   SELECT email, role, tenant_id FROM user_profiles 
+   SELECT email, role, tenant_id FROM users 
    WHERE email = 'your@email.com';
    ```
 

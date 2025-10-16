@@ -14,13 +14,13 @@ async function resetAllPasswords() {
     console.log('✅ Generated password hash\n');
     
     // Get all users first
-    const users = await query('SELECT id, email, role FROM user_profiles ORDER BY role, email');
+    const users = await query('SELECT id, email, role FROM users ORDER BY role, email');
     
     console.log(`📋 Found ${users.rows.length} users\n`);
     
     // Update all users
     const result = await query(
-      `UPDATE user_profiles 
+      `UPDATE users 
        SET password_hash = $1, updated_at = CURRENT_TIMESTAMP
        RETURNING email, role`,
       [passwordHash]

@@ -45,7 +45,7 @@ Recommended Team: **2-3 developers**
 -- Create in this order:
 □ Enable extensions
 □ Create tenants table
-□ Create user_profiles table
+□ Create users table
 □ Create courses table
 □ Create modules table
 □ Create lessons table

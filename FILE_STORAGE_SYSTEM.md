@@ -461,7 +461,7 @@ Files are stored in the `media_files` table:
 CREATE TABLE media_files (
     id UUID PRIMARY KEY,
     tenant_id UUID REFERENCES tenants(id),
-    uploaded_by UUID REFERENCES user_profiles(id),
+    uploaded_by UUID REFERENCES users(id),
     filename TEXT NOT NULL,
     original_filename TEXT NOT NULL,
     file_type TEXT NOT NULL,

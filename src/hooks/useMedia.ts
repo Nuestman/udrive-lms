@@ -250,7 +250,8 @@ export function useAvatarUpload() {
       const formData = new FormData();
       formData.append('avatar', file);
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/media/avatar`, {
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const response = await fetch(`${baseUrl}/media/avatar`, {
         method: 'POST',
         credentials: 'include', // Use cookie-based auth
         body: formData
@@ -261,7 +262,9 @@ export function useAvatarUpload() {
         throw new Error(error.message || 'Avatar upload failed');
       }
 
-      return await response.json();
+      const data = await response.json();
+      // Normalize response to include avatarUrl
+      return { ...data, avatarUrl: data.avatarUrl || data.url };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Avatar upload failed';
       setError(errorMessage);

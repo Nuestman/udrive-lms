@@ -67,7 +67,7 @@ const [students, setStudents] = useState<Student[]>([
   }
 ]);
 ```
-**Reality:** Not connected to `user_profiles` table
+**Reality:** Not connected to `users` table
 
 #### 3. Dashboard Statistics
 **File:** `src/components/admin/SchoolAdminDashboard.tsx`

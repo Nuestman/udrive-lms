@@ -6,7 +6,7 @@
 
 import express from 'express';
 import { requireAuth } from '../middleware/auth.middleware.js';
-import { validateTenantAccess } from '../middleware/tenant.middleware.js';
+import { tenantContext } from '../middleware/tenant.middleware.js';
 import {
   uploadMedia,
   uploadAvatar,
@@ -24,7 +24,7 @@ const router = express.Router();
  */
 router.post('/upload',
   requireAuth,
-  validateTenantAccess,
+  tenantContext,
   uploadMedia,
   handleUploadError,
   async (req, res) => {
@@ -73,7 +73,7 @@ router.post('/upload',
  */
 router.get('/',
   requireAuth,
-  validateTenantAccess,
+  tenantContext,
   async (req, res) => {
     try {
       const { fileType, search, tags, limit, offset } = req.query;
@@ -106,7 +106,7 @@ router.get('/',
  */
 router.get('/:id',
   requireAuth,
-  validateTenantAccess,
+  tenantContext,
   async (req, res) => {
     try {
       const file = await mediaService.getMediaFileById(req.params.id, req.tenantId);
@@ -131,7 +131,7 @@ router.get('/:id',
  */
 router.put('/:id',
   requireAuth,
-  validateTenantAccess,
+  tenantContext,
   async (req, res) => {
     try {
       const { tags, metadata } = req.body;
@@ -163,7 +163,7 @@ router.put('/:id',
  */
 router.delete('/:id',
   requireAuth,
-  validateTenantAccess,
+  tenantContext,
   async (req, res) => {
     try {
       await mediaService.deleteMediaFile(req.params.id, req.tenantId);
@@ -188,7 +188,7 @@ router.delete('/:id',
  */
 router.post('/delete-multiple',
   requireAuth,
-  validateTenantAccess,
+  tenantContext,
   async (req, res) => {
     try {
       const { fileIds } = req.body;
@@ -222,7 +222,7 @@ router.post('/delete-multiple',
  */
 router.get('/stats',
   requireAuth,
-  validateTenantAccess,
+  tenantContext,
   async (req, res) => {
     try {
       const stats = await mediaService.getStorageStats(req.tenantId);
@@ -243,11 +243,11 @@ router.get('/stats',
 
 /**
  * POST /api/media/avatar
- * Upload user avatar
+ * Upload user avatar (for current logged-in user)
  */
 router.post('/avatar',
   requireAuth,
-  validateTenantAccess,
+  tenantContext,
   uploadAvatar,
   handleUploadError,
   async (req, res) => {
@@ -284,12 +284,90 @@ router.post('/avatar',
 );
 
 /**
+ * POST /api/media/avatar/:userId
+ * Upload avatar for a specific user (admin/instructor updating others)
+ */
+router.post('/avatar/:userId',
+  requireAuth,
+  tenantContext,
+  uploadAvatar,
+  handleUploadError,
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'No file provided'
+        });
+      }
+      
+      const targetUserId = req.params.userId;
+      
+      // Verify user exists and access rights
+      const isSuperAdmin = req.user.role === 'super_admin';
+      let userCheck;
+      
+      if (isSuperAdmin) {
+        // Super admin can update any user's avatar
+        userCheck = await query(
+          `SELECT u.id, u.tenant_id, p.first_name, p.last_name 
+           FROM users u
+           LEFT JOIN user_profiles p ON p.user_id = u.id
+           WHERE u.id = $1`,
+          [targetUserId]
+        );
+      } else {
+        // Others can only update users in their tenant
+        userCheck = await query(
+          `SELECT u.id, u.tenant_id, p.first_name, p.last_name 
+           FROM users u
+           LEFT JOIN user_profiles p ON p.user_id = u.id
+           WHERE u.id = $1 AND u.tenant_id = $2`,
+          [targetUserId, req.tenantId]
+        );
+      }
+      
+      if (userCheck.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found or access denied'
+        });
+      }
+      
+      const targetUser = userCheck.rows[0];
+      const targetTenantId = targetUser.tenant_id || req.tenantId;
+      
+      const result = await mediaService.uploadAvatar(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype,
+        targetUserId,
+        targetTenantId,
+        `${targetUser.first_name || ''} ${targetUser.last_name || ''}`.trim()
+      );
+      
+      res.json({
+        success: true,
+        message: 'Avatar uploaded successfully',
+        avatarUrl: result.url
+      });
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to upload avatar'
+      });
+    }
+  }
+);
+
+/**
  * POST /api/media/course-thumbnail/:courseId
  * Upload course thumbnail
  */
 router.post('/course-thumbnail/:courseId',
   requireAuth,
-  validateTenantAccess,
+  tenantContext,
   uploadCourseThumbnail,
   handleUploadError,
   async (req, res) => {
@@ -331,7 +409,7 @@ router.post('/course-thumbnail/:courseId',
  */
 router.post('/assignment-submission/:assignmentId',
   requireAuth,
-  validateTenantAccess,
+  tenantContext,
   uploadAssignment,
   handleUploadError,
   async (req, res) => {
@@ -373,6 +451,7 @@ router.post('/assignment-submission/:assignmentId',
  */
 router.post('/tenant-logo/:tenantId',
   requireAuth,
+  tenantContext,
   uploadCourseThumbnail, // Reuse same constraints (image, 5MB)
   handleUploadError,
   async (req, res) => {

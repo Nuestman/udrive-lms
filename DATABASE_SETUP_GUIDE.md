@@ -22,7 +22,7 @@ DATABASE_PASSWORD=your_actual_password_here
 JWT_SECRET=udrive_secret_key_change_in_production_2024
 JWT_EXPIRES_IN=7d
 
-VITE_API_URL=http://localhost:3000/api
+VITE_API_URL=http://localhost:5000/api
 NODE_ENV=development
 ```
 
@@ -41,7 +41,7 @@ You should see output like:
 ✅ Schema created successfully!
 📋 Created tables:
   - tenants
-  - user_profiles
+  - users
   - courses
   - modules
   - lessons
@@ -72,7 +72,7 @@ You should see:
 1. Open pgAdmin
 2. Navigate to: Servers → PostgreSQL → Databases → udrive-from-bolt → Schemas → public → Tables
 3. You should see all 17 tables
-4. Right-click `user_profiles` → View/Edit Data → All Rows
+4. Right-click `users` → View/Edit Data → All Rows
 5. You should see 6 test users
 
 ## Test Credentials
@@ -156,7 +156,7 @@ Should output:
 
 ### Tables (17 total):
 1. `tenants` - Multi-tenant organizations
-2. `user_profiles` - User accounts and profiles
+2. `users` - User accounts and profiles
 3. `courses` - Course catalog
 4. `modules` - Course modules
 5. `lessons` - Individual lessons with content
@@ -198,14 +198,14 @@ See `NEXT_STEPS_ACTION_PLAN.md` for the full roadmap.
 ## Database Schema Diagram
 
 ```
-tenants (1) ──┬─→ (M) user_profiles
+tenants (1) ──┬─→ (M) users
               ├─→ (M) courses ──┬─→ (M) modules ──┬─→ (M) lessons
               │                  │                  ├─→ (M) quizzes ──→ (M) quiz_questions
               │                  │                  └─→ (M) assignments
               │                  └─→ (M) enrollments
               └─→ (M) media_files
 
-user_profiles (1) ──┬─→ (M) enrollments
+users (1) ──┬─→ (M) enrollments
                     ├─→ (M) lesson_progress
                     ├─→ (M) quiz_attempts
                     ├─→ (M) certificates

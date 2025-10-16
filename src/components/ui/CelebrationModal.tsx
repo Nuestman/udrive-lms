@@ -27,7 +27,7 @@ const CelebrationModal: React.FC<CelebrationModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       // Trigger confetti animation
-      const duration = 3000;
+      const duration = 5000;
       const animationEnd = Date.now() + duration;
       const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
 

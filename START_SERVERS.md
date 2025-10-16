@@ -8,7 +8,7 @@ UDrive uses a **client-server architecture**:
 ┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
 │   Browser       │         │   Backend API   │         │   PostgreSQL    │
 │  (React App)    │────────▶│  (Express.js)   │────────▶│   Database      │
-│  Port 5173      │  HTTP   │  Port 3000      │  SQL    │   Port 5432     │
+│  Port 5173      │  HTTP   │  Port 5000      │  SQL    │   Port 5432     │
 └─────────────────┘         └─────────────────┘         └─────────────────┘
 ```
 
@@ -20,7 +20,7 @@ UDrive uses a **client-server architecture**:
 - Runs in the browser
 - **Cannot directly access PostgreSQL** (browser security)
 
-**Backend (Express - Port 3000):**
+**Backend (Express - Port 5000):**
 - REST API server
 - Handles database operations
 - Authenticates users
@@ -37,7 +37,7 @@ npm run dev:all
 ```
 
 This starts:
-- Backend on http://localhost:3000
+- Backend on http://localhost:5000
 - Frontend on http://localhost:5173
 
 **Keep this terminal open!**
@@ -53,9 +53,9 @@ node server/index.js
 
 You should see:
 ```
-🚀 Server running on http://localhost:3000
-📡 API available at http://localhost:3000/api
-🔐 Auth endpoints at http://localhost:3000/api/auth
+🚀 Server running on http://localhost:5000
+📡 API available at http://localhost:5000/api
+🔐 Auth endpoints at http://localhost:5000/api/auth
 ✅ Database connected successfully
 🎯 Server is ready! Keep this terminal open.
 ```
@@ -78,7 +78,7 @@ VITE v5.4.2  ready in 500 ms
 ## Verify Both Are Running
 
 ### Check Backend:
-Open: http://localhost:3000/api/health
+Open: http://localhost:5000/api/health
 
 Should show:
 ```json
@@ -108,7 +108,7 @@ node server/index.js
 
 Look for error messages. Common causes:
 - Database connection failed
-- Port 3000 already in use
+- Port 5000 already in use
 - Missing `.env` file
 
 ### Issue 2: "NetworkError" in Browser
@@ -119,26 +119,26 @@ Look for error messages. Common causes:
 
 **Fix:** Start the backend server (see above).
 
-### Issue 3: "Not found" on Port 3000
+### Issue 3: "Not found" on Port 5000
 
-**Problem:** Going to http://localhost:3000 shows error.
+**Problem:** Going to http://localhost:5000 shows error.
 
 **Cause:** 
 - Accessing root URL instead of API endpoint
 - OR backend crashed
 
 **Fix:**
-- Use http://localhost:3000/api/health to test
+- Use http://localhost:5000/api/health to test
 - Check if backend terminal is still running
 
 ### Issue 4: Port Already in Use
 
-**Error:** `EADDRINUSE: address already in use :::3000`
+**Error:** `EADDRINUSE: address already in use :::5000`
 
 **Fix:**
 ```bash
 # Windows PowerShell
-Get-Process -Id (Get-NetTCPConnection -LocalPort 3000).OwningProcess | Stop-Process
+Get-Process -Id (Get-NetTCPConnection -LocalPort 5000).OwningProcess | Stop-Process
 ```
 
 Then restart the server.
@@ -150,7 +150,7 @@ Then restart the server.
 Check your task manager or terminal:
 
 ✅ **PostgreSQL** - Database server (pgAdmin shows it's running)  
-✅ **Node.js (Backend)** - API server on port 3000  
+✅ **Node.js (Backend)** - API server on port 5000  
 ✅ **Node.js (Frontend)** - Vite dev server on port 5173  
 
 **3 processes total**
@@ -168,7 +168,7 @@ Should show 6 users and 3 courses.
 
 ### 2. Test Backend API:
 ```bash
-curl http://localhost:3000/api/health
+curl http://localhost:5000/api/health
 ```
 
 Should return JSON with status "ok".

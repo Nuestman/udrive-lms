@@ -113,7 +113,7 @@ DATABASE_URL="your-supabase-url" node database/run-schema.js
 ### Verify Database
 
 In Supabase Dashboard → **Table Editor**, you should see:
-- ✅ `user_profiles`
+- ✅ `users`
 - ✅ `courses`
 - ✅ `modules`
 - ✅ `lessons`
@@ -314,7 +314,7 @@ curl -X POST https://your-api.com/api/auth/login \
 
 Either:
 - Use seeded super admin: `superadmin@udrive.com` / `Admin123!`
-- Or manually insert into `user_profiles` table via Supabase dashboard
+- Or manually insert into `users` table via Supabase dashboard
 
 ### 6. Security Checklist
 

@@ -2,7 +2,6 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import coursesRoutes from './routes/courses.js';
 import modulesRoutes from './routes/modules.js';
@@ -20,8 +19,15 @@ import instructorsRoutes from './routes/instructors.js';
 import mediaRoutes from './routes/media.js';
 import { pool } from './lib/db.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { APP_CONFIG, validateConfig } from './config/app.js';
 
-dotenv.config();
+// Validate configuration on startup
+try {
+  validateConfig();
+} catch (error) {
+  console.error('❌ Configuration Error:', error.message);
+  process.exit(1);
+}
 
 // Handle uncaught errors
 process.on('uncaughtException', (error) => {
@@ -33,21 +39,20 @@ process.on('unhandledRejection', (error) => {
 });
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors({
-  origin: 'http://localhost:5173', // Vite dev server
-  credentials: true
-}));
-app.use(express.json());
+app.use(cors(APP_CONFIG.CORS_OPTIONS));
+app.use(express.json({ limit: '10mb' })); // Increase limit for lesson content with images
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
 
 // Request logging
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`);
-  next();
-});
+if (APP_CONFIG.ENABLE_REQUEST_LOGGING) {
+  app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path}`);
+    next();
+  });
+}
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -83,10 +88,13 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, async () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📡 API available at http://localhost:${PORT}/api`);
-  console.log(`🔐 Auth endpoints at http://localhost:${PORT}/api/auth`);
+app.listen(APP_CONFIG.PORT, async () => {
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log(`🚀 Server running on http://localhost:${APP_CONFIG.PORT}`);
+  console.log(`📡 API available at http://localhost:${APP_CONFIG.PORT}/api`);
+  console.log(`🔐 Auth endpoints at http://localhost:${APP_CONFIG.PORT}/api/auth`);
+  console.log(`🌍 Environment: ${APP_CONFIG.NODE_ENV}`);
+  console.log(`🎨 Frontend: ${APP_CONFIG.FRONTEND_URL}`);
   
   // Test database connection
   try {
@@ -96,7 +104,8 @@ app.listen(PORT, async () => {
     console.error('❌ Database connection failed:', error.message);
   }
   
-  console.log('\n🎯 Server is ready! Keep this terminal open.\n');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('🎯 Server is ready! Keep this terminal open.\n');
 });
 
 export default app;

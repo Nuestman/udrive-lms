@@ -15,7 +15,7 @@ async function fixSeedPasswords() {
     
     // Update all users with placeholder hashes
     const result = await query(
-      `UPDATE user_profiles 
+      `UPDATE users 
        SET password_hash = $1 
        WHERE password_hash LIKE '$2a$10$YourBcryptHashHere%'
        RETURNING email, role`,

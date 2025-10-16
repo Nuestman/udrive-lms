@@ -107,7 +107,7 @@ export const Header: React.FC<HeaderProps> = ({ title, userProfile, onMenuToggle
                   </div>
                   <div className="py-1">
                     <Link
-                      to={`/${userProfile.role === 'school_admin' ? 'school' : userProfile.role === 'super_admin' ? 'admin' : userProfile.role}/settings`}
+                      to={`/${userProfile.role === 'school_admin' ? 'school' : userProfile.role === 'super_admin' ? 'admin' : userProfile.role}/profile`}
                       className="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                       onClick={() => setDropdownOpen(false)}
                     >

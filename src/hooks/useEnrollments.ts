@@ -8,6 +8,7 @@ interface UseEnrollmentsReturn {
   loading: boolean;
   error: Error | null;
   enrollStudent: (studentId: string, courseId: string) => Promise<any>;
+  createEnrollment: (data: { student_id?: string; course_id: string; status?: string }) => Promise<any>;
   updateStatus: (enrollmentId: string, status: string) => Promise<any>;
   updateProgress: (enrollmentId: string, progress: number) => Promise<any>;
   unenrollStudent: (enrollmentId: string) => Promise<void>;
@@ -74,6 +75,21 @@ export function useEnrollments(filters?: { student_id?: string; course_id?: stri
     }
   };
 
+  // Backward/forward compatible creator used by UI layers
+  const createEnrollment = async (data: { student_id?: string; course_id: string; status?: string }): Promise<any> => {
+    try {
+      const response = await api.post<{ success: boolean; data: any }>('/enrollments', data);
+      if (response.success) {
+        setEnrollments(prev => [response.data, ...prev]);
+        return response.data;
+      }
+      throw new Error('Failed to enroll student');
+    } catch (err: any) {
+      console.error('Error creating enrollment:', err);
+      throw err;
+    }
+  };
+
   // Update status
   const updateStatus = async (enrollmentId: string, status: string): Promise<any> => {
     try {
@@ -133,6 +149,7 @@ export function useEnrollments(filters?: { student_id?: string; course_id?: stri
     loading,
     error,
     enrollStudent,
+    createEnrollment,
     updateStatus,
     updateProgress,
     unenrollStudent,

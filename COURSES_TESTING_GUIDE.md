@@ -55,7 +55,7 @@ From your logs, I can see:
 
 **Run this SQL in pgAdmin:**
 ```sql
-UPDATE user_profiles 
+UPDATE users 
 SET role = 'school_admin' 
 WHERE email = 'your_signup_email@example.com';
 ```
@@ -147,7 +147,7 @@ Once you're logged in as admin, you'll see:
 1. **Open pgAdmin**
 2. **Run:**
    ```sql
-   UPDATE user_profiles 
+   UPDATE users 
    SET role = 'school_admin' 
    WHERE email = 'nuestman17@gmail.com';
    ```

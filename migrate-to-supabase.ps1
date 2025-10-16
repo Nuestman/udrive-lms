@@ -206,7 +206,7 @@ try {
     $supabaseTables = psql $SUPABASE_URL -t -A -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>&1
     
     # Count some records
-    $userCount = psql $SUPABASE_URL -t -A -c "SELECT COUNT(*) FROM user_profiles;" 2>&1
+    $userCount = psql $SUPABASE_URL -t -A -c "SELECT COUNT(*) FROM users;" 2>&1
     $courseCount = psql $SUPABASE_URL -t -A -c "SELECT COUNT(*) FROM courses;" 2>&1
     $lessonCount = psql $SUPABASE_URL -t -A -c "SELECT COUNT(*) FROM lessons;" 2>&1
     

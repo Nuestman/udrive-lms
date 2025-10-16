@@ -2,7 +2,7 @@
 import express from 'express';
 
 const app = express();
-const PORT = 3000;
+const PORT = 5000;
 
 app.get('/api/health', (req, res) => {
   console.log('Health check received');
@@ -10,7 +10,7 @@ app.get('/api/health', (req, res) => {
 });
 
 const server = app.listen(PORT, () => {
-  console.log('✅ Simple server running on http://localhost:3000');
+  console.log('✅ Simple server running on http://localhost:5000');
   console.log('This should NOT exit. Press Ctrl+C to stop.');
 });
 
