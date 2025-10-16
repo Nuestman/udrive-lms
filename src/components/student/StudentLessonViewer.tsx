@@ -61,13 +61,35 @@ const StudentLessonViewer: React.FC = () => {
     }
   }, [resolvedLessonId, allLessons]);
 
+  // Update resolvedLessonId when the lesson route param changes (e.g., via sidebar clicks)
+  useEffect(() => {
+    if (!lessonParam) return;
+    const match = lessonParam.match(/[0-9a-fA-F-]{36}$/);
+    const lessonUuid = match ? match[0] : (/[0-9a-fA-F-]{36}/.test(lessonParam) ? lessonParam : null);
+    if (lessonUuid && lessonUuid !== resolvedLessonId) {
+      setResolvedLessonId(lessonUuid);
+    }
+  }, [lessonParam, resolvedLessonId]);
+
+  // Reset scroll position on lesson change so new page starts at top
+  useEffect(() => {
+    if (!resolvedLessonId) return;
+    // Try scrolling the main content into view first
+    const contentEl = document.querySelector('.lesson-content');
+    if (contentEl && 'scrollIntoView' in contentEl) {
+      (contentEl as HTMLElement).scrollIntoView({ behavior: 'instant', block: 'start' });
+    }
+    // Fallback to window scroll
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  }, [resolvedLessonId]);
+
   const fetchCourseData = async () => {
     try {
       setLoading(true);
       
       // Fetch course details
       // Resolve course by slug or id
-      let resolvedId = courseSlugOrId;
+      let resolvedId: string = (courseSlugOrId as string);
       const isUuidParam = /^[0-9a-fA-F-]{36}$/.test(courseSlugOrId || '');
       if (courseSlugOrId && !isUuidParam) {
         const bySlug = await api.get(`/courses/slug/${courseSlugOrId}`);
@@ -125,7 +147,8 @@ const StudentLessonViewer: React.FC = () => {
         if (!lessonParam && allLessonsFlat.length > 0) {
           const first = allLessonsFlat[0];
           const slug = (first.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
-          navigate(`/student/courses/${courseSlugOrId}/lessons/${slug}-${first.id}`, { replace: true });
+          const courseSlug = courseRes.data?.slug || courseSlugOrId;
+          navigate(`/student/courses/${courseSlug}/lessons/${slug}-${first.id}`, { replace: true });
         }
       }
     } catch (err) {
@@ -257,7 +280,8 @@ const StudentLessonViewer: React.FC = () => {
     if (currentIndex < allLessons.length - 1) {
       const next = allLessons[currentIndex + 1];
       const slug = (next.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
-      navigate(`/student/courses/${courseSlugOrId}/lessons/${slug}-${next.id}`);
+      const courseSlug = course?.slug || courseSlugOrId;
+      navigate(`/student/courses/${courseSlug}/lessons/${slug}-${next.id}`);
     }
   };
 
@@ -267,8 +291,10 @@ const StudentLessonViewer: React.FC = () => {
     if (currentIndex >= allLessons.length - 1) return;
     try {
       setIsNavigatingNext(true);
+      // If not completed, confirm with the user before proceeding
       if (!isLessonCompleted(currentLesson.id)) {
-        await handleToggleComplete({ silent: true });
+        const proceed = window.confirm('You have not marked this lesson as complete. Continue to next lesson?');
+        if (!proceed) return;
       }
       goToNextLesson();
     } finally {
@@ -291,7 +317,8 @@ const StudentLessonViewer: React.FC = () => {
       if (nextModuleLessons.length > 0) {
         const first = nextModuleLessons[0];
         const slug = (first.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
-        navigate(`/student/courses/${courseSlugOrId}/lessons/${slug}-${first.id}`);
+        const courseSlug = course?.slug || courseSlugOrId;
+        navigate(`/student/courses/${courseSlug}/lessons/${slug}-${first.id}`);
       }
     }
   };
@@ -301,7 +328,8 @@ const StudentLessonViewer: React.FC = () => {
     if (currentIndex > 0) {
       const prev = allLessons[currentIndex - 1];
       const slug = (prev.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
-      navigate(`/student/courses/${courseSlugOrId}/lessons/${slug}-${prev.id}`);
+      const courseSlug = course?.slug || courseSlugOrId;
+      navigate(`/student/courses/${courseSlug}/lessons/${slug}-${prev.id}`);
     }
   };
 
@@ -436,7 +464,8 @@ const StudentLessonViewer: React.FC = () => {
                           key={lesson.id}
                           onClick={() => {
                             const slug = (lesson.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
-                            navigate(`/student/courses/${courseSlugOrId}/lessons/${slug}-${lesson.id}`);
+                            const courseSlug = course?.slug || courseSlugOrId;
+                            navigate(`/student/courses/${courseSlug}/lessons/${slug}-${lesson.id}`);
                           }}
                           className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 transition-colors ${
                             isCurrent
@@ -527,10 +556,10 @@ const StudentLessonViewer: React.FC = () => {
               ) : (
                 <button
                   onClick={handleNextLessonClick}
-                  disabled={currentIndex === allLessons.length - 1 || isNavigatingNext || isCompleting}
+                  disabled={currentIndex === allLessons.length - 1 || isNavigatingNext}
                   className="flex items-center px-4 py-2 text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isNavigatingNext || isCompleting ? 'Completing...' : 'Next'}
+                  {isNavigatingNext ? 'Loading...' : 'Next'}
                   <ChevronRight size={18} className="ml-1" />
                 </button>
               )}

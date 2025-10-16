@@ -33,11 +33,7 @@ router.get('/module/:moduleId', asyncHandler(async (req, res) => {
  */
 router.get('/:id', asyncHandler(async (req, res) => {
   const lesson = await lessonsService.getLessonById(req.params.id, req.tenantId, req.isSuperAdmin);
-  
-  res.json({
-    success: true,
-    data: lesson
-  });
+  res.json({ success: true, data: lesson });
 }));
 
 /**

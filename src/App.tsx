@@ -1,5 +1,5 @@
 import React, { useEffect, Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 const DashboardLayout = lazy(() => import('./components/dashboard/DashboardLayout'));
 const BlockEditor = lazy(() => import('./components/lesson/BlockEditor'));
 const QuizEngine = lazy(() => import('./components/quiz/QuizEngine'));
@@ -54,6 +54,18 @@ const UserProfilePage = lazy(() => import('./components/profile/UserProfilePage'
 
 // Auth Context
 import { useAuth } from './contexts/AuthContext';
+
+// Global scroll-to-top on route change
+function ScrollToTop() {
+  const location = useLocation();
+  useEffect(() => {
+    // If navigating to an anchor/hash, let the browser handle it
+    if (location.hash) return;
+    // Scroll main window to top
+    window.scrollTo(0, 0);
+  }, [location.pathname, location.search]);
+  return null;
+}
 
 function App() {
   const { user, profile, loading } = useAuth();
@@ -269,6 +281,7 @@ function App() {
   if (!user) {
     return (
       <Router>
+        <ScrollToTop />
         <Suspense fallback={
           <div className="min-h-screen flex items-center justify-center bg-gray-50">
             <div className="text-center">
@@ -306,6 +319,7 @@ function App() {
   // If user is logged in and has profile, show the main dashboard
   return (
     <Router>
+      <ScrollToTop />
       <Suspense fallback={
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="text-center">

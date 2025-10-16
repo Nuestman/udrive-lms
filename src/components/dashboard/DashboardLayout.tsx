@@ -1,5 +1,5 @@
-import React, { ReactNode, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { ReactNode, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Layout, Sidebar, Header, Footer } from '../ui/Layout';
 import { 
@@ -34,7 +34,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
-  const location = window.location.pathname; // Get current path
+  const routerLocation = useLocation();
+  const location = routerLocation.pathname; // current path
+  const mainRef = useRef<HTMLDivElement>(null);
+
+  // Reset scroll position of the main scroll container on route change
+  useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [routerLocation.pathname, routerLocation.search, routerLocation.hash]);
 
   const getNavItems = () => {
     const commonItems = [
@@ -305,7 +314,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           onClose={() => setSidebarOpen(false)}
           onLogout={handleLogout}
         />
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-6">
+        <main ref={mainRef} className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-6">
           {children}
         </main>
       </div>
