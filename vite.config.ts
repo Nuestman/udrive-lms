@@ -7,4 +7,17 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  build: {
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+          editor: ['tinymce', '@tinymce/tinymce-react'],
+          supabase: ['@supabase/supabase-js'],
+        },
+      },
+    },
+  },
 });

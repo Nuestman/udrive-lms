@@ -1,56 +1,56 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import DashboardLayout from './components/dashboard/DashboardLayout';
-import BlockEditor from './components/lesson/BlockEditor';
-import QuizEngine from './components/quiz/QuizEngine';
-import CertificateGenerator from './components/certificate/CertificateGenerator';
-import CertificateViewPage from './components/certificate/CertificateViewPage';
-import CertificateVerificationPage from './components/certificate/CertificateVerificationPage';
-import CertificateManagementPage from './components/certificate/CertificateManagementPage';
-import StudentManagement from './components/student/StudentManagement';
-import EnrollmentSystem from './components/enrollment/EnrollmentSystem';
-import MediaLibrary from './components/media/MediaLibrary';
-import SchoolAdminDashboard from './components/dashboard/SchoolDashboard';
-import SuperAdminDashboard from './components/dashboard/SuperAdminDashboard';
-import InstructorDashboard from './components/dashboard/InstructorDashboard';
+const DashboardLayout = lazy(() => import('./components/dashboard/DashboardLayout'));
+const BlockEditor = lazy(() => import('./components/lesson/BlockEditor'));
+const QuizEngine = lazy(() => import('./components/quiz/QuizEngine'));
+const CertificateGenerator = lazy(() => import('./components/certificate/CertificateGenerator'));
+const CertificateViewPage = lazy(() => import('./components/certificate/CertificateViewPage'));
+const CertificateVerificationPage = lazy(() => import('./components/certificate/CertificateVerificationPage'));
+const CertificateManagementPage = lazy(() => import('./components/certificate/CertificateManagementPage'));
+const StudentManagement = lazy(() => import('./components/student/StudentManagement'));
+const EnrollmentSystem = lazy(() => import('./components/enrollment/EnrollmentSystem'));
+const MediaLibrary = lazy(() => import('./components/media/MediaLibrary'));
+const SchoolAdminDashboard = lazy(() => import('./components/dashboard/SchoolDashboard'));
+const SuperAdminDashboard = lazy(() => import('./components/dashboard/SuperAdminDashboard'));
+const InstructorDashboard = lazy(() => import('./components/dashboard/InstructorDashboard'));
 
-// Page Components
-import CoursesPage from './components/courses/CoursesPage';
-import CourseDetailsPage from './components/courses/CourseDetailsPage';
-import StudentsPage from './components/students/StudentsPage';
-import EnrollmentsPage from './components/enrollments/EnrollmentsPage';
-import SchoolsPage from './components/schools/SchoolsPage';
-import UsersPage from './components/users/UsersPage';
-import InstructorsPage from './components/instructors/InstructorsPage';
-import AnalyticsPage from './components/pages/AnalyticsPage';
-import SettingsPage from './components/pages/SettingsPage';
-import CertificatesPage from './components/pages/CertificatesPage';
-import HelpPage from './components/pages/HelpPage';
-import StudentDashboardPage from './components/student/StudentDashboardPage';
-import StudentProgressPage from './components/pages/student/StudentProgressPage';
-import StudentLessonViewer from './components/student/StudentLessonViewer';
-import StudentCoursesPage from './components/student/StudentCoursesPage';
+// Page Components (lazy)
+const CoursesPage = lazy(() => import('./components/courses/CoursesPage'));
+const CourseDetailsPage = lazy(() => import('./components/courses/CourseDetailsPage'));
+const StudentsPage = lazy(() => import('./components/students/StudentsPage'));
+const EnrollmentsPage = lazy(() => import('./components/enrollments/EnrollmentsPage'));
+const SchoolsPage = lazy(() => import('./components/schools/SchoolsPage'));
+const UsersPage = lazy(() => import('./components/users/UsersPage'));
+const InstructorsPage = lazy(() => import('./components/instructors/InstructorsPage'));
+const AnalyticsPage = lazy(() => import('./components/pages/AnalyticsPage'));
+const SettingsPage = lazy(() => import('./components/pages/SettingsPage'));
+const CertificatesPage = lazy(() => import('./components/pages/CertificatesPage'));
+const HelpPage = lazy(() => import('./components/pages/HelpPage'));
+const StudentDashboardPage = lazy(() => import('./components/student/StudentDashboardPage'));
+const StudentProgressPage = lazy(() => import('./components/pages/student/StudentProgressPage'));
+const StudentLessonViewer = lazy(() => import('./components/student/StudentLessonViewer'));
+const StudentCoursesPage = lazy(() => import('./components/student/StudentCoursesPage'));
 
 // New Phase 3 Components
-import LearningPathNavigation from './components/student/LearningPathNavigation';
-import AssignmentSubmission from './components/student/AssignmentSubmission';
-import ProgressTracking from './components/student/ProgressTracking';
+const LearningPathNavigation = lazy(() => import('./components/student/LearningPathNavigation'));
+const AssignmentSubmission = lazy(() => import('./components/student/AssignmentSubmission'));
+const ProgressTracking = lazy(() => import('./components/student/ProgressTracking'));
 
 // Auth Pages
-import LandingPage from './components/pages/LandingPage';
-import LoginPage from './components/pages/Auth/LoginPage';
-import SignupPage from './components/pages/Auth/SignupPage';
-import SignupSchoolPage from './components/pages/Auth/SignupSchoolPage';
-import ForgotPasswordPage from './components/pages/Auth/ForgotPasswordPage';
-import ResetPasswordPage from './components/pages/Auth/ResetPasswordPage';
+const LandingPage = lazy(() => import('./components/pages/LandingPage'));
+const LoginPage = lazy(() => import('./components/pages/Auth/LoginPage'));
+const SignupPage = lazy(() => import('./components/pages/Auth/SignupPage'));
+const SignupSchoolPage = lazy(() => import('./components/pages/Auth/SignupSchoolPage'));
+const ForgotPasswordPage = lazy(() => import('./components/pages/Auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./components/pages/Auth/ResetPasswordPage'));
 
 // Static Pages
-import PrivacyPage from './components/pages/PrivacyPage';
-import TermsPage from './components/pages/TermsPage';
-import ContactPage from './components/pages/ContactPage';
+const PrivacyPage = lazy(() => import('./components/pages/PrivacyPage'));
+const TermsPage = lazy(() => import('./components/pages/TermsPage'));
+const ContactPage = lazy(() => import('./components/pages/ContactPage'));
 
 // Profile Page
-import UserProfilePage from './components/profile/UserProfilePage';
+const UserProfilePage = lazy(() => import('./components/profile/UserProfilePage'));
 
 // Auth Context
 import { useAuth } from './contexts/AuthContext';
@@ -269,6 +269,14 @@ function App() {
   if (!user) {
     return (
       <Router>
+        <Suspense fallback={
+          <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+              <p className="text-gray-700 text-lg">Loading...</p>
+            </div>
+          </div>
+        }>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -278,6 +286,7 @@ function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </Router>
     );
   }
@@ -297,6 +306,14 @@ function App() {
   // If user is logged in and has profile, show the main dashboard
   return (
     <Router>
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p className="text-gray-700 text-lg">Loading dashboard...</p>
+          </div>
+        </div>
+      }>
       <DashboardLayout role={profile.role} currentPath={window.location.pathname}>
         <Routes>
           {/* Default route for logged-in users - redirect based on role */}
@@ -375,6 +392,7 @@ function App() {
           } />
         </Routes>
       </DashboardLayout>
+      </Suspense>
     </Router>
   );
 }
