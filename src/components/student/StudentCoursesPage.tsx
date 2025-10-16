@@ -47,6 +47,10 @@ const StudentCoursesPage: React.FC = () => {
       
       success('Enrolled successfully');
 
+      // Determine slug for nicer URL
+      const courseMeta = courses.find(c => c.id === courseId);
+      const coursePathId = courseMeta?.slug || courseId;
+
       // Navigate to first lesson
       const modulesRes = await api.get(`/modules/course/${courseId}`);
       if (modulesRes.success && modulesRes.data.length > 0) {
@@ -55,7 +59,7 @@ const StudentCoursesPage: React.FC = () => {
         
         if (lessonsRes.success && lessonsRes.data.length > 0) {
           const firstLesson = lessonsRes.data[0];
-          navigate(`/student/courses/${courseId}/lessons/${firstLesson.id}`);
+          navigate(`/student/courses/${coursePathId}/lessons/${firstLesson.id}`);
           return;
         }
       }
@@ -73,6 +77,8 @@ const StudentCoursesPage: React.FC = () => {
 
   const handleContinueCourse = async (courseId: string) => {
     try {
+      const courseMeta = courses.find(c => c.id === courseId);
+      const coursePathId = courseMeta?.slug || courseId;
       const modulesRes = await api.get(`/modules/course/${courseId}`);
       if (modulesRes.success && modulesRes.data.length > 0) {
         const firstModule = modulesRes.data[0];
@@ -80,7 +86,7 @@ const StudentCoursesPage: React.FC = () => {
         
         if (lessonsRes.success && lessonsRes.data.length > 0) {
           const firstLesson = lessonsRes.data[0];
-          navigate(`/student/courses/${courseId}/lessons/${firstLesson.id}`);
+          navigate(`/student/courses/${coursePathId}/lessons/${firstLesson.id}`);
           return;
         }
       }

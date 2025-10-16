@@ -23,6 +23,9 @@ const StudentDashboardPage: React.FC = () => {
   const handleStartCourse = async (courseId: string) => {
     // Get first lesson in course
     try {
+      // Get slug for nicer URL
+      const courseRes = await api.get(`/courses/${courseId}`);
+      const slugOrId = courseRes?.success && courseRes.data?.slug ? courseRes.data.slug : courseId;
       const modulesRes = await api.get(`/modules/course/${courseId}`);
       if (modulesRes.success && modulesRes.data.length > 0) {
         const firstModule = modulesRes.data[0];
@@ -30,7 +33,7 @@ const StudentDashboardPage: React.FC = () => {
         
         if (lessonsRes.success && lessonsRes.data.length > 0) {
           const firstLesson = lessonsRes.data[0];
-          navigate(`/student/courses/${courseId}/lessons/${firstLesson.id}`);
+          navigate(`/student/courses/${slugOrId}/lessons/${firstLesson.id}`);
           return;
         }
       }
