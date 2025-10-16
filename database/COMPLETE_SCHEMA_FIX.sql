@@ -58,6 +58,13 @@ CREATE TABLE IF NOT EXISTS goals (
 CREATE INDEX IF NOT EXISTS idx_goals_student_id ON goals(student_id);
 CREATE INDEX IF NOT EXISTS idx_goals_course_id ON goals(course_id);
 
+-- 6. Add slug to courses and unique index per tenant
+ALTER TABLE courses
+ADD COLUMN IF NOT EXISTS slug TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_courses_tenant_slug 
+ON courses(tenant_id, slug) WHERE slug IS NOT NULL;
+
 -- ============================================
 -- AUTO-UPDATE TRIGGERS
 -- ============================================

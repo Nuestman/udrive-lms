@@ -13,7 +13,7 @@ import { cleanLessonContent, convertYouTubeUrls, fixIframeAttributes } from '../
 import CelebrationModal from '../ui/CelebrationModal';
 
 const StudentLessonViewer: React.FC = () => {
-  const { courseId, lessonId } = useParams<{ courseId: string; lessonId: string }>();
+  const { courseId: courseSlugOrId, lessonId } = useParams<{ courseId: string; lessonId: string }>();
   const navigate = useNavigate();
   const { profile } = useAuth();
   
@@ -64,13 +64,21 @@ const StudentLessonViewer: React.FC = () => {
       setLoading(true);
       
       // Fetch course details
-      const courseRes = await api.get(`/courses/${courseId}`);
+      // Resolve course by slug or id
+      let resolvedCourseId = courseSlugOrId;
+      if (courseSlugOrId && !/^[0-9a-fA-F-]{36}$/.test(courseSlugOrId)) {
+        const bySlug = await api.get(`/courses/slug/${courseSlugOrId}`);
+        if (bySlug.success && bySlug.data?.id) {
+          resolvedCourseId = bySlug.data.id;
+        }
+      }
+      const courseRes = await api.get(`/courses/${resolvedCourseId}`);
       if (courseRes.success) {
         setCourse(courseRes.data);
       }
 
       // Fetch modules with lessons
-      const modulesRes = await api.get(`/modules/course/${courseId}`);
+      const modulesRes = await api.get(`/modules/course/${resolvedCourseId}`);
       if (modulesRes.success) {
         const mods = modulesRes.data;
         setModules(mods);
@@ -99,7 +107,7 @@ const StudentLessonViewer: React.FC = () => {
         
         // If no lesson selected, show first lesson
         if (!lessonId && allLessonsFlat.length > 0) {
-          navigate(`/student/courses/${courseId}/lessons/${allLessonsFlat[0].id}`, { replace: true });
+          navigate(`/student/courses/${courseSlugOrId}/lessons/${allLessonsFlat[0].id}`, { replace: true });
         }
       }
     } catch (err) {

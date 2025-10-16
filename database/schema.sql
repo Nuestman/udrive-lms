@@ -103,6 +103,7 @@ CREATE INDEX idx_user_profiles_date_of_birth ON user_profiles(date_of_birth);
 CREATE TABLE IF NOT EXISTS courses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    slug TEXT,
     title TEXT NOT NULL,
     description TEXT,
     thumbnail_url TEXT,
@@ -117,6 +118,7 @@ CREATE TABLE IF NOT EXISTS courses (
 CREATE INDEX idx_courses_tenant_id ON courses(tenant_id);
 CREATE INDEX idx_courses_status ON courses(status);
 CREATE INDEX idx_courses_created_by ON courses(created_by);
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_courses_tenant_slug ON courses(tenant_id, slug) WHERE slug IS NOT NULL;
 
 -- =============================================
 -- MODULES

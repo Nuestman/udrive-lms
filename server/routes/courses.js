@@ -43,6 +43,15 @@ router.get('/:id', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /api/courses/slug/:slug
+ * Get single course by slug (tenant scoped)
+ */
+router.get('/slug/:slug', asyncHandler(async (req, res) => {
+  const course = await coursesService.getCourseBySlug(req.params.slug, req.tenantId);
+  res.json({ success: true, data: course });
+}));
+
+/**
  * GET /api/courses/:id/full
  * Get course with all modules and lessons
  */

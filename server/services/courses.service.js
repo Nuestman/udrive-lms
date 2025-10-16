@@ -93,6 +93,30 @@ export async function getCourseById(courseId, tenantId, isSuperAdmin = false) {
 }
 
 /**
+ * Get single course by slug (tenant-scoped)
+ */
+export async function getCourseBySlug(slug, tenantId) {
+  const result = await query(
+    `SELECT c.*, 
+      p.first_name || ' ' || p.last_name as instructor_name,
+      u.email as instructor_email,
+      (SELECT COUNT(*) FROM modules WHERE course_id = c.id) as module_count,
+      (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as student_count
+     FROM courses c
+     LEFT JOIN users u ON c.created_by = u.id
+     LEFT JOIN user_profiles p ON p.user_id = u.id
+     WHERE c.slug = $1 AND c.tenant_id = $2`,
+    [slug, tenantId]
+  );
+
+  if (result.rows.length === 0) {
+    throw new NotFoundError('Course not found');
+  }
+
+  return result.rows[0];
+}
+
+/**
  * Get course with modules and lessons
  */
 export async function getCourseWithContent(courseId, tenantId) {
@@ -147,11 +171,23 @@ export async function createCourse(courseData, user) {
     throw new ValidationError('Course title must be less than 200 characters');
   }
 
+  // Generate slug from title (lowercase, kebab-case). Uniqueness per tenant enforced by unique index.
+  const baseSlug = title.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+  let slug = baseSlug;
+  let counter = 1;
+  // Ensure uniqueness within tenant
+  while (true) {
+    const existing = await query('SELECT 1 FROM courses WHERE tenant_id = $1 AND slug = $2', [user.tenant_id, slug]);
+    if (existing.rows.length === 0) break;
+    counter++;
+    slug = `${baseSlug}-${counter}`;
+  }
+
   const result = await query(
-    `INSERT INTO courses (tenant_id, title, description, thumbnail_url, status, duration_weeks, price, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO courses (tenant_id, slug, title, description, thumbnail_url, status, duration_weeks, price, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
-    [user.tenant_id, title, description || null, thumbnail_url || null, 'draft', duration_weeks || null, price || 0, user.id]
+    [user.tenant_id, slug, title, description || null, thumbnail_url || null, 'draft', duration_weeks || null, price || 0, user.id]
   );
 
   return result.rows[0];
@@ -177,6 +213,8 @@ export async function updateCourse(courseId, courseData, user) {
     }
     updates.push(`title = $${paramIndex++}`);
     values.push(title);
+
+    // If title changes and no explicit slug provided in future, we keep existing slug.
   }
 
   if (description !== undefined) {
@@ -297,6 +335,7 @@ export async function getCourseStats(courseId, tenantId) {
 export default {
   getCourses,
   getCourseById,
+  getCourseBySlug,
   getCourseWithContent,
   createCourse,
   updateCourse,

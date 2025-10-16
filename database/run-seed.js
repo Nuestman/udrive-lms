@@ -42,7 +42,7 @@ async function runSeed() {
     
     // Show what was created
     const users = await client.query('SELECT email, role FROM users ORDER BY role');
-    const courses = await client.query('SELECT title, status FROM courses');
+    const courses = await client.query('SELECT id, tenant_id, title, status, slug FROM courses');
     
     console.log('\n👥 Created users:');
     users.rows.forEach(user => {
@@ -50,9 +50,33 @@ async function runSeed() {
     });
     
     console.log('\n📚 Created courses:');
-    courses.rows.forEach(course => {
-      console.log(`  - ${course.title} [${course.status}]`);
-    });
+    // backfill slugs if missing
+    function toSlug(title) {
+      return title
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+    }
+    for (const course of courses.rows) {
+      if (!course.slug) {
+        const base = toSlug(course.title);
+        let slug = base;
+        let i = 1;
+        // ensure unique per tenant
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const exists = await client.query('SELECT 1 FROM courses WHERE tenant_id = $1 AND slug = $2 AND id <> $3', [course.tenant_id, slug, course.id]);
+          if (exists.rowCount === 0) break;
+          i += 1;
+          slug = `${base}-${i}`;
+        }
+        await client.query('UPDATE courses SET slug = $1 WHERE id = $2', [slug, course.id]);
+        course.slug = slug;
+      }
+      console.log(`  - ${course.title} [${course.status}] slug=${course.slug}`);
+    }
     
     console.log('\n🔑 Test credentials:');
     console.log('  Email: admin@udrive.com');
