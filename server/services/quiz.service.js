@@ -1,12 +1,28 @@
 // Quiz Service - Quiz and question management
 import { query } from '../lib/db.js';
 import { ValidationError, NotFoundError } from '../middleware/errorHandler.js';
+import progressService from './progress.service.js';
 
 /**
  * Create quiz
  */
 export async function createQuiz(quizData, tenantId, isSuperAdmin = false) {
-  const { module_id, title, description, passing_score, time_limit, attempts_allowed } = quizData;
+  const {
+    module_id,
+    title,
+    description,
+    passing_score,
+    // UI payload names
+    time_limit,
+    attempts_allowed,
+    // Schema-aligned names (support either)
+    time_limit_minutes,
+    max_attempts,
+    randomize_questions,
+    randomize_answers,
+    show_feedback,
+    status,
+  } = quizData;
 
   // Verify module access
   if (!isSuperAdmin) {
@@ -22,11 +38,31 @@ export async function createQuiz(quizData, tenantId, isSuperAdmin = false) {
     }
   }
 
+  // Map UI fields to schema: time_limit -> time_limit_minutes, attempts_allowed -> max_attempts
+  const mappedTimeLimit = (time_limit_minutes ?? time_limit) ?? null;
+  const mappedMaxAttempts = (max_attempts ?? attempts_allowed) ?? null;
+
   const result = await query(
-    `INSERT INTO quizzes (module_id, title, description, passing_score, time_limit, attempts_allowed)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO quizzes (
+        module_id, title, description, passing_score,
+        time_limit_minutes, max_attempts,
+        randomize_questions, randomize_answers,
+        show_feedback, status
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING *`,
-    [module_id, title, description, passing_score || 70, time_limit, attempts_allowed || 3]
+    [
+      module_id,
+      title,
+      description,
+      passing_score || 70,
+      mappedTimeLimit,
+      mappedMaxAttempts,
+      randomize_questions ?? false,
+      randomize_answers ?? false,
+      show_feedback || 'immediate',
+      status || 'draft',
+    ]
   );
 
   return result.rows[0];
@@ -35,7 +71,7 @@ export async function createQuiz(quizData, tenantId, isSuperAdmin = false) {
 /**
  * Get quiz with questions
  */
-export async function getQuizById(quizId, tenantId, isSuperAdmin = false) {
+export async function getQuizById(quizId, tenantId, isSuperAdmin = false, audience = '') {
   // Get quiz
   let quizQuery;
   if (isSuperAdmin) {
@@ -48,14 +84,16 @@ export async function getQuizById(quizId, tenantId, isSuperAdmin = false) {
       [quizId]
     );
   } else {
-    quizQuery = await query(
-      `SELECT q.*, m.title as module_title, c.title as course_title
-       FROM quizzes q
-       JOIN modules m ON q.module_id = m.id
-       JOIN courses c ON m.course_id = c.id
-       WHERE q.id = $1 AND c.tenant_id = $2`,
-      [quizId, tenantId]
-    );
+    let text = `SELECT q.*, m.title as module_title, c.title as course_title
+                FROM quizzes q
+                JOIN modules m ON q.module_id = m.id
+                JOIN courses c ON m.course_id = c.id
+                WHERE q.id = $1 AND c.tenant_id = $2`;
+    const params = [quizId, tenantId];
+    if (audience === 'student') {
+      text += " AND q.status = 'published'";
+    }
+    quizQuery = await query(text, params);
   }
 
   if (quizQuery.rows.length === 0) {
@@ -109,7 +147,15 @@ export async function addQuestion(quizId, questionData, tenantId, isSuperAdmin =
     `INSERT INTO quiz_questions (quiz_id, question_text, question_type, options, correct_answer, points, order_index)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
-    [quizId, question_text, question_type || 'multiple_choice', JSON.stringify(options || []), correct_answer, points || 1, orderIndex]
+    [
+      quizId,
+      question_text,
+      question_type || 'multiple_choice',
+      JSON.stringify(options || []),
+      JSON.stringify(correct_answer),
+      points || 1,
+      orderIndex,
+    ]
   );
 
   return result.rows[0];
@@ -155,16 +201,29 @@ export async function submitQuizAttempt(quizId, studentId, answers, tenantId, is
 
   // Save attempt
   const attemptResult = await query(
-    `INSERT INTO quiz_attempts (quiz_id, student_id, answers, score, percentage_score, passed, time_taken)
+    `INSERT INTO quiz_attempts (quiz_id, student_id, answers, score, time_spent_seconds, status, completed_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
-    [quizId, studentId, JSON.stringify(answers), score, percentageScore, passed, 0] // time_taken to be implemented
+    [quizId, studentId, JSON.stringify(answers), score, 0, 'completed', new Date()] // time_spent_seconds to be implemented
   );
+
+  // Update progress if quiz was passed (or if we want to track completion regardless of pass/fail)
+  let progressUpdate = null;
+  if (passed) {
+    try {
+      progressUpdate = await progressService.markQuizComplete(quizId, studentId, tenantId, isSuperAdmin);
+    } catch (error) {
+      console.warn('Failed to update progress for quiz completion:', error);
+    }
+  }
 
   return {
     ...attemptResult.rows[0],
     totalPoints,
-    passingScore: quiz.passing_score
+    percentageScore,
+    passed,
+    passingScore: quiz.passing_score,
+    progressUpdate
   };
 }
 
@@ -190,11 +249,188 @@ export async function getQuizAttempts(quizId, studentId, tenantId, isSuperAdmin 
   const result = await query(
     `SELECT * FROM quiz_attempts
      WHERE quiz_id = $1 AND student_id = $2
-     ORDER BY attempted_at DESC`,
+     ORDER BY created_at DESC`,
     [quizId, studentId]
   );
 
   return result.rows;
+}
+
+/**
+ * List quizzes by module
+ */
+export async function listQuizzesByModule(moduleId, tenantId, isSuperAdmin = false) {
+  let text = `SELECT q.*
+              FROM quizzes q
+              JOIN modules m ON q.module_id = m.id
+              JOIN courses c ON m.course_id = c.id
+              WHERE q.module_id = $1`;
+  const params = [moduleId];
+  if (!isSuperAdmin) {
+    text += ' AND c.tenant_id = $2';
+    params.push(tenantId);
+  }
+  text += ' ORDER BY q.created_at DESC';
+  const result = await query(text, params);
+  return result.rows;
+}
+
+/**
+ * Update quiz
+ */
+export async function updateQuiz(quizId, updates, tenantId, isSuperAdmin = false) {
+  // Verify access
+  if (!isSuperAdmin) {
+    const quizCheck = await query(
+      `SELECT q.id FROM quizzes q
+       JOIN modules m ON q.module_id = m.id
+       JOIN courses c ON m.course_id = c.id
+       WHERE q.id = $1 AND c.tenant_id = $2`,
+      [quizId, tenantId]
+    );
+    if (quizCheck.rows.length === 0) {
+      throw new Error('Quiz not found or access denied');
+    }
+  }
+
+  const {
+    title,
+    description,
+    passing_score,
+    time_limit_minutes,
+    max_attempts,
+    randomize_questions,
+    randomize_answers,
+    show_feedback,
+    status,
+  } = updates;
+
+  const result = await query(
+    `UPDATE quizzes
+     SET title = COALESCE($2, title),
+         description = COALESCE($3, description),
+         passing_score = COALESCE($4, passing_score),
+         time_limit_minutes = COALESCE($5, time_limit_minutes),
+         max_attempts = COALESCE($6, max_attempts),
+         randomize_questions = COALESCE($7, randomize_questions),
+         randomize_answers = COALESCE($8, randomize_answers),
+         show_feedback = COALESCE($9, show_feedback),
+         status = COALESCE($10, status),
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = $1
+     RETURNING *`,
+    [
+      quizId,
+      title,
+      description,
+      passing_score,
+      time_limit_minutes,
+      max_attempts,
+      randomize_questions,
+      randomize_answers,
+      show_feedback,
+      status,
+    ]
+  );
+
+  return result.rows[0];
+}
+
+/**
+ * Delete quiz
+ */
+export async function deleteQuiz(quizId, tenantId, isSuperAdmin = false) {
+  if (!isSuperAdmin) {
+    const quizCheck = await query(
+      `SELECT q.id FROM quizzes q
+       JOIN modules m ON q.module_id = m.id
+       JOIN courses c ON m.course_id = c.id
+       WHERE q.id = $1 AND c.tenant_id = $2`,
+      [quizId, tenantId]
+    );
+    if (quizCheck.rows.length === 0) {
+      throw new Error('Quiz not found or access denied');
+    }
+  }
+  await query('DELETE FROM quizzes WHERE id = $1', [quizId]);
+  return { success: true };
+}
+
+/**
+ * Update quiz question
+ */
+export async function updateQuestion(quizId, questionId, updates, tenantId, isSuperAdmin = false) {
+  // Verify access
+  if (!isSuperAdmin) {
+    const quizCheck = await query(
+      `SELECT q.id FROM quizzes q
+       JOIN modules m ON q.module_id = m.id
+       JOIN courses c ON m.course_id = c.id
+       WHERE q.id = $1 AND c.tenant_id = $2`,
+      [quizId, tenantId]
+    );
+    if (quizCheck.rows.length === 0) {
+      throw new Error('Quiz not found or access denied');
+    }
+  }
+
+  const {
+    question_text,
+    question_type,
+    options,
+    correct_answer,
+    points,
+    explanation,
+    order_index,
+  } = updates;
+
+  const result = await query(
+    `UPDATE quiz_questions
+     SET question_text = COALESCE($3, question_text),
+         question_type = COALESCE($4, question_type),
+         options = COALESCE($5::jsonb, options),
+         correct_answer = COALESCE($6::jsonb, correct_answer),
+         points = COALESCE($7, points),
+         explanation = COALESCE($8, explanation),
+         order_index = COALESCE($9, order_index),
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = $2 AND quiz_id = $1
+     RETURNING *`,
+    [
+      quizId,
+      questionId,
+      question_text,
+      question_type,
+      options !== undefined ? JSON.stringify(options) : undefined,
+      correct_answer !== undefined ? JSON.stringify(correct_answer) : undefined,
+      points,
+      explanation,
+      order_index,
+    ]
+  );
+
+  return result.rows[0];
+}
+
+/**
+ * Delete quiz question
+ */
+export async function deleteQuestion(quizId, questionId, tenantId, isSuperAdmin = false) {
+  if (!isSuperAdmin) {
+    const quizCheck = await query(
+      `SELECT q.id FROM quizzes q
+       JOIN modules m ON q.module_id = m.id
+       JOIN courses c ON m.course_id = c.id
+       WHERE q.id = $1 AND c.tenant_id = $2`,
+      [quizId, tenantId]
+    );
+    if (quizCheck.rows.length === 0) {
+      throw new Error('Quiz not found or access denied');
+    }
+  }
+
+  await query('DELETE FROM quiz_questions WHERE id = $1 AND quiz_id = $2', [questionId, quizId]);
+  return { success: true };
 }
 
 export default {
@@ -202,6 +438,11 @@ export default {
   getQuizById,
   addQuestion,
   submitQuizAttempt,
-  getQuizAttempts
+  getQuizAttempts,
+  listQuizzesByModule,
+  updateQuiz,
+  deleteQuiz,
+  updateQuestion,
+  deleteQuestion
 };
 

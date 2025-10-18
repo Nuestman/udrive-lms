@@ -43,11 +43,17 @@ router.post('/login', async (req, res) => {
  */
 router.post('/signup', async (req, res) => {
   try {
-    const { email, password, first_name, last_name, phone, tenant_id, role } = req.body;
+    const { email, password, first_name, last_name, phone, tenant_id, subdomain, role } = req.body;
 
-    if (!email || !password || !first_name || !last_name || !tenant_id) {
+    if (!email || !password || !first_name || !last_name) {
       return res.status(400).json({ 
-        error: 'Email, password, first name, last name, and tenant ID are required' 
+        error: 'Email, password, first name, and last name are required' 
+      });
+    }
+
+    if (!tenant_id && !subdomain) {
+      return res.status(400).json({ 
+        error: 'Either tenant ID or subdomain is required' 
       });
     }
 
@@ -58,6 +64,7 @@ router.post('/signup', async (req, res) => {
       last_name,
       phone,
       tenant_id,
+      subdomain,
       role
     });
 
@@ -212,7 +219,9 @@ router.post('/reset-password', async (req, res) => {
  */
 router.post('/signup/school', async (req, res) => {
   try {
-    const result = await authService.signupWithSchool(req.body, req.body.school);
+    const { school_name, subdomain, contact_email, contact_phone, address, ...userData } = req.body;
+    const schoolData = { school_name, subdomain, contact_email, contact_phone, address };
+    const result = await authService.signupWithSchool(userData, schoolData);
     
     res.cookie('auth_token', result.token, {
       httpOnly: true,

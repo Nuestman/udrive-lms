@@ -11,7 +11,8 @@ const SignupPage: React.FC = () => {
     firstName: '',
     lastName: '',
     phone: '',
-    schoolCode: 'premier', // Default to premier driving academy
+    subdomain: '', // School subdomain to join
+    role: 'student', // Default role
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -47,33 +48,34 @@ const SignupPage: React.FC = () => {
       setError('Please enter your first and last name');
       return;
     }
+
+    if (!formData.subdomain.trim()) {
+      setError('Please enter your school subdomain');
+      return;
+    }
     
     setLoading(true);
     setError(null);
     
     try {
-      // For now, use the Premier Driving Academy tenant ID
-      // In production, you'd lookup the tenant by school code
-      const tenantId = '550e8400-e29b-41d4-a716-446655440000'; // Premier Driving Academy
-      
       await signUp(formData.email, formData.password, {
         first_name: formData.firstName,
         last_name: formData.lastName,
         phone: formData.phone || undefined,
-        tenant_id: tenantId,
-        role: 'student', // Default role for self-signup
+        subdomain: formData.subdomain,
+        role: formData.role as 'student' | 'instructor',
       });
       
       console.log('Signup successful - redirect will be handled by App.tsx');
       navigate('/');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Signup error:', err);
       
       let errorMessage = 'Failed to create account';
       
-      if (err.message?.includes('already exists')) {
+      if (err instanceof Error && err.message?.includes('already exists')) {
         errorMessage = 'An account with this email already exists. Please login instead.';
-      } else if (err.message) {
+      } else if (err instanceof Error && err.message) {
         errorMessage = err.message;
       }
       
@@ -181,6 +183,44 @@ const SignupPage: React.FC = () => {
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
+              </div>
+
+              {/* School Subdomain Input */}
+              <div>
+                <label htmlFor="subdomain" className="block text-sm font-semibold text-gray-700 mb-2">
+                  School Subdomain
+                </label>
+                <input
+                  id="subdomain"
+                  name="subdomain"
+                  type="text"
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder-gray-400"
+                  placeholder="your-school-name"
+                  value={formData.subdomain}
+                  onChange={(e) => setFormData({ ...formData, subdomain: e.target.value })}
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Enter the subdomain provided by your school (e.g., "premier-driving")
+                </p>
+              </div>
+
+              {/* Role Selection */}
+              <div>
+                <label htmlFor="role" className="block text-sm font-semibold text-gray-700 mb-2">
+                  I am a
+                </label>
+                <select
+                  id="role"
+                  name="role"
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                >
+                  <option value="student">Student</option>
+                  <option value="instructor">Instructor</option>
+                </select>
               </div>
 
               {/* Password Input */}

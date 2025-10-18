@@ -41,6 +41,7 @@ const LandingPage = lazy(() => import('./components/pages/LandingPage'));
 const LoginPage = lazy(() => import('./components/pages/Auth/LoginPage'));
 const SignupPage = lazy(() => import('./components/pages/Auth/SignupPage'));
 const SignupSchoolPage = lazy(() => import('./components/pages/Auth/SignupSchoolPage'));
+const SignupSuperAdminPage = lazy(() => import('./components/pages/Auth/SignupSuperAdminPage'));
 const ForgotPasswordPage = lazy(() => import('./components/pages/Auth/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./components/pages/Auth/ResetPasswordPage'));
 
@@ -295,6 +296,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/signup/school" element={<SignupSchoolPage />} />
+          <Route path="/signup/super-admin" element={<SignupSuperAdminPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

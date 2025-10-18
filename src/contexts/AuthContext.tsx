@@ -34,7 +34,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   signIn: (credential: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, userData: Partial<UserProfile>) => Promise<void>;
+  signUp: (email: string, password: string, userData: Partial<UserProfile & { subdomain?: string }>) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
@@ -105,7 +105,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signUp = async (email: string, password: string, userData: Partial<UserProfile>) => {
+  const signUp = async (email: string, password: string, userData: Partial<UserProfile & { subdomain?: string }>) => {
+    // Updated to support subdomain parameter
     logAuthEvent('Sign up attempt', { email: email.substring(0, 3) + '***' });
     
     try {
@@ -116,6 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         last_name: userData.last_name || '',
         phone: userData.phone,
         tenant_id: userData.tenant_id || '',
+        subdomain: userData.subdomain,
         role: userData.role,
       });
       

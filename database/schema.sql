@@ -12,9 +12,13 @@ CREATE TABLE IF NOT EXISTS tenants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     subdomain TEXT UNIQUE NOT NULL,
+    contact_email TEXT,
+    contact_phone TEXT,
+    address TEXT,
     settings JSONB DEFAULT '{}',
     subscription_tier TEXT DEFAULT 'basic',
     subscription_status TEXT DEFAULT 'active',
+    is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

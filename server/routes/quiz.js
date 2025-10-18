@@ -29,7 +29,8 @@ router.post('/', asyncHandler(async (req, res) => {
  * Get quiz with questions
  */
 router.get('/:id', asyncHandler(async (req, res) => {
-  const quiz = await quizService.getQuizById(req.params.id, req.tenantId, req.isSuperAdmin);
+  const audience = (req.query.audience || '').toString();
+  const quiz = await quizService.getQuizById(req.params.id, req.tenantId, req.isSuperAdmin, audience);
   
   res.json({
     success: true,
@@ -49,6 +50,24 @@ router.post('/:id/questions', asyncHandler(async (req, res) => {
     data: question,
     message: 'Question added successfully'
   });
+}));
+
+/**
+ * PUT /api/quizzes/:id/questions/:questionId
+ * Update question
+ */
+router.put('/:id/questions/:questionId', asyncHandler(async (req, res) => {
+  const updated = await quizService.updateQuestion(req.params.id, req.params.questionId, req.body, req.tenantId, req.isSuperAdmin);
+  res.json({ success: true, data: updated, message: 'Question updated successfully' });
+}));
+
+/**
+ * DELETE /api/quizzes/:id/questions/:questionId
+ * Delete question
+ */
+router.delete('/:id/questions/:questionId', asyncHandler(async (req, res) => {
+  await quizService.deleteQuestion(req.params.id, req.params.questionId, req.tenantId, req.isSuperAdmin);
+  res.json({ success: true, message: 'Question deleted successfully' });
 }));
 
 /**
@@ -87,6 +106,33 @@ router.get('/:id/attempts', asyncHandler(async (req, res) => {
     success: true,
     data: attempts
   });
+}));
+
+/**
+ * GET /api/quizzes/module/:moduleId
+ * List quizzes for a module
+ */
+router.get('/module/:moduleId', asyncHandler(async (req, res) => {
+  const quizzes = await quizService.listQuizzesByModule(req.params.moduleId, req.tenantId, req.isSuperAdmin);
+  res.json({ success: true, data: quizzes });
+}));
+
+/**
+ * PUT /api/quizzes/:id
+ * Update a quiz
+ */
+router.put('/:id', asyncHandler(async (req, res) => {
+  const quiz = await quizService.updateQuiz(req.params.id, req.body, req.tenantId, req.isSuperAdmin);
+  res.json({ success: true, data: quiz, message: 'Quiz updated successfully' });
+}));
+
+/**
+ * DELETE /api/quizzes/:id
+ * Delete a quiz
+ */
+router.delete('/:id', asyncHandler(async (req, res) => {
+  await quizService.deleteQuiz(req.params.id, req.tenantId, req.isSuperAdmin);
+  res.json({ success: true, message: 'Quiz deleted successfully' });
 }));
 
 export default router;

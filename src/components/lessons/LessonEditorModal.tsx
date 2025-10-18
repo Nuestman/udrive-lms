@@ -22,6 +22,7 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({ isOpen, lesson, o
   const [documentUrl, setDocumentUrl] = useState(lesson?.document_url || '');
   const [duration, setDuration] = useState(lesson?.estimated_duration_minutes || '');
   const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState(lesson?.status || 'draft');
   const [error, setError] = useState('');
 
   // Initialize editor content from lesson
@@ -60,7 +61,8 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({ isOpen, lesson, o
         lesson_type: lessonType,
         video_url: videoUrl || null,
         document_url: documentUrl || null,
-        estimated_duration_minutes: duration ? parseInt(duration) : null
+        estimated_duration_minutes: duration ? parseInt(duration) : null,
+        status,
       });
 
       onClose();
@@ -153,6 +155,20 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({ isOpen, lesson, o
                 min="0"
               />
             </div>
+          </div>
+
+          {/* Status */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              title="Lesson status"
+            >
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+            </select>
           </div>
 
           {/* Video URL (if video type) */}

@@ -67,14 +67,28 @@ export async function getCourseProgress(courseId, studentId, tenantId, isSuperAd
       (SELECT COUNT(*) FROM lesson_progress lp
        JOIN lessons l ON lp.lesson_id = l.id
        WHERE l.module_id = m.id AND lp.student_id = $2 AND lp.status = 'completed') as completed_lessons,
+      (SELECT COUNT(*) FROM quizzes WHERE module_id = m.id AND status = 'published') as total_quizzes,
+      (SELECT COUNT(*) FROM quiz_attempts qa
+       JOIN quizzes q ON qa.quiz_id = q.id
+       WHERE q.module_id = m.id AND qa.student_id = $2 AND qa.status = 'completed') as completed_quizzes,
       (SELECT json_agg(json_build_object(
         'lesson_id', l.id,
         'lesson_title', l.title,
         'order_index', l.order_index,
+        'type', 'lesson',
         'completed', EXISTS(SELECT 1 FROM lesson_progress WHERE lesson_id = l.id AND student_id = $2 AND status = 'completed'),
         'completed_at', (SELECT completed_at FROM lesson_progress WHERE lesson_id = l.id AND student_id = $2)
       ) ORDER BY l.order_index)
-       FROM lessons l WHERE l.module_id = m.id) as lessons
+       FROM lessons l WHERE l.module_id = m.id) as lessons,
+      (SELECT json_agg(json_build_object(
+        'quiz_id', q.id,
+        'quiz_title', q.title,
+        'order_index', 999, -- Quizzes come after lessons
+        'type', 'quiz',
+        'completed', EXISTS(SELECT 1 FROM quiz_attempts WHERE quiz_id = q.id AND student_id = $2 AND status = 'completed'),
+        'completed_at', (SELECT completed_at FROM quiz_attempts WHERE quiz_id = q.id AND student_id = $2)
+      ) ORDER BY q.created_at)
+       FROM quizzes q WHERE q.module_id = m.id AND q.status = 'published') as quizzes
      FROM modules m
      WHERE m.course_id = $1
      ORDER BY m.order_index`,
@@ -149,25 +163,87 @@ export async function markLessonComplete(lessonId, studentId, tenantId, isSuperA
   };
 }
 
+
 /**
- * Update enrollment progress based on completed lessons
+ * Mark quiz as completed and update progress
  */
-async function updateEnrollmentProgress(lessonId, studentId) {
-  // Get course and module from lesson
-  const lessonInfoResult = await query(
-    `SELECT c.id as course_id, m.id as module_id, l.module_id as lesson_module_id
+export async function markQuizComplete(quizId, studentId, tenantId, isSuperAdmin = false) {
+  console.log(`✅ Marking quiz ${quizId} as complete for student ${studentId}`);
+  
+  // Verify quiz access
+  if (!isSuperAdmin) {
+    const quizCheck = await query(
+      `SELECT q.id FROM quizzes q
+       JOIN modules m ON q.module_id = m.id
+       JOIN courses c ON m.course_id = c.id
+       WHERE q.id = $1 AND c.tenant_id = $2`,
+      [quizId, tenantId]
+    );
+    
+    if (quizCheck.rows.length === 0) {
+      throw new Error('Quiz not found or access denied');
+    }
+  }
+
+  // Get the module_id from the quiz for progress calculation
+  const quizInfoResult = await query(
+    `SELECT c.id as course_id, m.id as module_id
      FROM courses c
      JOIN modules m ON m.course_id = c.id
-     JOIN lessons l ON l.module_id = m.id
-     WHERE l.id = $1`,
-    [lessonId]
+     JOIN quizzes q ON q.module_id = m.id
+     WHERE q.id = $1`,
+    [quizId]
   );
 
-  if (lessonInfoResult.rows.length === 0) return;
+  if (quizInfoResult.rows.length === 0) return;
 
-  const { course_id: courseId, lesson_module_id: moduleId } = lessonInfoResult.rows[0];
+  const { course_id: courseId, module_id: moduleId } = quizInfoResult.rows[0];
 
-  // Calculate progress
+  // Update progress (this will recalculate module and course completion)
+  const enrollmentUpdate = await updateEnrollmentProgress(quizId, studentId, courseId, moduleId);
+  
+  return {
+    success: true,
+    enrollment_progress: enrollmentUpdate
+  };
+}
+
+/**
+ * Update enrollment progress based on completed content (lessons or quizzes)
+ */
+async function updateEnrollmentProgress(contentId, studentId, courseId = null, moduleId = null, lessonId = null) {
+  // If courseId and moduleId are not provided, get them from the content
+  if (!courseId || !moduleId || !lessonId) {
+    // Try to get from lesson first, then from quiz
+    let infoResult = await query(
+      `SELECT c.id as course_id, m.id as module_id
+       FROM courses c
+       JOIN modules m ON m.course_id = c.id
+       JOIN lessons l ON l.module_id = m.id
+       WHERE l.id = $1`,
+      [contentId]
+    );
+
+    if (infoResult.rows.length === 0) {
+      // Try quiz
+      infoResult = await query(
+        `SELECT c.id as course_id, m.id as module_id
+         FROM courses c
+         JOIN modules m ON m.course_id = c.id
+         JOIN quizzes q ON q.module_id = m.id
+         WHERE q.id = $1`,
+        [contentId]
+      );
+    }
+
+    if (infoResult.rows.length === 0) return;
+
+    courseId = infoResult.rows[0].course_id;
+    moduleId = infoResult.rows[0].module_id;
+    lessonId = infoResult.rows[0].lesson_id;
+  }
+
+  // Calculate progress including both lessons and quizzes
   const progressResult = await query(
     `SELECT 
       (SELECT COUNT(*) FROM lessons l 
@@ -176,28 +252,42 @@ async function updateEnrollmentProgress(lessonId, studentId) {
       (SELECT COUNT(*) FROM lesson_progress lp
        JOIN lessons l ON lp.lesson_id = l.id
        JOIN modules m ON l.module_id = m.id
-       WHERE m.course_id = $1 AND lp.student_id = $2 AND lp.status = 'completed') as completed_lessons`,
+       WHERE m.course_id = $1 AND lp.student_id = $2 AND lp.status = 'completed') as completed_lessons,
+      (SELECT COUNT(*) FROM quizzes q 
+       JOIN modules m ON q.module_id = m.id 
+       WHERE m.course_id = $1 AND q.status = 'published') as total_quizzes,
+      (SELECT COUNT(*) FROM quiz_attempts qa
+       JOIN quizzes q ON qa.quiz_id = q.id
+       JOIN modules m ON q.module_id = m.id
+       WHERE m.course_id = $1 AND qa.student_id = $2 AND qa.status = 'completed') as completed_quizzes`,
     [courseId, studentId]
   );
 
-  const { total_lessons, completed_lessons } = progressResult.rows[0];
-  const progressPercentage = total_lessons > 0 
-    ? Math.round((completed_lessons / total_lessons) * 100) 
+  const { total_lessons, completed_lessons, total_quizzes, completed_quizzes } = progressResult.rows[0];
+  const totalContent = parseInt(total_lessons) + parseInt(total_quizzes);
+  const completedContent = parseInt(completed_lessons) + parseInt(completed_quizzes);
+  const progressPercentage = totalContent > 0 
+    ? Math.round((completedContent / totalContent) * 100) 
     : 0;
 
-  // Check if module is completed
+  // Check if module is completed (including both lessons and quizzes)
   const moduleProgressResult = await query(
     `SELECT 
       (SELECT COUNT(*) FROM lessons WHERE module_id = $1) as total_module_lessons,
       (SELECT COUNT(*) FROM lesson_progress lp
        JOIN lessons l ON lp.lesson_id = l.id
-       WHERE l.module_id = $1 AND lp.student_id = $2 AND lp.status = 'completed') as completed_module_lessons`,
+       WHERE l.module_id = $1 AND lp.student_id = $2 AND lp.status = 'completed') as completed_module_lessons,
+      (SELECT COUNT(*) FROM quizzes WHERE module_id = $1 AND status = 'published') as total_module_quizzes,
+      (SELECT COUNT(*) FROM quiz_attempts qa
+       JOIN quizzes q ON qa.quiz_id = q.id
+       WHERE q.module_id = $1 AND qa.student_id = $2 AND qa.status = 'completed') as completed_module_quizzes`,
     [moduleId, studentId]
   );
 
-  const { total_module_lessons, completed_module_lessons } = moduleProgressResult.rows[0];
-  const moduleCompleted = parseInt(total_module_lessons) > 0 && 
-                          parseInt(completed_module_lessons) === parseInt(total_module_lessons);
+  const { total_module_lessons, completed_module_lessons, total_module_quizzes, completed_module_quizzes } = moduleProgressResult.rows[0];
+  const totalModuleContent = parseInt(total_module_lessons) + parseInt(total_module_quizzes);
+  const completedModuleContent = parseInt(completed_module_lessons) + parseInt(completed_module_quizzes);
+  const moduleCompleted = totalModuleContent > 0 && completedModuleContent === totalModuleContent;
 
   // Check if course is completed
   const courseCompleted = progressPercentage >= 100;
@@ -217,15 +307,20 @@ async function updateEnrollmentProgress(lessonId, studentId) {
   );
 
   console.log(`📊 Progress Updated: Course ${courseId}, Student ${studentId}`);
-  console.log(`   Total Lessons: ${total_lessons}, Completed: ${completed_lessons}`);
+  console.log(`   Total Content: ${totalContent} (Lessons: ${total_lessons}, Quizzes: ${total_quizzes})`);
+  console.log(`   Completed Content: ${completedContent} (Lessons: ${completed_lessons}, Quizzes: ${completed_quizzes})`);
   console.log(`   Progress: ${progressPercentage}%`);
-  console.log(`   Module ${moduleId}: ${completed_module_lessons}/${total_module_lessons} - ${moduleCompleted ? '✅ COMPLETE' : 'In Progress'}`);
+  console.log(`   Module ${moduleId}: ${completedModuleContent}/${totalModuleContent} (L: ${completed_module_lessons}/${total_module_lessons}, Q: ${completed_module_quizzes}/${total_module_quizzes}) - ${moduleCompleted ? '✅ COMPLETE' : 'In Progress'}`);
   console.log(`   Course: ${courseCompleted ? '🎉 COMPLETE!' : 'In Progress'}`);
 
   return { 
     progressPercentage, 
     totalLessons: total_lessons, 
     completedLessons: completed_lessons,
+    totalQuizzes: total_quizzes,
+    completedQuizzes: completed_quizzes,
+    totalContent,
+    completedContent,
     moduleCompleted,
     courseCompleted,
     moduleId,
@@ -277,10 +372,41 @@ export async function markLessonIncomplete(lessonId, studentId, tenantId, isSupe
   };
 }
 
+/**
+ * Check if a quiz is completed by a student
+ */
+export async function isQuizCompleted(quizId, studentId, tenantId, isSuperAdmin = false) {
+  // Verify quiz access
+  if (!isSuperAdmin) {
+    const quizCheck = await query(
+      `SELECT q.id FROM quizzes q
+       JOIN modules m ON q.module_id = m.id
+       JOIN courses c ON m.course_id = c.id
+       WHERE q.id = $1 AND c.tenant_id = $2`,
+      [quizId, tenantId]
+    );
+    
+    if (quizCheck.rows.length === 0) {
+      throw new Error('Quiz not found or access denied');
+    }
+  }
+
+  // Check if student has completed the quiz (has a completed attempt)
+  const result = await query(
+    `SELECT id FROM quiz_attempts 
+     WHERE quiz_id = $1 AND student_id = $2 AND status = 'completed'`,
+    [quizId, studentId]
+  );
+
+  return result.rows.length > 0;
+}
+
 export default {
   getStudentProgress,
   getCourseProgress,
   markLessonComplete,
-  markLessonIncomplete
+  markLessonIncomplete,
+  markQuizComplete,
+  isQuizCompleted
 };
 

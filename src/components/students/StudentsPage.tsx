@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Plus, Search, Users, Mail, Phone, MoreVertical, Edit, Trash2, BookOpen } from 'lucide-react';
 import { useStudents } from '../../hooks/useStudents';
+import { useToast } from '../../contexts/ToastContext';
 import PageLayout from '../ui/PageLayout';
 import AddStudentModal from './AddStudentModal';
 import EditStudentModal from './EditStudentModal';
@@ -12,6 +13,7 @@ const StudentsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState<UserProfile | null>(null);
+  const { success, error: showError } = useToast();
   
   const { students, loading, error, createStudent, deleteStudent, refreshStudents } = useStudents({
     search: searchTerm,
@@ -24,6 +26,7 @@ const StudentsPage: React.FC = () => {
     try {
       await createStudent(studentData);
       setShowAddModal(false);
+      success(`Student ${studentData.first_name} ${studentData.last_name} added successfully`);
     } catch (err: any) {
       throw err; // Re-throw to be handled by the modal
     }
@@ -33,8 +36,9 @@ const StudentsPage: React.FC = () => {
     if (window.confirm(`Deactivate ${student.first_name} ${student.last_name}?`)) {
       try {
         await deleteStudent(student.id);
+        success(`Student ${student.first_name} ${student.last_name} deactivated successfully`);
       } catch (err: any) {
-        alert(err.message || 'Failed to delete student');
+        showError(err.message || 'Failed to deactivate student');
       }
     }
   };
@@ -70,6 +74,8 @@ const StudentsPage: React.FC = () => {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            title="Filter by status"
+            aria-label="Filter students by status"
           >
             <option value="all">All Students</option>
             <option value="active">Active</option>
@@ -188,13 +194,15 @@ const StudentsPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="relative inline-block">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenDropdown(openDropdown === student.id ? null : student.id);
-                        }}
-                        className="p-1 hover:bg-gray-100 rounded transition-colors"
-                      >
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenDropdown(openDropdown === student.id ? null : student.id);
+                          }}
+                          className="p-1 hover:bg-gray-100 rounded transition-colors"
+                          aria-label="Student actions menu"
+                          title="Student actions"
+                        >
                         <MoreVertical size={18} className="text-gray-400" />
                       </button>
                       

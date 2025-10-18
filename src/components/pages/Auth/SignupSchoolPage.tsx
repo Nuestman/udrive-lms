@@ -139,7 +139,7 @@ const SignupSchoolPage: React.FC = () => {
                     placeholder="elite-driving"
                   />
                   <span className="px-4 py-2 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg text-sm text-gray-600">
-                    .udrive.com
+                    .sunlms.com
                   </span>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Only lowercase letters, numbers, and hyphens</p>

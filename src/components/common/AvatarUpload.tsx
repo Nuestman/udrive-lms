@@ -8,6 +8,7 @@ import React, { useState, useRef } from 'react';
 import { Camera, Upload, X } from 'lucide-react';
 import { useAvatarUpload } from '../../hooks/useMedia';
 import { validateFile, compressImage } from '../../utils/upload.utils';
+import { useToast } from '../../contexts/ToastContext';
 
 interface AvatarUploadProps {
   currentAvatarUrl?: string;
@@ -26,6 +27,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
   onUploadSuccess,
   size = 'md'
 }) => {
+  const { error: showError } = useToast();
   const [preview, setPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -39,7 +41,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
     // Validate file
     const validation = validateFile(file, 'avatar');
     if (!validation.valid) {
-      alert(validation.error);
+      showError(validation.error);
       return;
     }
 
@@ -118,6 +120,8 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
         accept="image/jpeg,image/jpg,image/png,image/webp"
         onChange={handleFileSelect}
         className="hidden"
+        aria-label="Upload avatar image"
+        title="Select avatar image"
       />
 
       {/* Actions */}

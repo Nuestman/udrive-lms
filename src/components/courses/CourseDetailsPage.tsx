@@ -4,9 +4,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, BookOpen, Clock, Users, Edit, Trash2, GripVertical, ChevronDown, ChevronRight, FileText } from 'lucide-react';
 import { useModules } from '../../hooks/useModules';
 import { useLessons } from '../../hooks/useLessons';
-import api from '../../lib/api';
+import api, { quizzesApi } from '../../lib/api';
 import PageLayout from '../ui/PageLayout';
 import LessonEditorModal from '../lessons/LessonEditorModal';
+import QuizBuilderModal from '../quiz/QuizBuilderModal';
+import QuizEditModal from '../quiz/QuizEditModal';
+import { useToast } from '../../contexts/ToastContext';
 
 const CourseDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +24,7 @@ const CourseDetailsPage: React.FC = () => {
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
   const [showAddLesson, setShowAddLesson] = useState(false);
   const [newLessonTitle, setNewLessonTitle] = useState('');
+  const [newLessonStatus, setNewLessonStatus] = useState<'draft' | 'published'>('draft');
 
   useEffect(() => {
     fetchCourse();
@@ -50,8 +54,9 @@ const CourseDetailsPage: React.FC = () => {
       });
       setNewModuleTitle('');
       setShowAddModule(false);
+      success('Module created');
     } catch (err: any) {
-      alert(err.message || 'Failed to create module');
+      error(err.message || 'Failed to create module');
     }
   };
 
@@ -59,8 +64,9 @@ const CourseDetailsPage: React.FC = () => {
     if (window.confirm(`Delete module "${moduleName}"?`)) {
       try {
         await deleteModule(moduleId);
+        success('Module deleted');
       } catch (err: any) {
-        alert(err.message || 'Failed to delete module');
+        error(err.message || 'Failed to delete module');
       }
     }
   };
@@ -93,7 +99,7 @@ const CourseDetailsPage: React.FC = () => {
         // Refresh will happen via useLessons hook in child component
       }
     } catch (err: any) {
-      alert(err.message || 'Failed to create lesson');
+      error(err.message || 'Failed to create lesson');
     }
   };
 
@@ -240,9 +246,17 @@ interface ModuleWithLessonsProps {
 
 const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, isExpanded, onToggle, onDelete }) => {
   const { lessons, loading, createLesson, updateLesson, deleteLesson } = useLessons(isExpanded ? module.id : undefined);
+  const { info, success, error } = useToast();
   const [showAddLesson, setShowAddLesson] = useState(false);
   const [newLessonTitle, setNewLessonTitle] = useState('');
+  const [newLessonStatus, setNewLessonStatus] = useState<'draft' | 'published'>('draft');
   const [editingLesson, setEditingLesson] = useState<any>(null);
+  const [showQuizBuilder, setShowQuizBuilder] = useState(false);
+  const [isEditingModule, setIsEditingModule] = useState(false);
+  const [moduleTitleDraft, setModuleTitleDraft] = useState(module.title);
+  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+  const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
 
   const handleAddLesson = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -253,17 +267,50 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
         module_id: module.id,
         title: newLessonTitle,
         content: [],  // Valid JSON array, not empty string!
-        lesson_type: 'text'
+        lesson_type: 'text',
+        status: newLessonStatus,
       });
       setNewLessonTitle('');
+      setNewLessonStatus('draft');
       setShowAddLesson(false);
-      
+      success('Lesson created');
       // Automatically open the TinyMCE editor for the new lesson
       if (newLesson) {
         setEditingLesson(newLesson);
       }
     } catch (err: any) {
-      alert(err.message || 'Failed to create lesson');
+      error(err.message || 'Failed to create lesson');
+    }
+  };
+
+  // Load quizzes when expanded
+  useEffect(() => {
+    const loadQuizzes = async () => {
+      if (!isExpanded) return;
+      try {
+        setLoadingQuizzes(true);
+        const res = await quizzesApi.listByModule(module.id);
+        if ((res as any).success) {
+          setQuizzes((res as any).data || []);
+        }
+      } catch (e: any) {
+        // silent
+      } finally {
+        setLoadingQuizzes(false);
+      }
+    };
+    loadQuizzes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isExpanded, module.id, showQuizBuilder]);
+
+  const handleSaveModuleTitle = async () => {
+    try {
+      // naive inline update through modules API via useModules hook is not available here; use raw api
+      await api.put(`/modules/${module.id}`, { title: moduleTitleDraft });
+      success('Module updated');
+      setIsEditingModule(false);
+    } catch (e: any) {
+      error(e.message || 'Failed to update module');
     }
   };
 
@@ -299,7 +346,8 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
           <button
             onClick={(e) => {
               e.stopPropagation();
-              alert('Edit module - coming soon!');
+              setModuleTitleDraft(module.title);
+              setIsEditingModule(true);
             }}
             className="p-2 text-gray-600 hover:bg-gray-100 rounded"
             aria-label="Edit module"
@@ -307,6 +355,17 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
           >
             <Edit size={18} />
           </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowQuizBuilder(true);
+          }}
+          className="p-2 text-primary-600 hover:bg-primary-50 rounded"
+          aria-label="Add quiz"
+          title="Add quiz"
+        >
+          <Plus size={18} />
+        </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -324,6 +383,20 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
       {/* Lessons List (Expanded) */}
       {isExpanded && (
         <div className="border-t border-gray-200 bg-gray-50 p-4">
+          {/* Inline Module Edit */}
+          {isEditingModule && (
+            <div className="mb-4 flex flex-col sm:flex-row gap-2">
+              <input
+                value={moduleTitleDraft}
+                onChange={(e) => setModuleTitleDraft(e.target.value)}
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                placeholder="Module title"
+              />
+              <button onClick={handleSaveModuleTitle} className="px-3 py-2 text-sm bg-primary-600 text-white rounded hover:bg-primary-700">Save</button>
+              <button onClick={() => setIsEditingModule(false)} className="px-3 py-2 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50">Cancel</button>
+            </div>
+          )}
+
           {loading ? (
             <div className="text-center py-4 text-sm text-gray-500">Loading lessons...</div>
           ) : (
@@ -374,8 +447,9 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
                             if (window.confirm(`Delete lesson "${lesson.title}"?`)) {
                               try {
                                 await deleteLesson(lesson.id);
+                                success('Lesson deleted');
                               } catch (err: any) {
-                                alert(err.message || 'Failed to delete lesson');
+                                error(err.message || 'Failed to delete lesson');
                               }
                             }
                           }}
@@ -393,7 +467,7 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
 
               {/* Add Lesson Form */}
               {showAddLesson ? (
-                <form onSubmit={handleAddLesson} className="flex gap-2">
+                <form onSubmit={handleAddLesson} className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
                     placeholder="Lesson title..."
@@ -402,6 +476,15 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
                     className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
                     autoFocus
                   />
+                  <select
+                    value={newLessonStatus}
+                    onChange={(e) => setNewLessonStatus(e.target.value as 'draft' | 'published')}
+                    className="px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    title="Lesson status"
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="published">Published</option>
+                  </select>
                   <button
                     type="submit"
                     className="px-3 py-2 text-sm bg-primary-600 text-white rounded hover:bg-primary-700"
@@ -413,6 +496,7 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
                     onClick={() => {
                       setShowAddLesson(false);
                       setNewLessonTitle('');
+                      setNewLessonStatus('draft');
                     }}
                     className="px-3 py-2 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50"
                   >
@@ -427,6 +511,75 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
                   + Add Lesson
                 </button>
               )}
+
+              {/* Quizzes section */}
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-gray-800">Quizzes</h4>
+                  <button
+                    onClick={() => setShowQuizBuilder(true)}
+                    className="text-sm px-2 py-1 bg-primary-600 text-white rounded hover:bg-primary-700"
+                  >
+                    + New Quiz
+                  </button>
+                </div>
+                {loadingQuizzes ? (
+                  <div className="text-sm text-gray-500">Loading quizzes...</div>
+                ) : quizzes.length === 0 ? (
+                  <div className="text-sm text-gray-500">No quizzes yet</div>
+                ) : (
+                  <div className="space-y-2">
+                    {quizzes.map((q) => (
+                      <div key={q.id} className="flex items-center justify-between p-3 bg-white rounded border border-gray-200">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{q.title}</div>
+                          <div className="text-xs text-gray-500">
+                            Passing: {q.passing_score ?? 70}% · Status: {q.status}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50"
+                            onClick={() => setEditingQuizId(q.id)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50"
+                            onClick={async () => {
+                              const newStatus = q.status === 'published' ? 'draft' : 'published';
+                              try {
+                                await quizzesApi.update(q.id, { status: newStatus });
+                                setQuizzes((prev) => prev.map((it) => it.id === q.id ? { ...it, status: newStatus } : it));
+                                success(`Quiz ${newStatus}`);
+                              } catch (e: any) {
+                                error(e.message || 'Failed to update quiz');
+                              }
+                            }}
+                          >
+                            {q.status === 'published' ? 'Unpublish' : 'Publish'}
+                          </button>
+                          <button
+                            className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                            onClick={async () => {
+                              if (!confirm('Delete this quiz?')) return;
+                              try {
+                                await quizzesApi.delete(q.id);
+                                setQuizzes((prev) => prev.filter((it) => it.id !== q.id));
+                                success('Quiz deleted');
+                              } catch (e: any) {
+                                error(e.message || 'Failed to delete quiz');
+                              }
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -445,6 +598,28 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
             } catch (err) {
               throw err;
             }
+          }}
+        />
+      )}
+
+      {/* Quiz Builder Modal */}
+      {showQuizBuilder && (
+        <QuizBuilderModal
+          isOpen={showQuizBuilder}
+          moduleId={module.id}
+          onClose={() => setShowQuizBuilder(false)}
+          onCreated={() => {
+            // no-op for now; quizzes count may be reflected elsewhere via backend
+          }}
+        />
+      )}
+      {editingQuizId && (
+        <QuizEditModal
+          isOpen={!!editingQuizId}
+          quizId={editingQuizId}
+          onClose={() => setEditingQuizId(null)}
+          onSaved={(updated) => {
+            setQuizzes((prev) => prev.map((q) => q.id === updated.id ? updated : q));
           }}
         />
       )}

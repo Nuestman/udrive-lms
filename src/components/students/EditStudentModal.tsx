@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { studentsApi } from '../../lib/api';
+import { useToast } from '../../contexts/ToastContext';
 
 interface EditStudentModalProps {
   student: any;
@@ -10,12 +11,14 @@ interface EditStudentModalProps {
 }
 
 const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, onClose, onSuccess }) => {
+  const { success, error: showError } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     first_name: student.first_name || '',
     last_name: student.last_name || '',
     phone: student.phone || '',
+    address: student.address_line1 || '',
     is_active: student.is_active
   });
 
@@ -26,10 +29,13 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, onClose, o
 
     try {
       await studentsApi.update(student.id, formData);
+      success(`Student ${formData.first_name} ${formData.last_name} updated successfully`);
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to update student');
+      const errorMessage = err.message || 'Failed to update student';
+      setError(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -118,6 +124,21 @@ const EditStudentModal: React.FC<EditStudentModalProps> = ({ student, onClose, o
               value={formData.phone} 
               onChange={handleChange} 
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500" 
+            />
+          </div>
+
+          <div>
+            <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
+              Address
+            </label>
+            <input 
+              id="address" 
+              type="text" 
+              name="address" 
+              value={formData.address} 
+              onChange={handleChange} 
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500" 
+              placeholder="123 Main St, City, State ZIP"
             />
           </div>
 

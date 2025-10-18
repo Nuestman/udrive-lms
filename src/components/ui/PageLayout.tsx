@@ -25,15 +25,15 @@ const PageLayout: React.FC<PageLayoutProps> = ({
     <div className="space-y-6">
       {breadcrumbs.length > 0 && <Breadcrumbs items={breadcrumbs} />}
       
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 break-words">{title}</h1>
           {description && (
-            <p className="mt-2 text-gray-600">{description}</p>
+            <p className="mt-2 text-sm sm:text-base text-gray-600">{description}</p>
           )}
         </div>
         {actions && (
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
             {actions}
           </div>
         )}

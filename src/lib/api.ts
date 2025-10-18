@@ -91,7 +91,8 @@ export const authApi = {
     first_name: string;
     last_name: string;
     phone?: string;
-    tenant_id: string;
+    tenant_id?: string;
+    subdomain?: string;
     role?: string;
   }) => post<{ success: boolean; user: any; token: string }>('/auth/signup', data),
 
@@ -319,6 +320,64 @@ export const studentsApi = {
     get<{ success: boolean; data: any }>(`/students/${id}/progress`),
 };
 
+/**
+ * Quizzes API
+ */
+export const quizzesApi = {
+  // Create a quiz for a module
+  create: (data: {
+    module_id: string;
+    title: string;
+    description?: string;
+    passing_score?: number;
+    time_limit?: number; // minutes
+    attempts_allowed?: number;
+  }) => post<{ success: boolean; data: any }>('/quizzes', data),
+
+  // Get quiz by id (includes questions)
+  getById: (id: string) => get<{ success: boolean; data: any }>(`/quizzes/${id}`),
+
+  // Add question to quiz
+  addQuestion: (
+    quizId: string,
+    question: {
+      question_text: string;
+      question_type: 'multiple_choice' | 'true_false' | 'short_answer';
+      options?: string[];
+      correct_answer: any;
+      points?: number;
+    }
+  ) => post<{ success: boolean; data: any }>(`/quizzes/${quizId}/questions`, question),
+
+  // Update question
+  updateQuestion: (
+    quizId: string,
+    questionId: string,
+    updates: any,
+  ) => put<{ success: boolean; data: any }>(`/quizzes/${quizId}/questions/${questionId}`, updates),
+
+  // Delete question
+  deleteQuestion: (quizId: string, questionId: string) => del<{ success: boolean }>(`/quizzes/${quizId}/questions/${questionId}`),
+
+  // Submit a quiz attempt
+  submit: (
+    quizId: string,
+    payload: { answers: Record<string, any> }
+  ) => post<{ success: boolean; data: any }>(`/quizzes/${quizId}/submit`, payload),
+
+  // Get attempts for current student
+  getAttempts: (quizId: string) => get<{ success: boolean; data: any[] }>(`/quizzes/${quizId}/attempts`),
+
+  // List quizzes by module
+  listByModule: (moduleId: string) => get<{ success: boolean; data: any[] }>(`/quizzes/module/${moduleId}`),
+
+  // Update a quiz
+  update: (id: string, updates: any) => put<{ success: boolean; data: any }>(`/quizzes/${id}`, updates),
+
+  // Delete a quiz
+  delete: (id: string) => del<{ success: boolean }>(`/quizzes/${id}`),
+};
+
 export default {
   get,
   post,
@@ -330,5 +389,6 @@ export default {
   usersApi,
   instructorsApi,
   studentsApi,
+  quizzesApi,
 };
 

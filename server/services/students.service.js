@@ -1,5 +1,5 @@
 // Student Management Service
-import { query } from '../lib/db.js';
+import { query, getClient } from '../lib/db.js';
 import bcrypt from 'bcryptjs';
 
 class NotFoundError extends Error {
@@ -110,7 +110,7 @@ export async function getStudentById(studentId, tenantId, isSuperAdmin = false) 
  * Create new student
  */
 export async function createStudent(studentData, tenantId) {
-  const { email, password, first_name, last_name, phone } = studentData;
+  const { email, password, first_name, last_name, phone, address } = studentData;
 
   // Check if email already exists
   const existingUser = await query(
@@ -125,23 +125,52 @@ export async function createStudent(studentData, tenantId) {
   // Hash password
   const password_hash = await bcrypt.hash(password || 'welcome123', 10);
 
-  // Create student
-  const result = await query(
-    `INSERT INTO users (email, password_hash, first_name, last_name, phone, tenant_id, role, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, 'student', true)
-     RETURNING *`,
-    [email, password_hash, first_name, last_name, phone, tenantId]
-  );
+  // Start transaction to create user and profile
+  const client = await getClient();
+  
+  try {
+    await client.query('BEGIN');
 
-  const { password_hash: _, ...studentWithoutPassword } = result.rows[0];
-  return studentWithoutPassword;
+    // Create user (authentication data only)
+    const userResult = await client.query(
+      `INSERT INTO users (email, password_hash, tenant_id, role, is_active)
+       VALUES ($1, $2, $3, 'student', true)
+       RETURNING id, email, tenant_id, role, is_active, created_at, updated_at`,
+      [email, password_hash, tenantId]
+    );
+
+    const userId = userResult.rows[0].id;
+
+    // Create user profile (personal data)
+    await client.query(
+      `INSERT INTO user_profiles (user_id, first_name, last_name, phone, address_line1)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [userId, first_name, last_name, phone || null, address || null]
+    );
+
+    await client.query('COMMIT');
+
+    // Return user data with profile using the view
+    const result = await query(
+      'SELECT * FROM users_with_profiles WHERE id = $1',
+      [userId]
+    );
+
+    return result.rows[0];
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**
  * Update student
  */
 export async function updateStudent(studentId, studentData, tenantId, isSuperAdmin = false) {
-  const { first_name, last_name, phone, email, is_active } = studentData;
+  const { first_name, last_name, phone, email, is_active, address } = studentData;
 
   // Verify student access
   let studentCheck;
@@ -175,21 +204,88 @@ export async function updateStudent(studentId, studentData, tenantId, isSuperAdm
     }
   }
 
-  const result = await query(
-    `UPDATE users
-     SET first_name = COALESCE($2, first_name),
-         last_name = COALESCE($3, last_name),
-         phone = COALESCE($4, phone),
-         email = COALESCE($5, email),
-         is_active = COALESCE($6, is_active),
-         updated_at = CURRENT_TIMESTAMP
-     WHERE id = $1
-     RETURNING *`,
-    [studentId, first_name, last_name, phone, email, is_active]
-  );
+  // Start transaction to update user and profile
+  const client = await getClient();
+  
+  try {
+    await client.query('BEGIN');
 
-  const { password_hash, ...studentWithoutPassword } = result.rows[0];
-  return studentWithoutPassword;
+    // Update user (authentication data only)
+    const userUpdateFields = [];
+    const userUpdateValues = [];
+    let paramCount = 1;
+
+    if (email !== undefined) {
+      userUpdateFields.push(`email = $${paramCount++}`);
+      userUpdateValues.push(email);
+    }
+    if (is_active !== undefined) {
+      userUpdateFields.push(`is_active = $${paramCount++}`);
+      userUpdateValues.push(is_active);
+    }
+    
+    if (userUpdateFields.length > 0) {
+      userUpdateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+      userUpdateValues.push(studentId);
+      
+      await client.query(
+        `UPDATE users SET ${userUpdateFields.join(', ')} WHERE id = $${paramCount}`,
+        userUpdateValues
+      );
+    }
+
+    // Update user profile (personal data)
+    const profileUpdateFields = [];
+    const profileUpdateValues = [];
+    paramCount = 1;
+
+    if (first_name !== undefined) {
+      profileUpdateFields.push(`first_name = $${paramCount++}`);
+      profileUpdateValues.push(first_name);
+    }
+    if (last_name !== undefined) {
+      profileUpdateFields.push(`last_name = $${paramCount++}`);
+      profileUpdateValues.push(last_name);
+    }
+    if (phone !== undefined) {
+      profileUpdateFields.push(`phone = $${paramCount++}`);
+      profileUpdateValues.push(phone);
+    }
+    if (address !== undefined) {
+      profileUpdateFields.push(`address_line1 = $${paramCount++}`);
+      profileUpdateValues.push(address);
+    }
+    
+    if (profileUpdateFields.length > 0) {
+      profileUpdateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+      profileUpdateValues.push(studentId);
+      
+      await client.query(
+        `UPDATE user_profiles SET ${profileUpdateFields.join(', ')} WHERE user_id = $${paramCount}`,
+        profileUpdateValues
+      );
+    }
+
+    await client.query('COMMIT');
+
+    // Return updated student data using the view
+    const result = await query(
+      'SELECT * FROM users_with_profiles WHERE id = $1',
+      [studentId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new NotFoundError('Student not found');
+    }
+
+    return result.rows[0];
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**

@@ -17,7 +17,13 @@ router.use(tenantContext);
  * - Others: Only if module is in their school
  */
 router.get('/module/:moduleId', asyncHandler(async (req, res) => {
-  const lessons = await lessonsService.getLessonsByModule(req.params.moduleId, req.tenantId, req.isSuperAdmin);
+  const audience = (req.query.audience || '').toString();
+  const lessons = await lessonsService.getLessonsByModule(
+    req.params.moduleId,
+    req.tenantId,
+    req.isSuperAdmin,
+    audience
+  );
   
   res.json({
     success: true,

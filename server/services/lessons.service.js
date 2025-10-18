@@ -6,7 +6,7 @@ import { query } from '../lib/db.js';
  * - Super Admin: Any module's lessons
  * - Others: Only if module is in their school
  */
-export async function getLessonsByModule(moduleId, tenantId, isSuperAdmin = false) {
+export async function getLessonsByModule(moduleId, tenantId, isSuperAdmin = false, audience = '') {
   let queryText = `SELECT l.*, 
     (SELECT COUNT(*) FROM lesson_progress WHERE lesson_id = l.id AND status = 'completed') as completion_count
    FROM lessons l
@@ -22,6 +22,11 @@ export async function getLessonsByModule(moduleId, tenantId, isSuperAdmin = fals
     params.push(tenantId);
   }
   
+  // If audience is student (and not super admin), only show published lessons
+  if (!isSuperAdmin && audience === 'student') {
+    queryText += " AND l.status = 'published'";
+  }
+
   queryText += ' ORDER BY l.order_index ASC';
   
   const result = await query(queryText, params);
@@ -63,7 +68,7 @@ export async function getLessonById(lessonId, tenantId, isSuperAdmin = false) {
  * Create new lesson
  */
 export async function createLesson(lessonData, tenantId, isSuperAdmin = false) {
-  const { module_id, title, content, lesson_type, video_url, document_url, estimated_duration_minutes } = lessonData;
+  const { module_id, title, content, lesson_type, video_url, document_url, estimated_duration_minutes, status } = lessonData;
   
   // Verify module belongs to tenant (skip for super admin)
   if (!isSuperAdmin) {
@@ -92,10 +97,10 @@ export async function createLesson(lessonData, tenantId, isSuperAdmin = false) {
     : '[]';
   
   const result = await query(
-    `INSERT INTO lessons (module_id, title, content, lesson_type, video_url, document_url, estimated_duration_minutes, order_index)
-     VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8)
+    `INSERT INTO lessons (module_id, title, content, lesson_type, video_url, document_url, estimated_duration_minutes, order_index, status)
+     VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
-    [module_id, title, contentValue, lesson_type || 'text', video_url || null, document_url || null, estimated_duration_minutes || null, orderIndex]
+    [module_id, title, contentValue, lesson_type || 'text', video_url || null, document_url || null, estimated_duration_minutes || null, orderIndex, status || 'draft']
   );
   
   return result.rows[0];
@@ -107,7 +112,7 @@ export async function createLesson(lessonData, tenantId, isSuperAdmin = false) {
  * - Others: Only if lesson is in their school
  */
 export async function updateLesson(lessonId, lessonData, tenantId, isSuperAdmin = false) {
-  const { title, content, lesson_type, video_url, document_url, estimated_duration_minutes } = lessonData;
+  const { title, content, lesson_type, video_url, document_url, estimated_duration_minutes, status } = lessonData;
   
   // Verify lesson access
   if (!isSuperAdmin) {
@@ -137,10 +142,11 @@ export async function updateLesson(lessonId, lessonData, tenantId, isSuperAdmin 
          video_url = COALESCE($5, video_url),
          document_url = COALESCE($6, document_url),
          estimated_duration_minutes = COALESCE($7, estimated_duration_minutes),
+         status = COALESCE($8, status),
          updated_at = CURRENT_TIMESTAMP
      WHERE id = $1
      RETURNING *`,
-    [lessonId, title, contentValue, lesson_type, video_url, document_url, estimated_duration_minutes]
+    [lessonId, title, contentValue, lesson_type, video_url, document_url, estimated_duration_minutes, status]
   );
   
   return result.rows[0];

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Plus, Search, Building2, Users, BookOpen, TrendingUp, MoreVertical, Edit, Trash2 } from 'lucide-react';
 import { useSchools } from '../../hooks/useSchools';
+import { useToast } from '../../contexts/ToastContext';
 import PageLayout from '../ui/PageLayout';
 import CreateSchoolModal from './CreateSchoolModal';
 import EditSchoolModal from './EditSchoolModal';
@@ -12,6 +13,7 @@ const SchoolsPage: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<any>(null);
+  const { success, error: showError } = useToast();
   
   const { schools, loading, error, deleteSchool } = useSchools();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -26,8 +28,9 @@ const SchoolsPage: React.FC = () => {
     if (window.confirm(`Deactivate school "${school.name}"? This will affect all users in this school.`)) {
       try {
         await deleteSchool(school.id);
+        success(`School "${school.name}" deactivated successfully`);
       } catch (err: any) {
-        alert(err.message || 'Failed to delete school');
+        showError(err.message || 'Failed to deactivate school');
       }
     }
   };
@@ -73,6 +76,8 @@ const SchoolsPage: React.FC = () => {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              title="Filter by status"
+              aria-label="Filter schools by status"
             >
               <option value="all">All Schools</option>
               <option value="active">Active</option>

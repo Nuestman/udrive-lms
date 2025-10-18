@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useUsers, useUserStatistics, useUserActivity, useTopUsers } from '../../hooks/useUsers';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import CreateUserModal from './CreateUserModal';
 import EditUserModal from './EditUserModal';
 import DeleteUserModal from './DeleteUserModal';
@@ -29,6 +30,7 @@ import UserRoleDistribution from './UserRoleDistribution';
 
 const UsersPage: React.FC = () => {
   const { profile } = useAuth();
+  const { success, error: showError } = useToast();
   const { users, loading, pagination, filters, updateFilters, goToPage, deleteUser, bulkUpdate, refresh } = useUsers();
   const { statistics, loading: statsLoading } = useUserStatistics();
   const { activity, loading: activityLoading } = useUserActivity(30);
@@ -89,13 +91,15 @@ const UsersPage: React.FC = () => {
     try {
       if (action === 'activate') {
         await bulkUpdate(selectedUsers, { is_active: true });
+        success(`${selectedUsers.length} users activated successfully`);
       } else if (action === 'deactivate') {
         await bulkUpdate(selectedUsers, { is_active: false });
+        success(`${selectedUsers.length} users deactivated successfully`);
       }
       setSelectedUsers([]);
     } catch (error: any) {
       console.error('Bulk action error:', error);
-      alert(error.message);
+      showError(error.message || 'Failed to perform bulk action');
     }
   };
 

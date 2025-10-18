@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Search, BookOpen, Users, Clock, Edit, Trash2, Eye, MoreVertical } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCourses } from '../../hooks/useCourses';
+import { useToast } from '../../contexts/ToastContext';
 import PageLayout from '../ui/PageLayout';
 import CreateCourseModal from './CreateCourseModal';
 import EditCourseModal from './EditCourseModal';
@@ -17,6 +18,7 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ role }) => {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const { courses, loading, error, deleteCourse, publishCourse } = useCourses();
+  const { success, error: showError } = useToast();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published' | 'archived'>('all');
@@ -37,9 +39,9 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ role }) => {
     if (window.confirm(`Are you sure you want to delete "${course.title}"?`)) {
       try {
         await deleteCourse(course.id);
-        setDeletingCourse(null);
+        success(`Course "${course.title}" deleted successfully`);
       } catch (err: any) {
-        alert(err.message || 'Failed to delete course');
+        showError(err.message || 'Failed to delete course');
       }
     }
   };
@@ -48,8 +50,9 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ role }) => {
   const handlePublish = async (course: Course) => {
     try {
       await publishCourse(course.id);
+      success(`Course "${course.title}" published successfully`);
     } catch (err: any) {
-      alert(err.message || 'Failed to publish course');
+      showError(err.message || 'Failed to publish course');
     }
   };
 
@@ -95,6 +98,8 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ role }) => {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              title="Filter by status"
+              aria-label="Filter courses by status"
             >
               <option value="all">All Status</option>
               <option value="draft">Draft</option>
@@ -200,6 +205,8 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ role }) => {
                             setOpenDropdown(openDropdown === course.id ? null : course.id);
                           }}
                           className="p-1 hover:bg-gray-100 rounded transition-colors"
+                          aria-label="Course actions menu"
+                          title="Course actions"
                         >
                           <MoreVertical size={18} className="text-gray-400" />
                         </button>
