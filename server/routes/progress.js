@@ -46,6 +46,24 @@ router.get('/course/:courseId/student/:studentId', asyncHandler(async (req, res)
 }));
 
 /**
+ * GET /api/progress/course/:courseId/student/:studentId/unified
+ * Get student's progress for a specific course with unified content (lessons + quizzes)
+ */
+router.get('/course/:courseId/student/:studentId/unified', asyncHandler(async (req, res) => {
+  const progress = await progressService.getUnifiedCourseProgress(
+    req.params.courseId,
+    req.params.studentId,
+    req.tenantId,
+    req.isSuperAdmin
+  );
+  
+  res.json({
+    success: true,
+    data: progress
+  });
+}));
+
+/**
  * POST /api/progress/lesson/:lessonId/complete
  * Mark lesson as completed for current user
  */

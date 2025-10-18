@@ -33,6 +33,11 @@ const StudentLessonViewer: React.FC = () => {
   const [resolvedLessonId, setResolvedLessonId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
+  // Quiz state
+  const [quizStarted, setQuizStarted] = useState(false);
+  const [quizAttempts, setQuizAttempts] = useState<any[]>([]);
+  const [loadingAttempts, setLoadingAttempts] = useState(false);
+  
   // Celebration modal state
   const [celebrationModal, setCelebrationModal] = useState<{
     isOpen: boolean;
@@ -92,6 +97,39 @@ const StudentLessonViewer: React.FC = () => {
       });
     }
   }, [allQuizzes, profile?.id]);
+
+  // Monitor progress changes and ensure completion status consistency
+  useEffect(() => {
+    if (progress) {
+      // Sync quiz completion status from progress data
+      if (allQuizzes.length > 0) {
+        allQuizzes.forEach(quiz => {
+          const isCompletedInProgress = progress.some((module: any) => 
+            module.quizzes?.some((q: any) => q.quiz_id === quiz.id && q.completed)
+          );
+          
+          if (isCompletedInProgress && !quizCompletionStatus[quiz.id]) {
+            console.log(`[Progress Sync] Syncing quiz completion status for ${quiz.id}`);
+            setQuizCompletionStatus(prev => ({
+              ...prev,
+              [quiz.id]: true
+            }));
+          }
+        });
+      }
+      
+      // Debug: Log the complete progress structure
+      console.log('[Progress Monitor] Current progress structure:', progress);
+      progress.forEach((module: any, index: number) => {
+        console.log(`[Progress Monitor] Module ${index}:`, {
+          module_id: module.module_id,
+          module_title: module.module_title,
+          lessons: module.lessons?.map((l: any) => ({ id: l.lesson_id, completed: l.completed })) || [],
+          quizzes: module.quizzes?.map((q: any) => ({ id: q.quiz_id, completed: q.completed })) || []
+        });
+      });
+    }
+  }, [progress, allQuizzes, quizCompletionStatus]);
 
   useEffect(() => {
     if (resolvedLessonId && allContent.length > 0) {
@@ -263,21 +301,50 @@ const StudentLessonViewer: React.FC = () => {
   };
 
   const handleToggleComplete = async (options?: { silent?: boolean }) => {
-    if (!currentLesson) return;
+    const currentContent = currentLesson || currentQuiz;
+    if (!currentContent) return;
 
     try {
       setIsCompleting(true);
-      const isCompleted = isLessonCompleted(currentLesson.id);
+      const isCompleted = isLessonCompleted(currentContent.id);
+      const contentType = currentContent.type === 'quiz' ? 'quiz' : 'lesson';
+      
+      console.log(`[Toggle Complete] Starting toggle for ${contentType} ${currentContent.id}, currently completed: ${isCompleted}`);
       
       if (isCompleted) {
-        await markLessonIncomplete(currentLesson.id);
+        console.log(`[Toggle Complete] Marking ${contentType} ${currentContent.id} as incomplete`);
+        await markLessonIncomplete(currentContent.id);
         await refreshProgress();
         await refreshEnrollments(); // Refresh enrollments for dashboard
+        
+        if (!options?.silent) {
+          success(`${contentType === 'quiz' ? 'Quiz' : 'Lesson'} marked as incomplete`);
+        }
       } else {
-        // Mark lesson complete and get response
-        const response = await markLessonComplete(currentLesson.id);
+        console.log(`[Toggle Complete] Marking ${contentType} ${currentContent.id} as complete`);
+        // Mark content complete and get response
+        const response = await markLessonComplete(currentContent.id);
+        console.log(`[Toggle Complete] Mark complete response:`, response);
         await refreshProgress();
         await refreshEnrollments(); // Refresh enrollments for dashboard
+        
+        // Add a small delay to ensure backend has processed the completion
+        setTimeout(async () => {
+          console.log(`[${contentType === 'quiz' ? 'Quiz' : 'Lesson'} Completion] Refreshing all completion data...`);
+          // Refresh progress again to ensure all data is synchronized
+          await refreshProgress();
+          
+          // Final refresh to ensure everything is synchronized
+          setTimeout(async () => {
+            await refreshProgress();
+            console.log(`[${contentType === 'quiz' ? 'Quiz' : 'Lesson'} Completion] Final progress refresh completed`);
+          }, 300);
+        }, 500);
+        
+        // Show success message for completion
+        if (!options?.silent) {
+          success(`${contentType === 'quiz' ? 'Quiz' : 'Lesson'} completed successfully!`);
+        }
         
         // Check if module or course completed (skip UI if silent)
         if (!options?.silent && response?.enrollment_progress) {
@@ -379,22 +446,90 @@ const StudentLessonViewer: React.FC = () => {
     return false;
   };
 
-  const isLessonCompleted = (contentId: string) => {
-    if (!progress) return false;
-    
-    // Check if it's a quiz by looking in allQuizzes
+  const refreshAllCompletionData = async () => {
+    console.log('[Completion Refresh] Refreshing all completion data...');
+    try {
+      // Refresh progress data
+      await refreshProgress();
+      
+      // Refresh quiz completion status for all quizzes
+      if (allQuizzes.length > 0 && profile?.id) {
+        const quizPromises = allQuizzes.map(quiz => fetchQuizCompletionStatus(quiz.id));
+        await Promise.all(quizPromises);
+      }
+      
+      // Refresh enrollments
+      await refreshEnrollments();
+      
+      console.log('[Completion Refresh] All completion data refreshed');
+    } catch (error) {
+      console.error('[Completion Refresh] Error refreshing completion data:', error);
+    }
+  };
+
+  const isContentCompleted = (contentId: string) => {
+    // Since the overall progress is working correctly (88%), let's use a simpler approach
+    // Check if this is a quiz first
     const isQuiz = allQuizzes.some(quiz => quiz.id === contentId);
     
     if (isQuiz) {
-      // Check cached quiz completion status
-      return quizCompletionStatus[contentId] || false;
+      // For quizzes, check cached completion status
+      const cachedStatus = quizCompletionStatus[contentId];
+      if (cachedStatus) {
+        console.log(`[Completion Check] Quiz ${contentId} completed (cached): ${cachedStatus}`);
+        return true;
+      }
     }
     
-    // Check if lesson is in completed lessons list
+    // For lessons, check the progress data
+    if (!progress) {
+      console.log(`[Completion Check] No progress data available for ${contentId}`);
+      return false;
+    }
+    
+    // Look through all modules for the lesson
     for (const module of progress) {
+      console.log(`[Completion Check] Checking module ${module.module_title} for content ${contentId}`);
+      
+      // Check legacy lessons array (this is what's working)
       const lessons = module.lessons || [];
+      console.log(`[Completion Check] Module has ${lessons.length} lessons:`, lessons.map((l: any) => ({ id: l.lesson_id, title: l.title, completed: l.completed })));
+      
       const lesson = lessons.find((l: any) => l.lesson_id === contentId);
-      if (lesson?.completed) return true;
+      if (lesson?.completed) {
+        console.log(`[Completion Check] Lesson ${contentId} completed: ${lesson.completed}`);
+        return true;
+      }
+      
+      // Check unified content array if available
+      if (module.content && Array.isArray(module.content)) {
+        const contentItem = module.content.find((item: any) => {
+          return (item.lesson_id === contentId) || (item.quiz_id === contentId);
+        });
+        
+        if (contentItem?.completed) {
+          console.log(`[Completion Check] ${contentItem.type} ${contentId} completed: ${contentItem.completed}`);
+          return true;
+        }
+      }
+    }
+    
+    console.log(`[Completion Check] Content ${contentId} not completed`);
+    return false;
+  };
+
+  // Keep the old function name for backward compatibility
+  const isLessonCompleted = isContentCompleted;
+
+  // Check if quiz complete button should be shown (only if passed and not already completed)
+  const shouldShowQuizCompleteButton = () => {
+    if (!currentQuiz || isContentCompleted(currentQuiz.id)) return false;
+    
+    // Check if there are attempts and if the latest one passed
+    if (quizAttempts.length > 0) {
+      const latestAttempt = quizAttempts[0];
+      const passed = latestAttempt.score >= (currentQuiz.passing_score || 70);
+      return passed;
     }
     
     return false;
@@ -423,7 +558,8 @@ const StudentLessonViewer: React.FC = () => {
       setIsNavigatingNext(true);
       // If not completed, confirm with the user before proceeding
       if (!isLessonCompleted(currentContent.id)) {
-        const proceed = window.confirm(`You have not marked this ${currentContent.type === 'quiz' ? 'quiz' : 'lesson'} as complete. Continue to next item?`);
+        const contentType = currentContent.type === 'quiz' ? 'quiz' : 'lesson';
+        const proceed = window.confirm(`You have not marked this ${contentType} as complete. Continue to next item?`);
         if (!proceed) return;
       }
       goToNextContent();
@@ -521,8 +657,48 @@ const StudentLessonViewer: React.FC = () => {
     );
   };
 
+  // Fetch quiz attempts when currentQuiz changes
+  useEffect(() => {
+    const fetchAttempts = async () => {
+      if (!currentQuiz?.id) return;
+      
+      try {
+        setLoadingAttempts(true);
+        const result = await api.get(`/quizzes/${currentQuiz.id}/attempts`);
+        if (result.success) {
+          setQuizAttempts(result.data);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch quiz attempts:', error);
+      } finally {
+        setLoadingAttempts(false);
+      }
+    };
+
+    fetchAttempts();
+  }, [currentQuiz?.id]);
+
+  // Reset quiz started state when quiz changes
+  useEffect(() => {
+    setQuizStarted(false);
+  }, [currentQuiz?.id]);
+
+  // Add a key to force QuizEngine remount when retaking
+  const [quizEngineKey, setQuizEngineKey] = useState(0);
+  
+  // Reset QuizEngine key when quiz is started (for retakes)
+  useEffect(() => {
+    if (quizStarted && currentQuiz) {
+      setQuizEngineKey(prev => prev + 1);
+      console.log('[Quiz Reset] QuizEngine key reset for quiz:', currentQuiz.id);
+    }
+  }, [quizStarted, currentQuiz]);
+
   const renderQuizContent = () => {
     if (!currentQuiz) return null;
+
+    // Check if quiz is completed
+    const isQuizCompleted = isContentCompleted(currentQuiz.id);
 
     // Transform quiz data to match QuizEngine interface
     const questions = currentQuiz.questions?.map((q: any) => ({
@@ -537,80 +713,250 @@ const StudentLessonViewer: React.FC = () => {
 
     const handleQuizComplete = async (score: number, answers: Record<string, any>) => {
       try {
-        // Submit quiz attempt
+        // Submit quiz attempt (but don't auto-complete)
         const result = await quizzesApi.submit(currentQuiz.id, { answers });
         if (result.success) {
           success(`Quiz completed! Score: ${score}%`);
-          // Update quiz completion status
-          setQuizCompletionStatus(prev => ({
-            ...prev,
-            [currentQuiz.id]: true
-          }));
-          // Refresh progress to update completion status
-          await refreshProgress();
-          await refreshEnrollments();
           
-          // Check for module/course completion celebrations (same as lesson completion)
-          if (result.data?.progressUpdate) {
-            const { moduleCompleted, courseCompleted, moduleId } = result.data.progressUpdate;
-            
-            if (courseCompleted) {
-              // Show course completion celebration
-              setCelebrationModal({
-                isOpen: true,
-                type: 'course',
-                title: 'Course Complete!',
-                message: `Congratulations! You have completed "${course?.title}". You can now access your certificate.`,
-                hasNextModule: false
-              });
-
-              // Attempt to generate certificate if not exists yet
-              try {
-                const enrollmentId = getEnrollmentIdForCourse();
-                if (enrollmentId) {
-                  await api.post('/api/certificates/generate', { enrollment_id: enrollmentId });
-                }
-              } catch (e) {
-                // Non-blocking: certificate may already exist
-                console.warn('Certificate generation attempt skipped/failed:', e);
-              }
-            } else if (moduleCompleted) {
-              // Check if there's a next module
-              const currentModuleIndex = modules.findIndex(m => m.id === moduleId);
-              const hasNextModule = currentModuleIndex >= 0 && currentModuleIndex < modules.length - 1;
-              const nextModule = hasNextModule ? modules[currentModuleIndex + 1] : null;
-              
-              // Show module completion celebration
-              setCelebrationModal({
-                isOpen: true,
-                type: 'module',
-                title: 'Module Complete!',
-                message: hasNextModule 
-                  ? `Great job! You have completed this module. Ready to start "${nextModule?.title}"?`
-                  : 'Great job! You have completed this module.',
-                hasNextModule
-              });
-            }
+          // Refresh quiz attempts to show the new result
+          const attemptsResult = await api.get(`/quizzes/${currentQuiz.id}/attempts`);
+          if (attemptsResult.success) {
+            setQuizAttempts(attemptsResult.data);
           }
+          
+          // Stop the quiz to show results
+          setQuizStarted(false);
+          
+          // Note: We don't automatically mark quiz as complete anymore
+          // User must click "Mark as Complete" button to complete the quiz
         }
       } catch (error: any) {
         error(error.message || 'Failed to submit quiz');
       }
     };
 
+    const handleStartQuiz = () => {
+      setQuizStarted(true);
+    };
+
+    const handleRetakeQuiz = async () => {
+      console.log('[Quiz Retake] Starting retake for quiz:', currentQuiz.id);
+      
+      // Reset quiz completion status for this quiz to allow retaking
+      setQuizCompletionStatus(prev => ({
+        ...prev,
+        [currentQuiz.id]: false
+      }));
+      
+      // Refresh quiz attempts to get the latest data
+      try {
+        const result = await api.get(`/quizzes/${currentQuiz.id}/attempts`);
+        if (result.success) {
+          setQuizAttempts(result.data);
+        }
+      } catch (error) {
+        console.warn('Failed to refresh quiz attempts:', error);
+      }
+      
+      // Start the quiz (this will trigger QuizEngine to reset via useEffect)
+      setQuizStarted(true);
+      console.log('[Quiz Retake] Quiz started, quizStarted set to true');
+    };
+
+    // Show loading state while fetching attempts
+    if (loadingAttempts) {
+      return (
+        <div className="prose max-w-none">
+          <div className="mb-6">
+            <p className="text-gray-600">{currentQuiz.description}</p>
+          </div>
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          </div>
+        </div>
+      );
+    }
+
+    // Show quiz results if there are attempts AND quiz is not started (for retake)
+    if (quizAttempts.length > 0 && !quizStarted) {
+      const latestAttempt = quizAttempts[0]; // Assuming attempts are ordered by most recent first
+      const passed = latestAttempt.score >= (currentQuiz.passing_score || 70);
+      const isQuizCompleted = isContentCompleted(currentQuiz.id);
+      
+      // Debug: Log quiz data structure
+      console.log('[Quiz Results] Quiz data:', {
+        id: currentQuiz.id,
+        title: currentQuiz.title,
+        max_attempts: currentQuiz.max_attempts,
+        passing_score: currentQuiz.passing_score,
+        attempts_count: quizAttempts.length,
+        latest_attempt: latestAttempt,
+        isQuizCompleted
+      });
+      
+      return (
+        <div className="prose max-w-none">
+          <div className="mb-6">
+            <p className="text-gray-600">{currentQuiz.description}</p>
+          </div>
+          
+          {/* Quiz Results */}
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="text-center mb-6">
+              <div className={`text-4xl font-bold mb-4 ${passed ? 'text-green-500' : 'text-red-500'}`}>
+                {latestAttempt.score}%
+              </div>
+              <h3 className="text-xl font-semibold mb-2">
+                {passed ? 'Congratulations! You passed the quiz.' : 'You did not meet the passing score.'}
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Passing Score: {currentQuiz.passing_score || 70}%
+              </p>
+              <div className="text-sm text-gray-500">
+                Completed on: {new Date(latestAttempt.completed_at).toLocaleDateString()}
+              </div>
+            </div>
+            
+            {/* Action buttons */}
+            <div className="text-center space-y-3">
+              {/* Mark as Complete button - only show if not already completed AND passing score reached */}
+              {!isQuizCompleted && passed && (
+                <div>
+                  <button
+                    onClick={() => handleToggleComplete()}
+                    className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+                  >
+                    Mark as Complete
+                  </button>
+                  <p className="text-xs text-gray-500 mt-2">
+                    You passed! Click to mark this quiz as completed in your progress
+                  </p>
+                </div>
+              )}
+              
+              {/* Show message if not passed */}
+              {!isQuizCompleted && !passed && (
+                <div className="text-center">
+                  <p className="text-sm text-gray-600 mb-2">
+                    You need to score {currentQuiz.passing_score || 70}% or higher to mark this quiz as complete.
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Current score: {latestAttempt.score}%
+                  </p>
+                </div>
+              )}
+              
+              {/* Retake button if allowed */}
+              {(() => {
+                const maxAttempts = currentQuiz.max_attempts || 0;
+                const currentAttempts = quizAttempts.length;
+                const canRetake = maxAttempts === 0 || currentAttempts < maxAttempts;
+                
+                console.log('[Quiz Retake] Max attempts:', maxAttempts, 'Current attempts:', currentAttempts, 'Can retake:', canRetake);
+                
+                if (canRetake) {
+                  return (
+                    <button
+                      onClick={handleRetakeQuiz}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    >
+                      Retake Quiz
+                    </button>
+                  );
+                } else {
+                  return (
+                    <div className="space-y-2">
+                      <div className="text-gray-500">
+                        Maximum attempts reached ({currentAttempts}/{maxAttempts})
+                      </div>
+                      <button
+                        onClick={handleRetakeQuiz}
+                        className="px-6 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed transition-colors"
+                        disabled
+                      >
+                        Retake Quiz (Disabled)
+                      </button>
+                    </div>
+                  );
+                }
+              })()}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Show start quiz button if not started and not completed
+    if (!quizStarted && !isQuizCompleted) {
+      // Debug: Log quiz data structure
+      console.log('[Quiz Start] Quiz data:', {
+        id: currentQuiz.id,
+        title: currentQuiz.title,
+        max_attempts: currentQuiz.max_attempts,
+        passing_score: currentQuiz.passing_score,
+        time_limit_minutes: currentQuiz.time_limit_minutes,
+        attempts_count: quizAttempts.length,
+        quiz_data: currentQuiz
+      });
+      
+      return (
+        <div className="prose max-w-none">
+          <div className="mb-6">
+            <p className="text-gray-600">{currentQuiz.description}</p>
+          </div>
+          
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 text-center">
+            <h3 className="text-xl font-semibold mb-4">Ready to take the quiz?</h3>
+            <div className="space-y-2 text-sm text-gray-600 mb-6">
+              <p><strong>Questions:</strong> {questions.length}</p>
+              {currentQuiz.time_limit_minutes > 0 && (
+                <p><strong>Time Limit:</strong> {currentQuiz.time_limit_minutes} minutes</p>
+              )}
+              <p><strong>Passing Score:</strong> {currentQuiz.passing_score || 70}%</p>
+              <p><strong>Max Attempts:</strong> {currentQuiz.max_attempts === 0 ? 'Unlimited' : currentQuiz.max_attempts}</p>
+              <p><strong>Current Attempts:</strong> {quizAttempts.length}</p>
+            </div>
+            <button
+              onClick={handleStartQuiz}
+              className="px-8 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+            >
+              Start Quiz
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Show quiz engine if started and not completed
+    if (quizStarted && !isQuizCompleted) {
+      console.log('[Quiz Engine] Showing quiz engine, quizStarted:', quizStarted, 'isQuizCompleted:', isQuizCompleted);
+      return (
+        <div className="prose max-w-none">
+          <div className="mb-6">
+            <p className="text-gray-600">{currentQuiz.description}</p>
+          </div>
+          
+          <QuizEngine
+            key={`quiz-${currentQuiz.id}-${quizEngineKey}`}
+            questions={questions}
+            timeLimit={currentQuiz.time_limit_minutes}
+            passingScore={currentQuiz.passing_score || 70}
+            showFeedback={currentQuiz.show_feedback !== 'never'}
+            onComplete={handleQuizComplete}
+          />
+        </div>
+      );
+    }
+
+    // Fallback
     return (
       <div className="prose max-w-none">
         <div className="mb-6">
           <p className="text-gray-600">{currentQuiz.description}</p>
         </div>
-        
-        <QuizEngine
-          questions={questions}
-          timeLimit={currentQuiz.time_limit_minutes}
-          passingScore={currentQuiz.passing_score || 70}
-          showFeedback={currentQuiz.show_feedback !== 'never'}
-          onComplete={handleQuizComplete}
-        />
+        <div className="text-center text-gray-500">
+          Loading quiz...
+        </div>
       </div>
     );
   };
@@ -707,11 +1053,28 @@ const StudentLessonViewer: React.FC = () => {
               </button>
             </div>
             <div className="mb-4">
-              <h3 className="font-semibold text-gray-900 mb-2">Course Progress</h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-gray-900">Course Progress</h3>
+                <button
+                  onClick={refreshAllCompletionData}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  title="Refresh completion data"
+                >
+                  Refresh
+                </button>
+              </div>
               {(() => {
+                // Use enrollment progress percentage like the dashboard does
+                const enrollment = enrollments.find(e => e.course_id === resolvedCourseId);
+                const enrollmentProgress = enrollment?.progress_percentage || 0;
+                
+                // Fallback: calculate from content completion
                 const totalContent = allContent.length;
                 const completedContent = allContent.filter(item => isLessonCompleted(item.id)).length;
-                const progressPercentage = totalContent > 0 ? Math.round((completedContent / totalContent) * 100) : 0;
+                const calculatedProgress = totalContent > 0 ? Math.round((completedContent / totalContent) * 100) : 0;
+                
+                // Use enrollment progress if available, otherwise use calculated progress
+                const progressPercentage = enrollmentProgress > 0 ? enrollmentProgress : calculatedProgress;
                 
                 return (
                   <div>
@@ -726,7 +1089,7 @@ const StudentLessonViewer: React.FC = () => {
                       />
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {completedContent} of {totalContent} lessons completed
+                      {enrollmentProgress > 0 ? 'Enrollment Progress' : `${completedContent} of ${totalContent} content items completed`}
                     </div>
                   </div>
                 );
@@ -809,7 +1172,7 @@ const StudentLessonViewer: React.FC = () => {
                     </div>
                   )}
                 </div>
-                {currentLesson && (
+                {(currentLesson || (currentQuiz && shouldShowQuizCompleteButton())) && (
                   <button
                     onClick={() => handleToggleComplete()}
                     className={`flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-colors w-full sm:w-auto ${

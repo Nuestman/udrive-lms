@@ -16,8 +16,8 @@ export function useProgress(studentId?: string, courseId?: string) {
       
       let response;
       if (courseId) {
-        // Get course-specific progress
-        response = await api.get(`/progress/course/${courseId}/student/${studentId}`);
+        // Get course-specific progress using unified endpoint (lessons + quizzes)
+        response = await api.get(`/progress/course/${courseId}/student/${studentId}/unified`);
       } else {
         // Get overall progress
         response = await api.get(`/progress/student/${studentId}`);

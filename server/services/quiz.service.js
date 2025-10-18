@@ -207,15 +207,10 @@ export async function submitQuizAttempt(quizId, studentId, answers, tenantId, is
     [quizId, studentId, JSON.stringify(answers), score, 0, 'completed', new Date()] // time_spent_seconds to be implemented
   );
 
-  // Update progress if quiz was passed (or if we want to track completion regardless of pass/fail)
+  // Note: We no longer automatically mark quizzes as complete
+  // Users must explicitly mark quizzes as complete using the "Mark as Complete" button
+  // This unifies the lesson and quiz completion experience
   let progressUpdate = null;
-  if (passed) {
-    try {
-      progressUpdate = await progressService.markQuizComplete(quizId, studentId, tenantId, isSuperAdmin);
-    } catch (error) {
-      console.warn('Failed to update progress for quiz completion:', error);
-    }
-  }
 
   return {
     ...attemptResult.rows[0],
