@@ -1,354 +1,217 @@
-# UDrive System Architecture
+# System Architecture
 
 ## Overview
 
-UDrive is a multi-tenant Learning Management System (LMS) and Content Management System (CMS) designed specifically for driving schools. The platform enables driving schools to create, manage, and deliver educational content to their students while tracking progress and generating insights.
+SunLMS is a modern, full-stack learning management system and content management system built with React, Node.js, and PostgreSQL. The system is designed as a generic LMS/CMS-as-a-Service platform with multi-tenancy in mind, supporting multiple organizations across various industries with complete data isolation.
 
-## Multi-Tenant Architecture
-
-The system employs a multi-tenant architecture where each driving school represents a tenant with isolated data but shares the same application infrastructure.
-
-### Tenant Isolation Approach
-
-We'll use a hybrid approach:
-- Shared database with tenant discriminator columns
-- Tenant-specific storage buckets for media content
-- Row-level security enforced at the application layer
+## Architecture Diagram
 
 ```
-┌─────────────────────────────────────────────────┐
-│                                                 │
-│                  UDrive Platform                │
-│                                                 │
-└───────────────┬─────────────────┬───────────────┘
-                │                 │
-    ┌───────────▼──────────┐     ┌▼──────────────────────┐
-    │                      │     │                       │
-    │  Shared Application  │     │   Shared Database     │
-    │                      │     │                       │
-    └──────────┬───────────┘     └───────────┬───────────┘
-               │                             │
-               │                             │
-┌──────────────▼─────────────────────────────▼──────────────┐
-│                                                            │
-│                      Tenant Isolation                      │
-│                                                            │
-├────────────────┬────────────────┬────────────────┬────────┤
-│                │                │                │        │
-│   Tenant A     │    Tenant B    │    Tenant C    │   ...  │
-│                │                │                │        │
-└────────────────┴────────────────┴────────────────┴────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    Frontend (React)                         │
+├─────────────────────────────────────────────────────────────┤
+│  • Student Dashboard    • Quiz Engine    • Lesson Viewer   │
+│  • Admin Panel         • Progress UI    • Auth Components  │
+└─────────────────────────────────────────────────────────────┘
+                                │
+                                │ HTTP/API Calls
+                                ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 Backend (Node.js/Express)                   │
+├─────────────────────────────────────────────────────────────┤
+│  • Authentication     • Progress Service  • Quiz Service   │
+│  • Tenant Middleware  • File Storage      • API Routes     │
+└─────────────────────────────────────────────────────────────┘
+                                │
+                                │ Database Queries
+                                ▼
+┌─────────────────────────────────────────────────────────────┐
+│                Database (PostgreSQL)                        │
+├─────────────────────────────────────────────────────────────┤
+│  • Users & Profiles  • Courses & Modules  • Progress Data  │
+│  • Quizzes & Lessons • File References    • Tenant Data    │
+└─────────────────────────────────────────────────────────────┘
+                                │
+                                │ File Storage
+                                ▼
+┌─────────────────────────────────────────────────────────────┐
+│              External Services                              │
+├─────────────────────────────────────────────────────────────┤
+│  • Vercel Blob (File Storage)  • Email Service (Future)    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Database Schema
+## Core Components
 
-### Core Tables
+### 1. Frontend Layer
+- **Framework**: React 18 with TypeScript
+- **State Management**: React Hooks (useState, useEffect, useContext)
+- **UI Components**: Custom component library with Tailwind CSS
+- **Routing**: React Router for navigation
+- **HTTP Client**: Custom API client with error handling
 
-#### Tenants
-```
-tenants
-├── id (PK)
-├── name
-├── subdomain
-├── created_at
-├── updated_at
-├── settings (JSON)
-├── subscription_tier
-├── subscription_status
-└── branding (JSON)
-```
+### 2. Backend Layer
+- **Runtime**: Node.js with Express.js
+- **Authentication**: JWT-based with secure cookies
+- **Middleware**: Tenant isolation, authentication, error handling
+- **Services**: Modular service architecture for business logic
+- **File Handling**: Vercel Blob integration for media storage
 
-#### Users
-```
-users
-├── id (PK)
-├── tenant_id (FK)
-├── email
-├── password_hash
-├── first_name
-├── last_name
-├── role (enum: super_admin, school_admin, instructor, student)
-├── created_at
-├── updated_at
-├── last_login
-├── profile_image_url
-└── settings (JSON)
-```
+### 3. Database Layer
+- **Primary Database**: PostgreSQL (Supabase)
+- **Schema**: Normalized relational design with tenant isolation
+- **Migrations**: Version-controlled database schema changes
+- **Indexing**: Optimized for performance with proper indexes
 
-#### Courses
-```
-courses
-├── id (PK)
-├── tenant_id (FK)
-├── title
-├── description
-├── status (draft, published, archived)
-├── created_at
-├── updated_at
-├── created_by (FK: users.id)
-├── thumbnail_url
-├── duration_minutes
-└── settings (JSON)
-```
+## Key Architectural Patterns
 
-#### Modules
+### 1. Multi-Tenancy
+- **Tenant Isolation**: Complete data separation between organizations
+- **Middleware**: Automatic tenant context injection
+- **Security**: Row-level security with tenant_id filtering
+
+### 2. Unified Content Model
+- **Lessons and Quizzes**: Treated as unified content types
+- **Progress Tracking**: Single system for all content completion
+- **Navigation**: Consistent user experience across content types
+
+### 3. Service-Oriented Architecture
+- **Modular Services**: Separate services for different domains
+- **Dependency Injection**: Services injected into routes
+- **Error Handling**: Centralized error management
+
+### 4. Progressive Enhancement
+- **Mobile-First**: Responsive design for all devices
+- **Offline Capability**: Future enhancement for offline learning
+- **Performance**: Optimized loading and caching strategies
+
+## Security Architecture
+
+### 1. Authentication Flow
 ```
-modules
-├── id (PK)
-├── course_id (FK)
-├── title
-├── description
-├── order_index
-├── status (draft, published, archived)
-├── created_at
-├── updated_at
-└── settings (JSON)
+User Login → JWT Generation → Secure Cookie Storage → Request Validation
 ```
 
-#### Lessons
-```
-lessons
-├── id (PK)
-├── module_id (FK)
-├── title
-├── description
-├── content (JSON - stores block editor content)
-├── order_index
-├── duration_minutes
-├── status (draft, published, archived)
-├── created_at
-└── updated_at
-```
+### 2. Authorization Levels
+- **Super Admin**: Full system access across all tenants
+- **Tenant Admin**: Full access within their organization
+- **Instructor**: Course and content management
+- **Student**: Learning content access only
 
-#### Quizzes
-```
-quizzes
-├── id (PK)
-├── module_id (FK)
-├── title
-├── description
-├── passing_score
-├── time_limit_minutes
-├── status (draft, published, archived)
-├── created_at
-└── updated_at
-```
+### 3. Data Protection
+- **Tenant Isolation**: Automatic data filtering by tenant_id
+- **Input Validation**: Server-side validation for all inputs
+- **SQL Injection Prevention**: Parameterized queries only
+- **XSS Protection**: Content sanitization and CSP headers
 
-#### Quiz Questions
-```
-quiz_questions
-├── id (PK)
-├── quiz_id (FK)
-├── question_type (multiple_choice, true_false, short_answer)
-├── question_text
-├── options (JSON)
-├── correct_answer
-├── points
-├── order_index
-├── created_at
-└── updated_at
-```
+## Performance Considerations
 
-#### Enrollments
-```
-enrollments
-├── id (PK)
-├── user_id (FK)
-├── course_id (FK)
-├── status (enrolled, completed, suspended)
-├── enrolled_at
-├── completed_at
-├── last_accessed_at
-└── progress_percentage
-```
+### 1. Database Optimization
+- **Indexing Strategy**: Optimized indexes for common queries
+- **Query Optimization**: Efficient joins and subqueries
+- **Connection Pooling**: Managed database connections
 
-#### Progress Tracking
-```
-progress_records
-├── id (PK)
-├── user_id (FK)
-├── lesson_id (FK)
-├── status (not_started, in_progress, completed)
-├── started_at
-├── completed_at
-├── time_spent_seconds
-└── last_position
-```
+### 2. Frontend Performance
+- **Code Splitting**: Lazy loading of components
+- **Image Optimization**: Responsive images with proper sizing
+- **Caching Strategy**: Browser caching for static assets
 
-#### Quiz Attempts
-```
-quiz_attempts
-├── id (PK)
-├── user_id (FK)
-├── quiz_id (FK)
-├── status (in_progress, completed)
-├── score
-├── started_at
-├── completed_at
-├── time_spent_seconds
-└── answers (JSON)
-```
+### 3. API Performance
+- **Response Caching**: Strategic caching of API responses
+- **Pagination**: Efficient data loading for large datasets
+- **Compression**: Gzip compression for API responses
 
-#### Certificates
+## Scalability Design
+
+### 1. Horizontal Scaling
+- **Stateless Backend**: No server-side session storage
+- **Database Scaling**: Read replicas for query distribution
+- **CDN Integration**: Global content delivery
+
+### 2. Vertical Scaling
+- **Resource Optimization**: Efficient memory and CPU usage
+- **Database Tuning**: Optimized PostgreSQL configuration
+- **Monitoring**: Performance metrics and alerting
+
+## Technology Stack
+
+### Frontend
+- **React 18**: Modern React with hooks and concurrent features
+- **TypeScript**: Type-safe development
+- **Tailwind CSS**: Utility-first CSS framework
+- **Lucide React**: Icon library
+- **React Router**: Client-side routing
+
+### Backend
+- **Node.js**: JavaScript runtime
+- **Express.js**: Web application framework
+- **PostgreSQL**: Relational database
+- **JWT**: JSON Web Tokens for authentication
+- **Multer**: File upload handling
+
+### Infrastructure
+- **Vercel**: Frontend hosting and deployment
+- **Supabase**: Database hosting and management
+- **Vercel Blob**: File storage service
+- **Git**: Version control
+
+## Development Workflow
+
+### 1. Code Organization
 ```
-certificates
-├── id (PK)
-├── user_id (FK)
-├── course_id (FK)
-├── certificate_template_id (FK)
-├── issued_at
-├── expires_at
-├── certificate_number
-├── verification_code
-├── status (active, expired, revoked)
-└── pdf_url
+src/
+├── components/          # Reusable UI components
+├── pages/              # Page components
+├── hooks/              # Custom React hooks
+├── services/           # API service functions
+├── utils/              # Utility functions
+└── types/              # TypeScript type definitions
+
+server/
+├── routes/             # API route handlers
+├── services/           # Business logic services
+├── middleware/         # Express middleware
+├── models/             # Database models
+└── utils/              # Server utilities
 ```
 
-## Authentication & Authorization
+### 2. Database Management
+```
+database/
+├── schema.sql          # Complete database schema
+├── migrations/         # Version-controlled migrations
+├── seeds/              # Sample data
+└── backups/            # Database backups
+```
 
-### Authentication
-- JWT-based authentication
-- OAuth integration for social login
-- Password hashing with bcrypt
-- Password reset functionality
-- 2FA for administrative accounts
+### 3. Documentation
+```
+docs/
+├── README.md           # Main documentation index
+├── system-architecture.md
+├── api-reference.md
+├── user-guides/
+└── development/
+```
 
-### Authorization
-Role-based access control with the following roles:
+## Future Enhancements
 
-#### Super Admin
-- Platform-wide administration
-- Tenant management
-- System settings
+### 1. Advanced Features
+- **Real-time Collaboration**: WebSocket integration
+- **Advanced Analytics**: Learning analytics and reporting
+- **Mobile App**: React Native mobile application
+- **AI Integration**: Intelligent content recommendations
 
-#### School Admin
-- School-level administration
-- User management within their tenant
-- Content and curriculum management
-- Analytics access
+### 2. Performance Improvements
+- **Caching Layer**: Redis for session and data caching
+- **CDN Integration**: Global content delivery network
+- **Database Optimization**: Advanced indexing and partitioning
 
-#### Instructor
-- Content creation and management
-- Student progress monitoring
-- Assessment grading
-- Limited analytics access
+### 3. Security Enhancements
+- **Two-Factor Authentication**: Enhanced security
+- **Audit Logging**: Comprehensive activity tracking
+- **Advanced Permissions**: Granular access control
 
-#### Student
-- Course access
-- Quiz taking
-- Progress tracking
-- Certificate access
+---
 
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/login`
-- `POST /api/auth/register`
-- `POST /api/auth/refresh-token`
-- `POST /api/auth/forgot-password`
-- `POST /api/auth/reset-password`
-- `POST /api/auth/logout`
-
-### Tenants
-- `GET /api/tenants`
-- `POST /api/tenants`
-- `GET /api/tenants/:id`
-- `PUT /api/tenants/:id`
-- `DELETE /api/tenants/:id`
-
-### Users
-- `GET /api/users`
-- `POST /api/users`
-- `GET /api/users/:id`
-- `PUT /api/users/:id`
-- `DELETE /api/users/:id`
-- `GET /api/users/:id/progress`
-
-### Courses
-- `GET /api/courses`
-- `POST /api/courses`
-- `GET /api/courses/:id`
-- `PUT /api/courses/:id`
-- `DELETE /api/courses/:id`
-- `GET /api/courses/:id/modules`
-- `POST /api/courses/:id/modules`
-
-### Modules
-- `GET /api/modules/:id`
-- `PUT /api/modules/:id`
-- `DELETE /api/modules/:id`
-- `GET /api/modules/:id/lessons`
-- `POST /api/modules/:id/lessons`
-- `GET /api/modules/:id/quizzes`
-- `POST /api/modules/:id/quizzes`
-
-### Lessons
-- `GET /api/lessons/:id`
-- `PUT /api/lessons/:id`
-- `DELETE /api/lessons/:id`
-- `POST /api/lessons/:id/progress`
-
-### Quizzes
-- `GET /api/quizzes/:id`
-- `PUT /api/quizzes/:id`
-- `DELETE /api/quizzes/:id`
-- `POST /api/quizzes/:id/attempt`
-- `GET /api/quizzes/:id/attempts`
-- `GET /api/quizzes/:id/attempts/:attemptId`
-
-### Enrollments
-- `GET /api/enrollments`
-- `POST /api/enrollments`
-- `GET /api/enrollments/:id`
-- `PUT /api/enrollments/:id`
-- `DELETE /api/enrollments/:id`
-
-### Certificates
-- `GET /api/certificates`
-- `POST /api/certificates`
-- `GET /api/certificates/:id`
-- `GET /api/certificates/:id/verify`
-- `GET /api/certificates/:id/download`
-
-### Analytics
-- `GET /api/analytics/school/:tenantId/dashboard`
-- `GET /api/analytics/school/:tenantId/students`
-- `GET /api/analytics/school/:tenantId/courses`
-- `GET /api/analytics/platform/dashboard`
-- `GET /api/analytics/platform/tenants`
-- `GET /api/analytics/platform/users`
-
-## Data Flow
-
-1. **Authentication Flow**
-   - User submits credentials
-   - System validates credentials and issues JWT
-   - Token is stored in secure HTTP-only cookie
-   - Subsequent requests include token for authorization
-
-2. **Content Creation Flow**
-   - Instructor creates/edits content using block editor
-   - Content is saved as JSON structure
-   - Media is uploaded to tenant-specific storage bucket
-   - Content is versioned for audit trail
-
-3. **Learning Flow**
-   - Student enrolls in course
-   - System tracks progress as student navigates content
-   - Quiz attempts are recorded with answers and scores
-   - Certificates are generated upon course completion
-
-4. **Analytics Flow**
-   - User activity and progress data is collected
-   - Data is processed and aggregated
-   - Insights are generated and displayed in dashboards
-   - Reports can be exported for offline analysis
-
-## Security Measures
-
-- Data encryption at rest and in transit
-- Input validation and sanitization
-- Protection against common vulnerabilities (XSS, CSRF, SQL Injection)
-- Rate limiting to prevent abuse
-- Regular security audits and penetration testing
-- Compliance with relevant education and data protection regulations
+*This architecture document is maintained alongside the codebase and reflects the current system design as of December 2024.*

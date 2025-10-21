@@ -13,7 +13,7 @@ const PrivacyPage: React.FC = () => {
           
           <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">1. Information We Collect</h2>
           <p className="text-gray-700 mb-4">
-            UDrive LMS collects information to provide better services to our users. We collect:
+            SunLMS collects information to provide better services to our users. We collect:
           </p>
           <ul className="list-disc pl-6 text-gray-700 mb-4">
             <li>Personal information (name, email, phone number)</li>
@@ -67,8 +67,8 @@ const PrivacyPage: React.FC = () => {
             If you have any questions about this Privacy Policy, please contact us at:
           </p>
           <p className="text-gray-700">
-            <strong>Email:</strong> privacy@udrive.com<br />
-            <strong>Address:</strong> UDrive LMS, Education Division
+            <strong>Email:</strong> privacy@sunlms.com<br />
+            <strong>Address:</strong> SunLMS, Education Division
           </p>
         </div>
       </div>

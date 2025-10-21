@@ -84,7 +84,7 @@ const LoginPage: React.FC = () => {
               Welcome back
             </h2>
             <p className="text-gray-600">
-              Sign in to your UDrive account to continue
+              Sign in to your SunLMS account to continue
             </p>
           </div>
 

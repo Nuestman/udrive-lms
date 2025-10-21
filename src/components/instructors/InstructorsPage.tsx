@@ -162,10 +162,10 @@ const InstructorsPage: React.FC = () => {
       {/* Analytics Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <InstructorActivityChart activity={activity} loading={activityLoading} />
+          <InstructorPerformanceChart topInstructors={topInstructors} loading={topLoading} />
         </div>
         <div>
-          <InstructorPerformanceChart topInstructors={topInstructors} loading={topLoading} />
+          <InstructorActivityChart activity={activity} loading={activityLoading} />
         </div>
       </div>
 
@@ -176,45 +176,61 @@ const InstructorsPage: React.FC = () => {
         </div>
         <div className="p-6">
           {topLoading ? (
-            <div className="text-center py-4 text-gray-500">Loading...</div>
-          ) : (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+              <p className="text-gray-500 mt-2">Loading top instructors...</p>
+            </div>
+          ) : topInstructors && topInstructors.length > 0 ? (
             <div className="space-y-3">
               {topInstructors.map((instructor, index) => (
-                <div key={instructor.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="text-2xl font-bold text-gray-400">#{index + 1}</div>
-                    <div className="h-10 w-10 bg-primary-100 rounded-full flex items-center justify-center">
+                <div key={instructor.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white rounded-lg border border-gray-100 hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-full font-bold text-sm">
+                      {index + 1}
+                    </div>
+                    <div className="h-12 w-12 bg-primary-100 rounded-full flex items-center justify-center">
                       {instructor.avatar_url ? (
-                        <img src={instructor.avatar_url} alt={instructor.email} className="h-10 w-10 rounded-full" />
+                        <img src={instructor.avatar_url} alt={instructor.email} className="h-12 w-12 rounded-full object-cover" />
                       ) : (
-                        <span className="text-primary-600 font-semibold">
+                        <span className="text-primary-600 font-semibold text-lg">
                           {instructor.first_name?.[0] || instructor.email[0].toUpperCase()}
                         </span>
                       )}
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">
+                      <p className="font-semibold text-gray-900 text-lg">
                         {instructor.first_name} {instructor.last_name}
                       </p>
                       <p className="text-sm text-gray-500">{instructor.email}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-6 text-sm">
+                  <div className="flex items-center gap-8 text-sm">
                     <div className="text-center">
-                      <div className="font-semibold text-gray-900">{instructor.courses_count || 0}</div>
-                      <div className="text-gray-500">Courses</div>
+                      <div className="font-bold text-gray-900 text-lg">{instructor.courses_count || 0}</div>
+                      <div className="text-gray-500 text-xs">Courses</div>
                     </div>
                     <div className="text-center">
-                      <div className="font-semibold text-gray-900">{instructor.total_students || 0}</div>
-                      <div className="text-gray-500">Students</div>
+                      <div className="font-bold text-gray-900 text-lg">{instructor.total_students || 0}</div>
+                      <div className="text-gray-500 text-xs">Students</div>
                     </div>
                     <div className="text-center">
-                      <div className="font-semibold text-gray-900">{instructor.avg_student_progress || 0}%</div>
-                      <div className="text-gray-500">Avg Progress</div>
+                      <div className="font-bold text-gray-900 text-lg">{instructor.avg_student_progress || 0}%</div>
+                      <div className="text-gray-500 text-xs">Avg Progress</div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {index === 0 && <Award className="w-5 h-5 text-yellow-500" />}
+                      {index === 1 && <Award className="w-5 h-5 text-gray-400" />}
+                      {index === 2 && <Award className="w-5 h-5 text-amber-600" />}
                     </div>
                   </div>
                 </div>
               ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Award className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No instructor data available</p>
+              <p className="text-sm text-gray-400 mt-1">Instructors will appear here once they start creating courses</p>
             </div>
           )}
         </div>
@@ -339,8 +355,8 @@ const InstructorsPage: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-[80px]">
                         <div
-                          className="bg-primary-600 h-2 rounded-full"
-                          style={{ width: `${instructor.avg_student_progress || 0}%` }}
+                          className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(instructor.avg_student_progress || 0, 100)}%` }}
                         ></div>
                       </div>
                       <span className="text-sm text-gray-900">{instructor.avg_student_progress || 0}%</span>

@@ -1,5 +1,5 @@
 // useEnrollments Hook - Manage course enrollments
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../lib/api';
 import type { Enrollment } from '../types/database.types';
 
@@ -20,28 +20,44 @@ export function useEnrollments(filters?: { student_id?: string; course_id?: stri
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  // Memoize the filters to prevent infinite re-renders
+  const memoizedFilters = useMemo(() => filters, [
+    filters?.student_id,
+    filters?.course_id,
+    filters?.status
+  ]);
+
   // Build query params
   const buildQueryParams = useCallback(() => {
-    if (!filters) return '';
+    if (!memoizedFilters) return '';
     const params = new URLSearchParams();
-    if (filters.student_id) params.append('student_id', filters.student_id);
-    if (filters.course_id) params.append('course_id', filters.course_id);
-    if (filters.status) params.append('status', filters.status);
+    if (memoizedFilters.student_id) params.append('student_id', memoizedFilters.student_id);
+    if (memoizedFilters.course_id) params.append('course_id', memoizedFilters.course_id);
+    if (memoizedFilters.status) params.append('status', memoizedFilters.status);
     return params.toString();
-  }, [filters]);
+  }, [memoizedFilters]);
 
-  // Fetch enrollments
+  // Fetch enrollments with progress data
   const fetchEnrollments = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const queryParams = buildQueryParams();
-      const url = `/enrollments${queryParams ? `?${queryParams}` : ''}`;
-      const response = await api.get<{ success: boolean; data: any[] }>(url);
-      
-      if (response.success) {
-        setEnrollments(response.data);
+      // If we have a student_id filter, use the progress endpoint for detailed data
+      if (memoizedFilters?.student_id) {
+        const response = await api.get<{ success: boolean; data: any[] }>(`/progress/student/${memoizedFilters.student_id}`);
+        if (response.success) {
+          setEnrollments(response.data);
+        }
+      } else {
+        // For other cases, use the regular enrollments endpoint
+        const queryParams = buildQueryParams();
+        const url = `/enrollments${queryParams ? `?${queryParams}` : ''}`;
+        const response = await api.get<{ success: boolean; data: any[] }>(url);
+        
+        if (response.success) {
+          setEnrollments(response.data);
+        }
       }
     } catch (err: any) {
       console.error('Error fetching enrollments:', err);
@@ -49,7 +65,7 @@ export function useEnrollments(filters?: { student_id?: string; course_id?: stri
     } finally {
       setLoading(false);
     }
-  }, [buildQueryParams]);
+  }, [buildQueryParams, memoizedFilters]);
 
   useEffect(() => {
     fetchEnrollments();

@@ -130,7 +130,7 @@ const SchoolsPage: React.FC = () => {
                       </div>
                       <div className="ml-3">
                         <h3 className="text-lg font-semibold text-gray-900">{school.name}</h3>
-                        <p className="text-sm text-gray-500">{school.subdomain}.udrive.com</p>
+                        <p className="text-sm text-gray-500">{school.subdomain}.sunlms.com</p>
                       </div>
                     </div>
                     

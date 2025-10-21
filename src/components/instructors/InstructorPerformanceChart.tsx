@@ -1,6 +1,7 @@
-// Instructor Performance Chart
+// Instructor Performance Chart with Recharts
 import React from 'react';
 import { Award } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 interface InstructorPerformanceChartProps {
   topInstructors: any[];
@@ -32,61 +33,138 @@ const InstructorPerformanceChart: React.FC<InstructorPerformanceChartProps> = ({
 
   const totalCourses = topInstructors.reduce((sum, i) => sum + (parseInt(i.courses_count) || 0), 0);
   const totalStudents = topInstructors.reduce((sum, i) => sum + (parseInt(i.total_students) || 0), 0);
+  const totalCompleted = topInstructors.reduce((sum, i) => sum + (parseInt(i.completed_enrollments) || 0), 0);
+  const avgProgress = topInstructors.length > 0 
+    ? Math.round(topInstructors.reduce((sum, i) => sum + (parseInt(i.avg_student_progress) || 0), 0) / topInstructors.length)
+    : 0;
+
+  // Transform data for recharts
+  const chartData = topInstructors.map((instructor, index) => ({
+    name: `${instructor.first_name || 'Unknown'} ${instructor.last_name || 'Instructor'}`.substring(0, 12) + 
+          ((instructor.first_name?.length || 0) + (instructor.last_name?.length || 0) > 12 ? '...' : ''),
+    fullName: `${instructor.first_name || 'Unknown'} ${instructor.last_name || 'Instructor'}`,
+    students: parseInt(instructor.total_students) || 0,
+    courses: parseInt(instructor.courses_count) || 0,
+    progress: parseInt(instructor.avg_student_progress) || 0
+  }));
+
+  // Debug: Log the data to see what we're working with
+  console.log('InstructorPerformanceChart - topInstructors:', topInstructors);
+  console.log('InstructorPerformanceChart - chartData:', chartData);
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-semibold text-gray-900">Performance Overview</h3>
-        <Award className="w-5 h-5 text-orange-600" />
+        <div className="flex items-center gap-2 text-sm">
+          <Award className="w-4 h-4 text-yellow-600" />
+          <span className="text-yellow-600 font-medium">
+            {totalStudents} total students
+          </span>
+        </div>
       </div>
 
-      <div className="space-y-4">
-        {/* Summary Stats */}
-        <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-200">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">{totalCourses}</div>
-            <div className="text-xs text-gray-500">Total Courses</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">{totalStudents}</div>
-            <div className="text-xs text-gray-500">Total Students</div>
-          </div>
-        </div>
-
-        {/* Top Instructors Bars */}
-        <div className="space-y-3">
-          {topInstructors.map((instructor, index) => {
-            const maxStudents = Math.max(...topInstructors.map(i => parseInt(i.total_students) || 0));
-            const percentage = maxStudents > 0 ? (parseInt(instructor.total_students) / maxStudents) * 100 : 0;
-            
-            return (
-              <div key={instructor.id}>
-                <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="font-medium text-gray-900 truncate">
-                    {instructor.first_name} {instructor.last_name}
-                  </span>
-                  <span className="text-gray-500">{instructor.total_students} students</span>
+      <div className="h-64 overflow-y-auto">
+        {chartData.length > 0 ? (
+          <div className="space-y-4 pr-2">
+            {chartData.map((instructor, index) => {
+              const maxStudents = Math.max(...chartData.map(i => i.students));
+              const maxCourses = Math.max(...chartData.map(i => i.courses));
+              const maxProgress = Math.max(...chartData.map(i => i.progress));
+              
+              const studentsPercentage = maxStudents > 0 ? (instructor.students / maxStudents) * 100 : 0;
+              const coursesPercentage = maxCourses > 0 ? (instructor.courses / maxCourses) * 100 : 0;
+              const progressPercentage = maxProgress > 0 ? (instructor.progress / maxProgress) * 100 : 0;
+              
+              return (
+                <div key={index} className="group p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex items-center justify-between text-sm mb-3">
+                    <span className="font-semibold text-gray-900 truncate">
+                      {instructor.fullName}
+                    </span>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="text-blue-600 font-medium">{instructor.students} students</span>
+                      <span className="text-green-600 font-medium">{instructor.courses} courses</span>
+                      <span className="text-purple-600 font-medium">{instructor.progress}% avg</span>
+                    </div>
+                  </div>
+                  
+                  {/* Multi-metric bars */}
+                  <div className="space-y-2">
+                    {/* Students */}
+                    <div>
+                      <div className="flex justify-between text-xs text-gray-600 mb-1">
+                        <span>Students</span>
+                        <span>{instructor.students}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${studentsPercentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    
+                    {/* Courses */}
+                    <div>
+                      <div className="flex justify-between text-xs text-gray-600 mb-1">
+                        <span>Courses</span>
+                        <span>{instructor.courses}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${coursesPercentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    
+                    {/* Progress */}
+                    <div>
+                      <div className="flex justify-between text-xs text-gray-600 mb-1">
+                        <span>Avg Progress</span>
+                        <span>{instructor.progress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-gradient-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${progressPercentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-gradient-to-r from-primary-500 to-primary-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${percentage}%` }}
-                  ></div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <Award className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+              <p className="text-gray-500 text-sm">No performance data available</p>
+            </div>
+          </div>
+        )}
+      </div>
 
-        {/* Average Progress */}
-        <div className="pt-4 border-t border-gray-200">
+      {/* Summary Stats */}
+      <div className="pt-4 border-t border-gray-200 mt-4">
+        <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">Avg Student Progress</span>
-            <span className="text-lg font-semibold text-gray-900">
-              {topInstructors.length > 0 
-                ? Math.round(topInstructors.reduce((sum, i) => sum + (parseInt(i.avg_student_progress) || 0), 0) / topInstructors.length)
-                : 0}%
-            </span>
+            <span className="text-gray-600">Total Courses</span>
+            <span className="font-semibold text-gray-900">{totalCourses}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600">Total Students</span>
+            <span className="font-semibold text-gray-900">{totalStudents}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600">Completed</span>
+            <span className="font-semibold text-gray-900">{totalCompleted}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600">Avg Progress</span>
+            <span className="font-semibold text-gray-900">{avgProgress}%</span>
           </div>
         </div>
       </div>
@@ -95,4 +173,3 @@ const InstructorPerformanceChart: React.FC<InstructorPerformanceChartProps> = ({
 };
 
 export default InstructorPerformanceChart;
-

@@ -126,8 +126,8 @@ const QuizEditModal: React.FC<QuizEditModalProps> = ({ isOpen, quizId, onClose, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-4xl max-h-[95vh] bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-4xl max-h-[95vh] bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">Edit Quiz</h3>
           <button onClick={onClose} className="p-2 text-gray-600 hover:bg-gray-100 rounded" aria-label="Close">

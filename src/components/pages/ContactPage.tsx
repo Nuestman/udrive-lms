@@ -33,7 +33,7 @@ const ContactPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow-sm p-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Get in Touch</h2>
             <p className="text-gray-600 mb-8">
-              Have questions about UDrive LMS? We're here to help! Reach out to our support team.
+              Have questions about SunLMS? We're here to help! Reach out to our support team.
             </p>
 
             <div className="space-y-6">
@@ -43,7 +43,7 @@ const ContactPage: React.FC = () => {
                 </div>
                 <div className="ml-4">
                   <h3 className="text-lg font-medium text-gray-900">Email</h3>
-                  <p className="text-gray-600">support@udrive.com</p>
+                  <p className="text-gray-600">support@sunlms.com</p>
                   <p className="text-sm text-gray-500">We'll respond within 24 hours</p>
                 </div>
               </div>
@@ -66,7 +66,7 @@ const ContactPage: React.FC = () => {
                 <div className="ml-4">
                   <h3 className="text-lg font-medium text-gray-900">Address</h3>
                   <p className="text-gray-600">
-                    UDrive LMS<br />
+                    SunLMS<br />
                     123 Education Street<br />
                     Tech City, TC 12345
                   </p>

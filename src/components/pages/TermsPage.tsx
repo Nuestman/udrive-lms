@@ -13,12 +13,12 @@ const TermsPage: React.FC = () => {
           
           <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">1. Acceptance of Terms</h2>
           <p className="text-gray-700 mb-4">
-            By accessing and using UDrive LMS, you accept and agree to be bound by the terms and provision of this agreement.
+            By accessing and using SunLMS, you accept and agree to be bound by the terms and provision of this agreement.
           </p>
 
           <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">2. Use License</h2>
           <p className="text-gray-700 mb-4">
-            Permission is granted to access and use UDrive LMS for personal, educational purposes as a registered user of a participating driving school.
+            Permission is granted to access and use SunLMS for personal, educational, and professional purposes as a registered user of a participating organization.
           </p>
           <ul className="list-disc pl-6 text-gray-700 mb-4">
             <li>You may not modify or copy the materials</li>
@@ -49,13 +49,13 @@ const TermsPage: React.FC = () => {
 
           <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">5. Limitation of Liability</h2>
           <p className="text-gray-700 mb-4">
-            UDrive LMS shall not be liable for any damages arising from the use or inability to use the service.
+            SunLMS shall not be liable for any damages arising from the use or inability to use the service.
           </p>
 
           <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">6. Contact Information</h2>
           <p className="text-gray-700">
             For questions about these Terms, contact us at:<br />
-            <strong>Email:</strong> legal@udrive.com
+            <strong>Email:</strong> legal@sunlms.com
           </p>
         </div>
       </div>

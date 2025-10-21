@@ -132,8 +132,8 @@ const QuizBuilderModal: React.FC<QuizBuilderModalProps> = ({ isOpen, moduleId, o
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-2xl bg-white rounded-lg shadow-xl border border-gray-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={closeAll}>
+      <div className="w-full max-w-2xl bg-white rounded-lg shadow-xl border border-gray-200" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">{step === 1 ? 'Create Quiz' : 'Add Questions'}</h3>
           <button onClick={closeAll} className="p-2 text-gray-600 hover:bg-gray-100 rounded" aria-label="Close">

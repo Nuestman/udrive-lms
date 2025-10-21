@@ -1,8 +1,9 @@
-# 🎓 UDrive LMS - Multi-Tenant Learning Management System
+# ☀️ SunLMS - LMS/CMS-as-a-Service Platform
 
-A modern, feature-rich Learning Management System built with React, Node.js, and PostgreSQL. Designed for driving schools, training centers, and educational institutions with complete multi-tenancy support.
+A modern, feature-rich Learning Management System and Content Management System built with React, Node.js, and PostgreSQL. Designed as a generic LMS/CMS-as-a-Service platform that powers specialized solutions for hospitals (CPD), corporate training, driving schools, and educational institutions with complete multi-tenancy support.
 
-![System Status](https://img.shields.io/badge/Status-98%25%20Complete-success)
+![System Status](https://img.shields.io/badge/Status-100%25%20Complete-success)
+![Version](https://img.shields.io/badge/Version-2.0.0-blue)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 ![Node](https://img.shields.io/badge/Node-18+-green)
 ![React](https://img.shields.io/badge/React-18+-blue)

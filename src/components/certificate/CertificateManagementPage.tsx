@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Download, Eye, MoreVertical, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Search, Filter, Download, Eye, MoreVertical, CheckCircle, XCircle, AlertTriangle, AlertCircle } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -27,6 +27,8 @@ const CertificateManagementPage: React.FC = () => {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [stats, setStats] = useState<CertificateStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedCertificates, setSelectedCertificates] = useState<string[]>([]);
@@ -36,18 +38,37 @@ const CertificateManagementPage: React.FC = () => {
     fetchStats();
   }, []);
 
+  // Refetch certificates when search or filter changes
+  useEffect(() => {
+    if (searchTerm || statusFilter !== 'all') {
+      fetchCertificates();
+    }
+  }, [searchTerm, statusFilter]);
+
   const fetchCertificates = async () => {
     try {
       setLoading(true);
+      setError(null);
       const params = new URLSearchParams();
       if (searchTerm) params.append('search', searchTerm);
       if (statusFilter !== 'all') params.append('status', statusFilter);
       params.append('limit', '100');
 
       const response = await api.get(`/api/certificates?${params.toString()}`);
-      setCertificates(response.data.data);
-    } catch (err) {
+      
+      // Handle different response structures
+      if (response && response.success) {
+        setCertificates(response.data || []);
+      } else if (response && response.data) {
+        setCertificates(response.data || []);
+      } else {
+        setCertificates([]);
+        setError('Failed to load certificates');
+      }
+    } catch (err: any) {
       console.error('Error fetching certificates:', err);
+      setError(err.response?.data?.error || err.message || 'Failed to load certificates');
+      setCertificates([]);
     } finally {
       setLoading(false);
     }
@@ -55,10 +76,22 @@ const CertificateManagementPage: React.FC = () => {
 
   const fetchStats = async () => {
     try {
+      setStatsLoading(true);
       const response = await api.get('/api/certificates/stats');
-      setStats(response.data.data);
-    } catch (err) {
+      
+      // Handle different response structures
+      if (response && response.success) {
+        setStats(response.data || null);
+      } else if (response && response.data) {
+        setStats(response.data || null);
+      } else {
+        setStats(null);
+      }
+    } catch (err: any) {
       console.error('Error fetching stats:', err);
+      setStats(null);
+    } finally {
+      setStatsLoading(false);
     }
   };
 
@@ -73,10 +106,12 @@ const CertificateManagementPage: React.FC = () => {
         notes: `Status changed to ${newStatus}`
       });
       
-      // Refresh certificates
+      // Refresh certificates and stats
       fetchCertificates();
-    } catch (err) {
+      fetchStats();
+    } catch (err: any) {
       console.error('Error updating certificate status:', err);
+      setError(err.response?.data?.error || err.message || 'Failed to update certificate status');
     }
   };
 
@@ -95,8 +130,10 @@ const CertificateManagementPage: React.FC = () => {
       
       setSelectedCertificates([]);
       fetchCertificates();
-    } catch (err) {
+      fetchStats();
+    } catch (err: any) {
       console.error('Error performing bulk action:', err);
+      setError(err.response?.data?.error || err.message || 'Failed to perform bulk action');
     }
   };
 
@@ -137,8 +174,43 @@ const CertificateManagementPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 text-red-600 mr-3" />
+            <div>
+              <h3 className="text-sm font-semibold text-red-800">Error</h3>
+              <p className="text-sm text-red-700 mt-1">{error}</p>
+              <button
+                onClick={() => setError(null)}
+                className="text-sm text-red-600 hover:text-red-800 mt-2 underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stats Cards */}
-      {stats && (
+      {statsLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {[...Array(5)].map((_, index) => (
+            <div key={index} className="bg-white rounded-lg shadow p-6">
+              <div className="animate-pulse">
+                <div className="flex items-center">
+                  <div className="p-2 bg-gray-200 rounded-lg w-10 h-10"></div>
+                  <div className="ml-4">
+                    <div className="h-4 bg-gray-200 rounded w-16 mb-2"></div>
+                    <div className="h-6 bg-gray-200 rounded w-8"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : stats ? (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
@@ -197,6 +269,16 @@ const CertificateManagementPage: React.FC = () => {
                 <p className="text-sm text-gray-600">Last 7 Days</p>
                 <p className="text-2xl font-semibold">{stats.certificates_last_7_days}</p>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <AlertTriangle className="h-5 w-5 text-yellow-600 mr-3" />
+            <div>
+              <h3 className="text-sm font-semibold text-yellow-800">Stats Unavailable</h3>
+              <p className="text-sm text-yellow-700 mt-1">Unable to load certificate statistics</p>
             </div>
           </div>
         </div>

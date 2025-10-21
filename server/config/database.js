@@ -30,7 +30,7 @@ export function getDatabaseConfig() {
       connectionTimeoutMillis: 10000, // Increased for cloud connections
       // Connection pool settings for Supabase
       ...(isSupabase && {
-        application_name: 'udrive_lms',
+        application_name: 'sunlms-db',
       })
     };
   } else {
@@ -38,7 +38,7 @@ export function getDatabaseConfig() {
     return {
       host: process.env.PGHOST || process.env.DATABASE_HOST || 'localhost',
       port: parseInt(process.env.PGPORT || process.env.DATABASE_PORT || '5432'),
-      database: process.env.PGDATABASE || process.env.DATABASE_NAME || 'udrive-from-bolt',
+      database: process.env.PGDATABASE || process.env.DATABASE_NAME || 'sunlms-db',
       user: process.env.PGUSER || process.env.DATABASE_USER || 'postgres',
       password: process.env.PGPASSWORD || process.env.DATABASE_PASSWORD || 'postgres',
       max: 20,

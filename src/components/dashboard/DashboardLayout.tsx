@@ -298,7 +298,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   return (
     <Layout>
       <Header 
-        title="UDrive" 
+        title="SunLMS" 
         userProfile={{
           name: getUserName(),
           avatar: profile?.avatar_url || "https://ui-avatars.com/api/?name=" + encodeURIComponent(getUserName()) + "&background=0D8ABC&color=fff",
@@ -319,7 +319,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         </main>
       </div>
       <Footer 
-        companyName="UDrive LMS" 
+        companyName="SunLMS" 
         links={[
           { label: "Privacy", href: "/privacy" },
           { label: "Terms", href: "/terms" },

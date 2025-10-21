@@ -1,37 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   TrendingUp, 
-  Calendar, 
   Clock, 
   Target, 
   Award, 
   BookOpen,
   CheckCircle,
   BarChart3,
-  PieChart,
   Activity,
   Star,
   Zap
 } from 'lucide-react';
 import CreateGoalModal from './CreateGoalModal';
+import { useProgress } from '../../hooks/useProgress';
+import { useEnrollments } from '../../hooks/useEnrollments';
+import { useStudentAnalytics } from '../../hooks/useStudentAnalytics';
 import api from '../../lib/api';
-
-interface ProgressData {
-  courseId: string;
-  courseName: string;
-  overallProgress: number;
-  lessonsCompleted: number;
-  totalLessons: number;
-  quizzesCompleted: number;
-  totalQuizzes: number;
-  averageScore: number;
-  timeSpent: number; // in minutes
-  lastActivity: string;
-  streak: number;
-  achievements: Achievement[];
-  weeklyProgress: { week: string; progress: number }[];
-  skillProgress: { skill: string; level: number; maxLevel: number }[];
-}
 
 interface Achievement {
   id: string;
@@ -43,17 +27,6 @@ interface Achievement {
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
 }
 
-interface Goal {
-  id: string;
-  title: string;
-  description: string;
-  targetDate: string;
-  currentProgress: number;
-  targetValue: number;
-  type: 'completion' | 'score' | 'time' | 'streak';
-  status: 'active' | 'completed' | 'overdue';
-}
-
 interface ProgressTrackingProps {
   studentId: string;
 }
@@ -62,113 +35,32 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
   const [selectedTimeframe, setSelectedTimeframe] = useState<'week' | 'month' | 'semester'>('month');
   const [activeTab, setActiveTab] = useState<'overview' | 'courses' | 'achievements' | 'goals'>('overview');
   const [showCreateGoalModal, setShowCreateGoalModal] = useState(false);
-  const [realGoals, setRealGoals] = useState<any[]>([]);
+  const [realGoals, setRealGoals] = useState<unknown[]>([]);
   const [loadingGoals, setLoadingGoals] = useState(false);
+  const [goalsError, setGoalsError] = useState<string | null>(null);
 
-  const [progressData] = useState<ProgressData[]>([
-    {
-      courseId: '1',
-      courseName: 'Basic Driving Course',
-      overallProgress: 75,
-      lessonsCompleted: 12,
-      totalLessons: 16,
-      quizzesCompleted: 8,
-      totalQuizzes: 10,
-      averageScore: 87,
-      timeSpent: 1440, // 24 hours
-      lastActivity: '2024-03-15',
-      streak: 7,
-      achievements: [],
-      weeklyProgress: [
-        { week: 'Week 1', progress: 20 },
-        { week: 'Week 2', progress: 35 },
-        { week: 'Week 3', progress: 55 },
-        { week: 'Week 4', progress: 75 }
-      ],
-      skillProgress: [
-        { skill: 'Parking', level: 8, maxLevel: 10 },
-        { skill: 'Highway Driving', level: 6, maxLevel: 10 },
-        { skill: 'Traffic Laws', level: 9, maxLevel: 10 },
-        { skill: 'Defensive Driving', level: 7, maxLevel: 10 }
-      ]
-    },
-    {
-      courseId: '2',
-      courseName: 'Traffic Laws Review',
-      overallProgress: 45,
-      lessonsCompleted: 9,
-      totalLessons: 20,
-      quizzesCompleted: 4,
-      totalQuizzes: 8,
-      averageScore: 92,
-      timeSpent: 900, // 15 hours
-      lastActivity: '2024-03-12',
-      streak: 3,
-      achievements: [],
-      weeklyProgress: [
-        { week: 'Week 1', progress: 15 },
-        { week: 'Week 2', progress: 25 },
-        { week: 'Week 3', progress: 35 },
-        { week: 'Week 4', progress: 45 }
-      ],
-      skillProgress: [
-        { skill: 'Road Signs', level: 9, maxLevel: 10 },
-        { skill: 'Right of Way', level: 7, maxLevel: 10 },
-        { skill: 'Speed Limits', level: 8, maxLevel: 10 },
-        { skill: 'Intersections', level: 6, maxLevel: 10 }
-      ]
-    }
-  ]);
+  // Memoize the filters object to prevent infinite re-renders
+  const enrollmentFilters = useMemo(() => ({ student_id: studentId }), [studentId]);
 
-  const [achievements] = useState<Achievement[]>([
-    {
-      id: '1',
-      title: 'First Steps',
-      description: 'Completed your first lesson',
-      icon: '👶',
-      earnedDate: '2024-01-15',
-      category: 'progress',
-      rarity: 'common'
-    },
-    {
-      id: '2',
-      title: 'Perfect Score',
-      description: 'Scored 100% on a quiz',
-      icon: '💯',
-      earnedDate: '2024-02-01',
-      category: 'performance',
-      rarity: 'rare'
-    },
-    {
-      id: '3',
-      title: 'Speed Demon',
-      description: 'Completed 5 lessons in one day',
-      icon: '⚡',
-      earnedDate: '2024-02-15',
-      category: 'engagement',
-      rarity: 'epic'
-    },
-    {
-      id: '4',
-      title: 'Course Master',
-      description: 'Completed your first course',
-      icon: '🎓',
-      earnedDate: '2024-03-01',
-      category: 'milestone',
-      rarity: 'legendary'
-    }
-  ]);
+  // Fetch real data using hooks
+  const { loading: progressLoading, error: progressError } = useProgress(studentId);
+  const { enrollments, loading: enrollmentsLoading, error: enrollmentsError } = useEnrollments(enrollmentFilters);
+  const { analytics, loading: analyticsLoading } = useStudentAnalytics(studentId);
 
   // Fetch real goals from API
   const fetchGoals = async () => {
     try {
       setLoadingGoals(true);
+      setGoalsError(null);
       const response = await api.get('/goals');
       if (response.success) {
         setRealGoals(response.data);
+      } else {
+        setGoalsError('Failed to load goals');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching goals:', error);
+      setGoalsError(error.message || 'Failed to load goals');
     } finally {
       setLoadingGoals(false);
     }
@@ -184,31 +76,6 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
     fetchGoals(); // Refresh goals after creation
   };
 
-  const totalProgress = Math.round(
-    progressData.reduce((acc, course) => acc + course.overallProgress, 0) / progressData.length
-  );
-
-  const totalTimeSpent = progressData.reduce((acc, course) => acc + course.timeSpent, 0);
-  const totalLessonsCompleted = progressData.reduce((acc, course) => acc + course.lessonsCompleted, 0);
-  const averageScore = Math.round(
-    progressData.reduce((acc, course) => acc + course.averageScore, 0) / progressData.length
-  );
-
-  const getRarityColor = (rarity: string) => {
-    switch (rarity) {
-      case 'common':
-        return 'border-gray-300 bg-gray-50';
-      case 'rare':
-        return 'border-blue-300 bg-blue-50';
-      case 'epic':
-        return 'border-purple-300 bg-purple-50';
-      case 'legendary':
-        return 'border-yellow-300 bg-yellow-50';
-      default:
-        return 'border-gray-300 bg-gray-50';
-    }
-  };
-
   const getGoalStatusColor = (status: string) => {
     switch (status) {
       case 'active':
@@ -222,10 +89,69 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
     }
   };
 
-  const renderOverview = () => (
+  const renderOverview = () => {
+    if (progressLoading || enrollmentsLoading || analyticsLoading) {
+      return (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-pulse">
+                <div className="flex items-center">
+                  <div className="p-2 bg-gray-200 rounded-lg w-10 h-10"></div>
+                  <div className="ml-4 flex-1">
+                    <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
+                    <div className="h-8 bg-gray-200 rounded w-16 mb-1"></div>
+                    <div className="h-3 bg-gray-200 rounded w-20"></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Show error state if there's a critical error
+    if (progressError || enrollmentsError) {
+      return (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <div className="text-red-600 mb-2">
+            <Activity className="w-8 h-8 mx-auto mb-2" />
+            <p className="font-medium">Error loading progress data</p>
+          </div>
+          <p className="text-red-700 text-sm mb-4">
+            {progressError?.message || enrollmentsError?.message || 'Failed to load progress information'}
+          </p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Refresh Page
+          </button>
+        </div>
+      );
+    }
+
+    // Calculate metrics from real data
+    const totalCourses = enrollments.length;
+    const completedCourses = enrollments.filter(e => e.status === 'completed').length;
+    const activeCourses = enrollments.filter(e => e.status === 'active').length;
+    const totalProgress = totalCourses > 0 
+      ? Math.round(enrollments.reduce((sum, e) => sum + (e.progress_percentage || 0), 0) / totalCourses)
+      : 0;
+    
+    const totalLessonsCompleted = enrollments.reduce((sum, e) => sum + parseInt(e.completed_lessons || '0'), 0);
+    const totalLessons = enrollments.reduce((sum, e) => sum + parseInt(e.total_lessons || '0'), 0);
+    
+    // Get analytics data
+    const averageScore = analytics?.averageScore || 0;
+    const currentStreak = analytics?.currentStreak || 0;
+    const weeklyProgress = analytics?.weeklyProgress || [];
+
+    return (
     <div className="space-y-6">
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-primary-100 rounded-lg">
@@ -234,7 +160,7 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Overall Progress</p>
               <p className="text-2xl font-bold text-gray-900">{totalProgress}%</p>
-              <p className="text-sm text-green-600">+5% this week</p>
+                <p className="text-sm text-green-600">{activeCourses} active courses</p>
             </div>
           </div>
         </div>
@@ -244,11 +170,14 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
             <div className="p-2 bg-green-100 rounded-lg">
               <CheckCircle className="w-6 h-6 text-green-600" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Lessons Completed</p>
-              <p className="text-2xl font-bold text-gray-900">{totalLessonsCompleted}</p>
-              <p className="text-sm text-gray-500">This month</p>
-            </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Lessons Completed</p>
+                <p className="text-2xl font-bold text-gray-900">{totalLessonsCompleted}</p>
+                <p className="text-sm text-gray-500">of {totalLessons} total</p>
+                {totalLessons === 0 && (
+                  <p className="text-xs text-orange-600 mt-1">No lessons available in enrolled courses</p>
+                )}
+              </div>
           </div>
         </div>
 
@@ -258,9 +187,9 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
               <Star className="w-6 h-6 text-yellow-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Average Score</p>
-              <p className="text-2xl font-bold text-gray-900">{averageScore}%</p>
-              <p className="text-sm text-green-600">Above target</p>
+                <p className="text-sm font-medium text-gray-600">Courses Completed</p>
+                <p className="text-2xl font-bold text-gray-900">{completedCourses}</p>
+                <p className="text-sm text-gray-500">of {totalCourses} enrolled</p>
             </div>
           </div>
         </div>
@@ -271,9 +200,22 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
               <Clock className="w-6 h-6 text-purple-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Time Spent</p>
-              <p className="text-2xl font-bold text-gray-900">{Math.round(totalTimeSpent / 60)}h</p>
-              <p className="text-sm text-gray-500">Total learning time</p>
+                <p className="text-sm font-medium text-gray-600">Study Streak</p>
+                <p className="text-2xl font-bold text-gray-900">{currentStreak}</p>
+                <p className="text-sm text-gray-500">days in a row</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Star className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Average Score</p>
+                <p className="text-2xl font-bold text-gray-900">{averageScore}%</p>
+                <p className="text-sm text-gray-500">across all quizzes</p>
             </div>
           </div>
         </div>
@@ -282,12 +224,37 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
       {/* Progress Chart */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Learning Progress Over Time</h3>
+          {weeklyProgress.length > 0 ? (
+            <div className="h-64 flex items-end justify-between space-x-2">
+              {weeklyProgress.slice(0, 8).map((week, index) => {
+                const maxLessons = Math.max(...weeklyProgress.map(w => w.lessonsCompleted), 1);
+                const height = (week.lessonsCompleted / maxLessons) * 200;
+                return (
+                  <div key={index} className="flex flex-col items-center flex-1">
+                    <div 
+                      className="bg-primary-500 rounded-t w-full min-h-[4px] transition-all duration-500"
+                      style={{ height: `${height}px` }}
+                      title={`Week ${index + 1}: ${week.lessonsCompleted} lessons, ${week.quizzesCompleted} quizzes`}
+                    />
+                    <div className="text-xs text-gray-500 mt-2 text-center">
+                      {new Date(week.week).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </div>
+                    <div className="text-xs font-medium text-gray-700">
+                      {week.lessonsCompleted}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
         <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
           <div className="text-center">
             <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-            <p className="text-gray-500">Progress chart visualization</p>
+                <p className="text-gray-500">No progress data available yet</p>
+                <p className="text-gray-400 text-sm">Complete some lessons to see your progress chart</p>
+              </div>
           </div>
-        </div>
+          )}
       </div>
 
       {/* Study Streak */}
@@ -300,136 +267,205 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
           <div className="text-center">
             <div className="text-3xl font-bold text-orange-600 flex items-center">
               <Zap className="w-8 h-8 mr-2" />
-              7
+                {currentStreak}
             </div>
             <p className="text-sm text-gray-500">Days in a row</p>
           </div>
         </div>
         <div className="mt-4 flex space-x-2">
-          {[...Array(7)].map((_, i) => (
+            {[...Array(Math.min(currentStreak, 10))].map((_, i) => (
             <div key={i} className="flex-1 h-2 bg-orange-500 rounded"></div>
           ))}
-          {[...Array(3)].map((_, i) => (
-            <div key={i + 7} className="flex-1 h-2 bg-gray-200 rounded"></div>
+            {[...Array(Math.max(0, 10 - currentStreak))].map((_, i) => (
+              <div key={i + currentStreak} className="flex-1 h-2 bg-gray-200 rounded"></div>
           ))}
         </div>
         <p className="text-sm text-gray-500 mt-2">
-          Study for 3 more days to reach your 10-day goal!
+            {currentStreak >= 10 
+              ? "Amazing! You've reached your 10-day goal!" 
+              : `Study for ${10 - currentStreak} more days to reach your 10-day goal!`
+            }
         </p>
       </div>
     </div>
   );
+  };
 
-  const renderCourses = () => (
+  const renderCourses = () => {
+    if (enrollmentsLoading) {
+      return (
     <div className="space-y-6">
-      {progressData.map((course) => (
-        <div key={course.courseId} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-pulse">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">{course.courseName}</h3>
-            <span className="text-2xl font-bold text-primary-600">{course.overallProgress}%</span>
+                <div className="h-6 bg-gray-200 rounded w-48"></div>
+                <div className="h-8 bg-gray-200 rounded w-16"></div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                {[...Array(4)].map((_, j) => (
+                  <div key={j} className="text-center">
+                    <div className="h-6 bg-gray-200 rounded w-12 mx-auto mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-16 mx-auto"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (enrollmentsError) {
+      return (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <div className="text-red-600 mb-2">
+            <BookOpen className="w-8 h-8 mx-auto mb-2" />
+            <p className="font-medium">Error loading courses</p>
+          </div>
+          <p className="text-red-700 text-sm mb-4">{enrollmentsError.message}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Refresh Page
+          </button>
+        </div>
+      );
+    }
+
+    if (enrollments.length === 0) {
+      return (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+          <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No courses enrolled</h3>
+          <p className="text-gray-600">You haven't enrolled in any courses yet.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {/* Info message if no content is available */}
+        {enrollments.length > 0 && enrollments.every(e => 
+          parseInt(e.total_lessons || '0') === 0 && parseInt(e.total_quizzes || '0') === 0
+        ) && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <BookOpen className="w-5 h-5 text-blue-600 mt-0.5" />
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800">Course Content Coming Soon</h3>
+                <div className="mt-2 text-sm text-blue-700">
+                  <p>Your enrolled courses don't have lessons or quizzes yet. Instructors are working on adding content.</p>
+                  <p className="mt-1">Course progress is calculated based on available content, so you'll see detailed metrics once lessons and quizzes are added.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {enrollments.map((enrollment) => (
+          <div key={enrollment.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">{enrollment.course_title}</h3>
+              <div className="flex items-center space-x-4">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  enrollment.status === 'completed' 
+                    ? 'bg-green-100 text-green-800' 
+                    : enrollment.status === 'active'
+                    ? 'bg-blue-100 text-blue-800'
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {enrollment.status}
+                </span>
+                <span className="text-2xl font-bold text-primary-600">{enrollment.progress_percentage || 0}%</span>
+              </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="text-center">
-              <div className="text-xl font-bold text-gray-900">{course.lessonsCompleted}/{course.totalLessons}</div>
-              <div className="text-sm text-gray-500">Lessons</div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="text-center">
+                <div className="text-xl font-bold text-gray-900">
+                  {parseInt(enrollment.completed_lessons || '0')}/{parseInt(enrollment.total_lessons || '0')}
+                </div>
+                <div className="text-sm text-gray-500">Lessons</div>
+                {parseInt(enrollment.total_lessons || '0') === 0 && (
+                  <div className="text-xs text-orange-600 mt-1">No lessons available</div>
+                )}
+              </div>
+              <div className="text-center">
+                <div className="text-xl font-bold text-gray-900">
+                  {parseInt(enrollment.completed_quizzes || '0')}/{parseInt(enrollment.total_quizzes || '0')}
+                </div>
+                <div className="text-sm text-gray-500">Quizzes</div>
+                {parseInt(enrollment.total_quizzes || '0') === 0 && (
+                  <div className="text-xs text-orange-600 mt-1">No quizzes available</div>
+                )}
+              </div>
+              <div className="text-center">
+                <div className="text-xl font-bold text-gray-900">
+                  {enrollment.average_score ? `${Math.round(parseFloat(enrollment.average_score))}%` : '-'}
+                </div>
+                <div className="text-sm text-gray-500">Avg Score</div>
+                {!enrollment.average_score && (
+                  <div className="text-xs text-orange-600 mt-1">No quiz attempts</div>
+                )}
+              </div>
+              <div className="text-center">
+                <div className="text-xl font-bold text-gray-900">
+                  {enrollment.time_spent_minutes ? `${Math.round(parseFloat(enrollment.time_spent_minutes))}m` : '-'}
+                </div>
+                <div className="text-sm text-gray-500">Time Spent</div>
+                {!enrollment.time_spent_minutes && (
+                  <div className="text-xs text-orange-600 mt-1">No time recorded</div>
+                )}
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-gray-900">{course.quizzesCompleted}/{course.totalQuizzes}</div>
-              <div className="text-sm text-gray-500">Quizzes</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-gray-900">{course.averageScore}%</div>
-              <div className="text-sm text-gray-500">Avg Score</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-gray-900">{Math.round(course.timeSpent / 60)}h</div>
-              <div className="text-sm text-gray-500">Time Spent</div>
-            </div>
-          </div>
 
           <div className="mb-6">
             <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
               <span>Course Progress</span>
-              <span>{course.overallProgress}%</span>
+                <span>{enrollment.progress_percentage || 0}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3">
               <div
-                className="bg-primary-600 h-3 rounded-full transition-all duration-300"
-                style={{ width: `${course.overallProgress}%` }}
+                  className={`h-3 rounded-full transition-all duration-300 ${
+                    enrollment.status === 'completed' ? 'bg-green-500' : 'bg-primary-600'
+                  }`}
+                  style={{ width: `${enrollment.progress_percentage || 0}%` }}
               />
             </div>
           </div>
 
-          {/* Skill Progress */}
-          <div>
-            <h4 className="font-medium text-gray-900 mb-3">Skill Development</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {course.skillProgress.map((skill, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700">{skill.skill}</span>
-                  <div className="flex items-center">
-                    <div className="w-20 bg-gray-200 rounded-full h-2 mr-2">
-                      <div
-                        className="bg-green-500 h-2 rounded-full"
-                        style={{ width: `${(skill.level / skill.maxLevel) * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-sm text-gray-600">{skill.level}/{skill.maxLevel}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <div className="flex items-center justify-between text-sm text-gray-500">
+              <span>Enrolled: {new Date(enrollment.enrolled_at).toLocaleDateString()}</span>
+              {enrollment.updated_at && (
+                <span>Last activity: {new Date(enrollment.updated_at).toLocaleDateString()}</span>
+              )}
           </div>
         </div>
       ))}
     </div>
   );
+  };
 
   const renderAchievements = () => (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {achievements.map((achievement) => (
-          <div key={achievement.id} className={`rounded-lg border-2 p-6 ${getRarityColor(achievement.rarity)}`}>
-            <div className="text-center">
-              <div className="text-4xl mb-3">{achievement.icon}</div>
-              <h3 className="font-semibold text-gray-900 mb-2">{achievement.title}</h3>
-              <p className="text-sm text-gray-600 mb-3">{achievement.description}</p>
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span className="capitalize">{achievement.category}</span>
-                <span>{new Date(achievement.earnedDate).toLocaleDateString()}</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Achievement Stats */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Achievement Statistics</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">{achievements.length}</div>
-            <div className="text-sm text-gray-500">Total Earned</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-yellow-600">
-              {achievements.filter(a => a.rarity === 'legendary').length}
-            </div>
-            <div className="text-sm text-gray-500">Legendary</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">
-              {achievements.filter(a => a.rarity === 'epic').length}
-            </div>
-            <div className="text-sm text-gray-500">Epic</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">
-              {achievements.filter(a => a.rarity === 'rare').length}
-            </div>
-            <div className="text-sm text-gray-500">Rare</div>
-          </div>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+        <Award className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Achievement System Coming Soon</h3>
+        <p className="text-gray-600 mb-6">
+          We're working on an exciting achievement system to reward your learning progress. 
+          Stay tuned for badges, milestones, and special recognition!
+        </p>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
+          <p className="text-sm text-blue-800">
+            <strong>Planned Features:</strong><br />
+            • Course completion badges<br />
+            • Perfect quiz scores<br />
+            • Study streak rewards<br />
+            • Learning milestones
+          </p>
         </div>
       </div>
     </div>
@@ -444,6 +480,20 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
           <p className="text-gray-500 mt-4">Loading goals...</p>
+        </div>
+        ) : goalsError ? (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <div className="text-red-600 mb-2">
+              <Target className="w-8 h-8 mx-auto mb-2" />
+              <p className="font-medium">Error loading goals</p>
+            </div>
+            <p className="text-red-700 text-sm mb-4">{goalsError}</p>
+            <button 
+              onClick={fetchGoals}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Try Again
+            </button>
         </div>
       ) : goalsToDisplay.length === 0 ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
@@ -460,22 +510,22 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
         </div>
       ) : (
         <>
-          {goalsToDisplay.map((goal) => {
-            const progress = goal.progress_percentage || 0;
-            const daysRemaining = Math.ceil((new Date(goal.target_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-            const isOverdue = daysRemaining < 0 && goal.status !== 'completed';
-            const displayStatus = isOverdue ? 'overdue' : goal.status;
+          {goalsToDisplay.map((goal: unknown) => {
+            const progress = (goal as any).progress_percentage || 0;
+            const daysRemaining = Math.ceil((new Date((goal as any).target_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+            const isOverdue = daysRemaining < 0 && (goal as any).status !== 'completed';
+            const displayStatus = isOverdue ? 'overdue' : (goal as any).status;
 
             return (
-            <div key={goal.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div key={(goal as any).id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 mb-1">{goal.title}</h3>
-                  {goal.description && (
-                    <p className="text-gray-600 text-sm">{goal.description}</p>
+                  <h3 className="font-semibold text-gray-900 mb-1">{(goal as any).title}</h3>
+                  {(goal as any).description && (
+                    <p className="text-gray-600 text-sm">{(goal as any).description}</p>
                   )}
-                  {goal.course_title && (
-                    <p className="text-sm text-primary-600 mt-1">📚 {goal.course_title}</p>
+                  {(goal as any).course_title && (
+                    <p className="text-sm text-primary-600 mt-1">📚 {(goal as any).course_title}</p>
                   )}
                 </div>
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getGoalStatusColor(displayStatus)}`}>
@@ -491,7 +541,7 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className={`h-2 rounded-full transition-all duration-300 ${
-                      goal.status === 'completed' ? 'bg-green-500' : 
+                      (goal as any).status === 'completed' ? 'bg-green-500' : 
                       isOverdue ? 'bg-red-500' : 'bg-primary-600'
                     }`}
                     style={{ width: `${Math.min(progress, 100)}%` }}
@@ -501,7 +551,7 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
 
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-500">
-                  Target: {new Date(goal.target_date).toLocaleDateString()}
+                  Target: {new Date((goal as any).target_date).toLocaleDateString()}
                 </span>
                 <span className={daysRemaining < 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
                   {daysRemaining < 0 
@@ -514,7 +564,6 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
         })}
         </>
       )}
-
 
       {/* Add New Goal */}
       {goalsToDisplay.length > 0 && (
@@ -555,6 +604,7 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
             value={selectedTimeframe}
             onChange={(e) => setSelectedTimeframe(e.target.value as any)}
             className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            aria-label="Select timeframe"
           >
             <option value="week">This Week</option>
             <option value="month">This Month</option>

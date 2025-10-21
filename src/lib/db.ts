@@ -5,7 +5,7 @@ import { Pool, PoolClient, QueryResult } from 'pg';
 const config = {
   host: process.env.DATABASE_HOST || 'localhost',
   port: parseInt(process.env.DATABASE_PORT || '5432'),
-  database: process.env.DATABASE_NAME || 'udrive-from-bolt',
+  database: process.env.DATABASE_NAME || 'sunlms',
   user: process.env.DATABASE_USER || 'postgres',
   password: process.env.DATABASE_PASSWORD || 'postgres',
   max: 20, // Maximum number of clients in the pool

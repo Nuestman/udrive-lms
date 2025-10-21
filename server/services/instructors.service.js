@@ -338,36 +338,36 @@ export async function updateInstructor(instructorId, updates) {
  */
 export async function getInstructorStatistics(tenantId = null) {
   try {
-    const tenantFilter = tenantId ? 'AND up.tenant_id = $1' : '';
+    const tenantFilter = tenantId ? 'AND u.tenant_id = $1' : '';
     const params = tenantId ? [tenantId] : [];
 
     const result = await db.query(`
       SELECT
         COUNT(*) as total_instructors,
-        COUNT(*) FILTER (WHERE up.is_active = true) as active_instructors,
-        COUNT(*) FILTER (WHERE up.is_active = false) as inactive_instructors,
-        COUNT(*) FILTER (WHERE up.created_at >= NOW() - INTERVAL '7 days') as new_instructors_week,
-        COUNT(*) FILTER (WHERE up.created_at >= NOW() - INTERVAL '30 days') as new_instructors_month,
+        COUNT(*) FILTER (WHERE u.is_active = true) as active_instructors,
+        COUNT(*) FILTER (WHERE u.is_active = false) as inactive_instructors,
+        COUNT(*) FILTER (WHERE u.created_at >= NOW() - INTERVAL '7 days') as new_instructors_week,
+        COUNT(*) FILTER (WHERE u.created_at >= NOW() - INTERVAL '30 days') as new_instructors_month,
         (SELECT COUNT(*) FROM courses c 
-         JOIN users u ON c.created_by = u.id 
-         WHERE u.role = 'instructor' ${tenantFilter.replace('up.', 'u.')}) as total_courses,
+         JOIN users u2 ON c.created_by = u2.id 
+         WHERE u2.role = 'instructor' ${tenantFilter.replace('u.', 'u2.')}) as total_courses,
         (SELECT COUNT(*) FROM courses c 
-         JOIN users u ON c.created_by = u.id 
-         WHERE u.role = 'instructor' AND c.status = 'published' ${tenantFilter.replace('up.', 'u.')}) as published_courses,
+         JOIN users u2 ON c.created_by = u2.id 
+         WHERE u2.role = 'instructor' AND c.status = 'published' ${tenantFilter.replace('u.', 'u2.')}) as published_courses,
         (SELECT COUNT(DISTINCT e.student_id) 
          FROM enrollments e 
          JOIN courses c ON e.course_id = c.id
-         JOIN users u ON c.created_by = u.id
-         WHERE u.role = 'instructor' ${tenantFilter.replace('up.', 'u.')}) as total_students,
-        (SELECT AVG(courses_per_instructor)::INTEGER FROM (
+         JOIN users u2 ON c.created_by = u2.id
+         WHERE u2.role = 'instructor' ${tenantFilter.replace('u.', 'u2.')}) as total_students,
+        (SELECT COALESCE(AVG(courses_per_instructor), 0)::INTEGER FROM (
           SELECT COUNT(*) as courses_per_instructor
           FROM courses c
-          JOIN users u ON c.created_by = u.id
-          WHERE u.role = 'instructor' ${tenantFilter.replace('up.', 'u.')}
-          GROUP BY u.id
+          JOIN users u2 ON c.created_by = u2.id
+          WHERE u2.role = 'instructor' ${tenantFilter.replace('u.', 'u2.')}
+          GROUP BY u2.id
         ) subquery) as avg_courses_per_instructor
-      FROM users up
-      WHERE up.role = 'instructor' ${tenantFilter}
+      FROM users u
+      WHERE u.role = 'instructor' ${tenantFilter}
     `, params);
 
     return result.rows[0];
@@ -382,18 +382,18 @@ export async function getInstructorStatistics(tenantId = null) {
  */
 export async function getInstructorActivity(tenantId = null, days = 30) {
   try {
-    const tenantFilter = tenantId ? 'AND up.tenant_id = $2' : '';
+    const tenantFilter = tenantId ? 'AND u.tenant_id = $2' : '';
     const params = tenantId ? [days, tenantId] : [days];
 
     const result = await db.query(`
       SELECT
-        DATE(up.created_at) as date,
+        DATE(u.created_at) as date,
         COUNT(*) as new_instructors
-      FROM users up
-      WHERE up.role = 'instructor' 
-        AND up.created_at >= NOW() - INTERVAL '1 day' * $1 
+      FROM users u
+      WHERE u.role = 'instructor' 
+        AND u.created_at >= NOW() - INTERVAL '1 day' * $1 
         ${tenantFilter}
-      GROUP BY DATE(up.created_at)
+      GROUP BY DATE(u.created_at)
       ORDER BY date ASC
     `, params);
 
@@ -409,7 +409,7 @@ export async function getInstructorActivity(tenantId = null, days = 30) {
  */
 export async function getTopInstructors(tenantId = null, limit = 10) {
   try {
-    const tenantFilter = tenantId ? 'AND up.tenant_id = $2' : '';
+    const tenantFilter = tenantId ? 'AND u.tenant_id = $2' : '';
     const params = tenantId ? [limit, tenantId] : [limit];
 
     const result = await db.query(`
@@ -424,17 +424,17 @@ export async function getTopInstructors(tenantId = null, limit = 10) {
         COUNT(DISTINCT c.id) FILTER (WHERE c.status = 'published') as published_courses,
         COUNT(DISTINCT e.student_id) as total_students,
         COUNT(DISTINCT e.id) FILTER (WHERE e.status = 'completed') as completed_enrollments,
-        AVG(e.progress_percentage)::INTEGER as avg_student_progress
+        COALESCE(AVG(e.progress_percentage), 0)::INTEGER as avg_student_progress
       FROM users u
       LEFT JOIN user_profiles p ON p.user_id = u.id
       LEFT JOIN courses c ON u.id = c.created_by
       LEFT JOIN enrollments e ON c.id = e.course_id
       WHERE u.role = 'instructor' AND u.is_active = true ${tenantFilter}
-      GROUP BY u.id, p.first_name, p.last_name, p.avatar_url
+      GROUP BY u.id, p.first_name, p.last_name, p.avatar_url, u.created_at
       ORDER BY 
         COUNT(DISTINCT c.id) DESC,
         COUNT(DISTINCT e.student_id) DESC,
-        AVG(e.progress_percentage) DESC
+        COALESCE(AVG(e.progress_percentage), 0) DESC
       LIMIT $1
     `, params);
 

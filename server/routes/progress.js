@@ -64,6 +64,23 @@ router.get('/course/:courseId/student/:studentId/unified', asyncHandler(async (r
 }));
 
 /**
+ * GET /api/progress/student/:studentId/analytics
+ * Get student's analytics including study streak and weekly progress
+ */
+router.get('/student/:studentId/analytics', asyncHandler(async (req, res) => {
+  const analytics = await progressService.getStudentAnalytics(
+    req.params.studentId,
+    req.tenantId,
+    req.isSuperAdmin
+  );
+  
+  res.json({
+    success: true,
+    data: analytics
+  });
+}));
+
+/**
  * POST /api/progress/lesson/:lessonId/complete
  * Mark lesson as completed for current user
  */

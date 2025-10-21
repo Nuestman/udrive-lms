@@ -65,7 +65,7 @@ const LandingPage: React.FC = () => {
     {
       name: "Sarah Mitchell",
       role: "Director, Premier Driving Academy",
-      content: "UDrive has transformed how we deliver driving education. Our completion rates have increased by 40% since implementation.",
+      content: "SunLMS has transformed how we deliver training across our organization. Our completion rates have increased by 40% since implementation.",
       avatar: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2",
       rating: 5
     },
@@ -87,20 +87,20 @@ const LandingPage: React.FC = () => {
 
   const faqs = [
     {
-      question: "What makes UDrive different from other LMS platforms?",
-      answer: "UDrive is specifically designed for driving schools with specialized features like road sign blocks, driving scenarios, and DMV compliance tools. Our platform understands the unique needs of driving education."
+      question: "What makes SunLMS different from other LMS platforms?",
+      answer: "SunLMS is a generic LMS/CMS-as-a-Service platform that powers specialized solutions for various industries. It provides a flexible foundation that can be customized for healthcare (CPD), corporate training, driving schools, and educational institutions."
     },
     {
-      question: "How long does it take to set up UDrive for my school?",
-      answer: "Most schools are up and running within 24-48 hours. Our onboarding team provides personalized setup assistance and training for your staff."
+      question: "How long does it take to set up SunLMS for my organization?",
+      answer: "Most organizations are up and running within 24-48 hours. Our onboarding team provides personalized setup assistance and training for your staff across various industries."
     },
     {
       question: "Can I import my existing course content?",
       answer: "Yes! Our migration team can help you import existing content from other platforms. We support various file formats and provide tools to convert your materials."
     },
     {
-      question: "Is UDrive mobile-friendly?",
-      answer: "Absolutely! UDrive is fully responsive and works seamlessly on all devices. Students can access courses on their phones, tablets, or computers."
+      question: "Is SunLMS mobile-friendly?",
+      answer: "Absolutely! SunLMS is fully responsive and works seamlessly on all devices. Users can access courses on their phones, tablets, or computers across all industries."
     },
     {
       question: "What kind of support do you provide?",
@@ -130,7 +130,7 @@ const LandingPage: React.FC = () => {
                 <BookOpen className="w-6 h-6 text-white" />
               </div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-transparent">
-                UDrive LMS
+                SunLMS
               </h1>
             </div>
             <nav className="hidden md:flex items-center space-x-8">
@@ -138,6 +138,13 @@ const LandingPage: React.FC = () => {
               <a href="#testimonials" className="text-gray-700 hover:text-primary-600 transition-colors">Testimonials</a>
               <a href="#faq" className="text-gray-700 hover:text-primary-600 transition-colors">FAQ</a>
               <a href="#contact" className="text-gray-700 hover:text-primary-600 transition-colors">Contact</a>
+              <Link
+                to="/docs"
+                className="flex items-center text-gray-700 hover:text-primary-600 transition-colors"
+              >
+                Documentation
+                <ExternalLink className="w-4 h-4 ml-1" />
+              </Link>
               <Link
                 to="/docs/implementation-progress"
                 className="flex items-center text-primary-600 hover:text-primary-700 font-medium transition-colors"
@@ -306,7 +313,7 @@ const LandingPage: React.FC = () => {
               Trusted by Driving Schools Worldwide
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              See what our customers are saying about their experience with UDrive LMS.
+              See what our customers are saying about their experience with SunLMS.
             </p>
           </div>
 
@@ -344,7 +351,7 @@ const LandingPage: React.FC = () => {
               Frequently Asked Questions
             </h2>
             <p className="text-xl text-gray-600">
-              Get answers to common questions about UDrive LMS.
+              Get answers to common questions about SunLMS.
             </p>
           </div>
 
@@ -391,7 +398,7 @@ const LandingPage: React.FC = () => {
                 <Mail className="w-6 h-6 text-primary-600" />
               </div>
               <h3 className="font-semibold text-gray-900 mb-2">Email Us</h3>
-              <p className="text-gray-600">support@udrive.com</p>
+              <p className="text-gray-600">support@sunlms.com</p>
             </div>
             <div className="text-center p-6 bg-white rounded-xl shadow-lg">
               <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center mx-auto mb-4">
@@ -438,14 +445,14 @@ const LandingPage: React.FC = () => {
                 <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg flex items-center justify-center mr-3">
                   <BookOpen className="w-6 h-6 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold">UDrive LMS</h3>
+                <h3 className="text-2xl font-bold">SunLMS</h3>
               </div>
               <p className="text-gray-400 mb-4 max-w-md">
-                Empowering driving schools with modern technology to deliver exceptional education experiences.
+                Empowering organizations across industries with modern technology to deliver exceptional learning experiences.
               </p>
               <div className="flex items-center text-gray-400">
                 <Globe className="w-4 h-4 mr-2" />
-                <span>Serving driving schools worldwide</span>
+                <span>Serving organizations worldwide</span>
               </div>
             </div>
             <div>
@@ -468,7 +475,7 @@ const LandingPage: React.FC = () => {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 UDrive LMS. All rights reserved. | Development Version</p>
+            <p>&copy; 2025 SunLMS. All rights reserved. | Development Version</p>
           </div>
         </div>
       </footer>

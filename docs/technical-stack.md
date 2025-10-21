@@ -1,483 +1,280 @@
-# UDrive Technical Stack
+# Technical Stack Documentation
 
 ## Overview
 
-UDrive employs a modern, scalable technical stack designed for reliability, performance, and developer productivity. The architecture follows a microservices approach with a clear separation of concerns.
+SunLMS is built using modern web technologies with a focus on performance, scalability, and maintainability. The system follows a full-stack JavaScript approach with React on the frontend and Node.js on the backend, designed as a generic LMS/CMS-as-a-Service platform.
 
-## Architecture Diagram
+## Frontend Technologies
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Client Applications                       │
-│                                                                  │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐   │
-│  │              │  │              │  │                      │   │
-│  │  Web Client  │  │ Mobile Apps  │  │ Admin Dashboard      │   │
-│  │  (React)     │  │ (React       │  │ (React)              │   │
-│  │              │  │  Native)     │  │                      │   │
-│  └──────┬───────┘  └──────┬───────┘  └──────────┬───────────┘   │
-│         │                  │                     │               │
-└─────────┼──────────────────┼─────────────────────┼───────────────┘
-          │                  │                     │
-          │                  │                     │
-┌─────────▼──────────────────▼─────────────────────▼───────────────┐
-│                                                                   │
-│                            API Gateway                            │
-│                                                                   │
-└─────────┬──────────────────┬─────────────────────┬───────────────┘
-          │                  │                     │
-          │                  │                     │
-┌─────────▼──────┐ ┌─────────▼──────┐ ┌───────────▼─────────┐
-│                │ │                │ │                     │
-│  Auth Service  │ │  User Service  │ │  Content Service    │
-│                │ │                │ │                     │
-└────────────────┘ └────────────────┘ └─────────────────────┘
-          │                  │                     │
-          │                  │                     │
-┌─────────▼──────┐ ┌─────────▼──────┐ ┌───────────▼─────────┐
-│                │ │                │ │                     │
-│ LMS Service    │ │ Analytics      │ │ Notification        │
-│                │ │ Service        │ │ Service             │
-│                │ │                │ │                     │
-└────────────────┘ └────────────────┘ └─────────────────────┘
-          │                  │                     │
-          │                  │                     │
-┌─────────▼──────────────────▼─────────────────────▼───────────────┐
-│                                                                   │
-│                        Database Layer                             │
-│                                                                   │
-└───────────────────────────────────────────────────────────────────┘
-```
+### Core Framework
+- **React 18** - Modern React with hooks and concurrent features
+- **TypeScript** - Type-safe development for better code quality
+- **React Router** - Client-side routing and navigation
 
-## Frontend
+### UI and Styling
+- **Tailwind CSS** - Utility-first CSS framework for rapid UI development
+- **Lucide React** - Modern icon library with consistent design
+- **Custom Components** - Reusable UI component library
 
-### Web Application
+### State Management
+- **React Hooks** - useState, useEffect, useContext for state management
+- **Custom Hooks** - useProgress, useAuth for specific functionality
+- **Context API** - Global state management for user and theme
 
-- **Framework**: React with TypeScript
-- **State Management**: Redux Toolkit for global state, React Query for server state
-- **Styling**: Tailwind CSS with custom theme
-- **Component Library**: Custom component library built on top of Radix UI primitives
-- **Form Handling**: React Hook Form with Zod validation
-- **Build Tools**: Vite for fast development and optimized production builds
-- **Testing**: Jest and React Testing Library for unit/integration tests, Cypress for E2E tests
+### Development Tools
+- **Vite** - Fast build tool and development server
+- **ESLint** - Code linting and quality enforcement
+- **Prettier** - Code formatting and consistency
+- **TypeScript** - Static type checking
 
-### Block Editor
+## Backend Technologies
 
-- Custom-built block editor using slate.js
-- Drag-and-drop functionality with react-dnd
-- Real-time collaboration using Operational Transforms
-- Custom plugins for specialized driving education content
+### Core Framework
+- **Node.js** - JavaScript runtime for server-side development
+- **Express.js** - Web application framework
+- **JavaScript (ES6+)** - Modern JavaScript features
 
-### Admin Dashboard
+### Database
+- **PostgreSQL** - Relational database for data persistence
+- **Supabase** - Database hosting and management platform
+- **SQL** - Database queries and schema management
 
-- Responsive layout with dashboard-specific components
-- Data visualization with recharts
-- Advanced filtering and search capabilities
-- Bulk operations interface
-- Role-based UI rendering
-
-### Mobile Applications
-
-- React Native for cross-platform mobile apps
-- Offline content access
-- Push notifications
-- Native device integrations (camera, location, etc.)
-- Biometric authentication
-
-## Backend
-
-### API Layer
-
-- **Framework**: Node.js with Express
-- **API Style**: RESTful with consistent resource-oriented endpoints
-- **Authentication**: JWT-based authentication with refresh tokens
-- **Documentation**: OpenAPI/Swagger specification
-- **Validation**: JSON Schema validation for request/response
-- **Middleware**: Custom middleware for logging, error handling, and tenant isolation
-
-### Services
-
-1. **Auth Service**
-   - User authentication and authorization
-   - OAuth provider integration
-   - 2FA implementation
-   - Password management
-   - Session handling
-
-2. **User Service**
-   - User CRUD operations
-   - Profile management
-   - Role and permission management
-   - Tenant user management
-
-3. **Content Service**
-   - Course and lesson management
-   - Media processing and storage
-   - Content versioning
-   - Search indexing
-   - Block editor data processing
-
-4. **LMS Service**
-   - Progress tracking
-   - Quiz engine
-   - Certification generation
-   - Enrollment management
-   - Student assessment
-
-5. **Analytics Service**
-   - Data collection and processing
-   - Report generation
-   - Dashboard metrics calculation
-   - Data export capabilities
-   - Machine learning insights
-
-6. **Notification Service**
-   - Email notifications
-   - In-app notifications
-   - Push notifications
-   - Scheduled reminders
-   - Bulk messaging
-
-### Service Communication
-
-- REST APIs for synchronous communication
-- Message queues (RabbitMQ) for asynchronous communication
-- Event-driven architecture for decoupled services
-- Circuit breakers for fault tolerance
-
-## Database Layer
-
-### Primary Database
-
-- **Database**: PostgreSQL
-- **Schema Design**: Multi-tenant schema with tenant discriminator
-- **Migrations**: Managed through TypeORM migrations
-- **Performance**: Optimized indexing and query patterns
-- **Security**: Row-level security policies
-
-### Search Functionality
-
-- **Search Engine**: Elasticsearch
-- **Indexing**: Automated indexing of content, courses, and users
-- **Features**: Full-text search, faceted search, typo tolerance
-- **Integration**: Synced with primary database via change data capture
-
-### Caching
-
-- **Cache System**: Redis
-- **Use Cases**: Session storage, API response caching, frequent query results
-- **Strategies**: Time-based expiration, cache invalidation on writes
-- **Distribution**: Clustered for high availability
-
-## Storage
+### Authentication & Security
+- **JWT (JSON Web Tokens)** - Stateless authentication
+- **bcrypt** - Password hashing and security
+- **Helmet** - Security headers and protection
+- **CORS** - Cross-origin resource sharing
 
 ### File Storage
+- **Vercel Blob** - File storage and media management
+- **Multer** - File upload handling middleware
 
-- **Primary Storage**: Amazon S3 or compatible object storage
-- **Organization**: Tenant-specific buckets with logical folder structure
-- **Security**: Signed URLs for temporary access
-- **Performance**: CDN integration for fast delivery
+### Development Tools
+- **Nodemon** - Development server with auto-restart
+- **ESLint** - Code linting and quality enforcement
+- **Jest** - Testing framework (planned)
 
-### Media Processing
+## Infrastructure & Deployment
 
-- **Image Processing**: Server-side resizing, optimization, and format conversion
-- **Video Processing**: Transcoding to multiple formats and resolutions
-- **Video Streaming**: HLS/DASH streaming for video content
-- **Thumbnails**: Automated thumbnail generation
+### Hosting
+- **Vercel** - Frontend hosting and deployment
+- **Supabase** - Database hosting and backend services
+- **Vercel Blob** - File storage and CDN
 
-## Infrastructure
+### Development Environment
+- **Git** - Version control
+- **GitHub** - Code repository and collaboration
+- **Local Development** - Node.js and PostgreSQL locally
 
-### Deployment
+### Production Environment
+- **Vercel** - Automatic deployments from Git
+- **Supabase** - Managed PostgreSQL database
+- **Environment Variables** - Secure configuration management
 
-- **Containerization**: Docker containers for all services
-- **Orchestration**: Kubernetes for container management
-- **CI/CD**: Automated pipelines for testing and deployment
-- **Environments**: Development, Staging, and Production environments
+## Database Architecture
 
-### Monitoring & Logging
+### Database System
+- **PostgreSQL 15+** - Modern relational database
+- **UUID Primary Keys** - Globally unique identifiers
+- **JSONB Support** - Flexible JSON data storage
+- **Full-Text Search** - Advanced search capabilities
 
-- **Application Monitoring**: New Relic or Datadog for performance monitoring
-- **Log Management**: ELK stack (Elasticsearch, Logstash, Kibana)
-- **Error Tracking**: Sentry for real-time error tracking
-- **Alerting**: PagerDuty integration for critical issues
+### Schema Design
+- **Normalized Design** - Efficient data organization
+- **Foreign Key Constraints** - Data integrity enforcement
+- **Indexes** - Performance optimization
+- **Multi-tenancy** - Tenant isolation and security
 
-### Security
+### Migration System
+- **SQL Migrations** - Version-controlled schema changes
+- **Backup System** - Data protection and recovery
+- **Seed Data** - Development and testing data
 
-- **HTTPS**: TLS for all communications
-- **Authentication**: OAuth 2.0 and OpenID Connect
-- **Authorization**: Role-based access control
-- **Data Protection**: Encryption at rest and in transit
-- **Compliance**: GDPR, CCPA, and education-specific regulations
+## API Architecture
 
-## Code Example: Frontend Component
+### RESTful API
+- **Express.js Routes** - RESTful endpoint design
+- **Middleware** - Authentication, validation, error handling
+- **JSON Responses** - Consistent API response format
+- **Error Handling** - Comprehensive error management
 
-```tsx
-// components/LessonEditor/BlockEditor.tsx
-import React, { useState, useCallback } from 'react';
-import { createEditor, Descendant } from 'slate';
-import { Slate, Editable, withReact } from 'slate-react';
-import { withHistory } from 'slate-history';
-import { BlockToolbar } from './BlockToolbar';
-import { TextBlock } from './blocks/TextBlock';
-import { ImageBlock } from './blocks/ImageBlock';
-import { VideoBlock } from './blocks/VideoBlock';
-import { QuizBlock } from './blocks/QuizBlock';
-import { useBlockEditorContext } from '../../contexts/BlockEditorContext';
+### Authentication
+- **JWT Tokens** - Secure authentication
+- **Role-Based Access** - Granular permission system
+- **Tenant Isolation** - Multi-tenant security
+- **Session Management** - Secure session handling
 
-interface BlockEditorProps {
-  initialValue: Descendant[];
-  onChange: (value: Descendant[]) => void;
-  readOnly?: boolean;
-}
+### Data Validation
+- **Input Validation** - Server-side data validation
+- **SQL Injection Prevention** - Parameterized queries
+- **XSS Protection** - Cross-site scripting prevention
+- **CSRF Protection** - Cross-site request forgery prevention
 
-export const BlockEditor: React.FC<BlockEditorProps> = ({
-  initialValue,
-  onChange,
-  readOnly = false
-}) => {
-  const [editor] = useState(() => withHistory(withReact(createEditor())));
-  const { selectedBlock, setSelectedBlock } = useBlockEditorContext();
-  
-  const renderElement = useCallback((props) => {
-    switch (props.element.type) {
-      case 'text':
-        return <TextBlock {...props} />;
-      case 'image':
-        return <ImageBlock {...props} />;
-      case 'video':
-        return <VideoBlock {...props} />;
-      case 'quiz':
-        return <QuizBlock {...props} />;
-      default:
-        return <TextBlock {...props} />;
-    }
-  }, []);
-  
-  return (
-    <div className="border border-gray-200 rounded-lg bg-white">
-      <Slate editor={editor} value={initialValue} onChange={onChange}>
-        {!readOnly && <BlockToolbar />}
-        <div className="p-4">
-          <Editable
-            renderElement={renderElement}
-            placeholder="Begin typing..."
-            spellCheck
-            readOnly={readOnly}
-            className="min-h-[200px] focus:outline-none"
-            onFocus={() => console.log('Editor focused')}
-          />
-        </div>
-      </Slate>
-    </div>
-  );
-};
+## Development Workflow
+
+### Code Organization
+```
+src/
+├── components/          # Reusable UI components
+├── pages/              # Page components
+├── hooks/              # Custom React hooks
+├── services/           # API service functions
+├── utils/              # Utility functions
+└── types/              # TypeScript type definitions
+
+server/
+├── routes/             # API route handlers
+├── services/           # Business logic services
+├── middleware/         # Express middleware
+├── models/             # Database models
+└── utils/              # Server utilities
 ```
 
-## Code Example: Backend API Endpoint
+### Version Control
+- **Git Flow** - Feature branch workflow
+- **Commit Messages** - Conventional commit format
+- **Pull Requests** - Code review process
+- **Branch Protection** - Main branch protection
 
-```typescript
-// controllers/lessonController.ts
-import { Request, Response } from 'express';
-import { LessonService } from '../services/lessonService';
-import { validateLessonData } from '../validators/lessonValidator';
-import { NotFoundError, ValidationError } from '../errors';
-import { logger } from '../utils/logger';
+### Testing Strategy
+- **Unit Tests** - Component and function testing (planned)
+- **Integration Tests** - API endpoint testing (planned)
+- **E2E Tests** - End-to-end testing (planned)
+- **Manual Testing** - User acceptance testing
 
-export class LessonController {
-  private lessonService: LessonService;
-  
-  constructor() {
-    this.lessonService = new LessonService();
-  }
-  
-  public getLesson = async (req: Request, res: Response) => {
-    try {
-      const lessonId = req.params.id;
-      const tenantId = req.tenantId; // From tenantContext middleware
-      
-      const lesson = await this.lessonService.getLessonById(lessonId, tenantId);
-      
-      if (!lesson) {
-        throw new NotFoundError('Lesson not found');
-      }
-      
-      return res.status(200).json({
-        success: true,
-        data: lesson
-      });
-    } catch (error) {
-      logger.error('Error fetching lesson', { error, lessonId: req.params.id });
-      
-      if (error instanceof NotFoundError) {
-        return res.status(404).json({
-          success: false,
-          error: error.message
-        });
-      }
-      
-      return res.status(500).json({
-        success: false,
-        error: 'An unexpected error occurred'
-      });
-    }
-  };
-  
-  public createLesson = async (req: Request, res: Response) => {
-    try {
-      const { moduleId, title, description, content } = req.body;
-      const tenantId = req.tenantId;
-      const userId = req.user.id;
-      
-      const validationResult = validateLessonData(req.body);
-      
-      if (!validationResult.success) {
-        throw new ValidationError(validationResult.errors.join(', '));
-      }
-      
-      const lesson = await this.lessonService.createLesson({
-        moduleId,
-        title,
-        description,
-        content,
-        tenantId,
-        createdBy: userId
-      });
-      
-      return res.status(201).json({
-        success: true,
-        data: lesson
-      });
-    } catch (error) {
-      logger.error('Error creating lesson', { error, payload: req.body });
-      
-      if (error instanceof ValidationError) {
-        return res.status(400).json({
-          success: false,
-          error: error.message
-        });
-      }
-      
-      return res.status(500).json({
-        success: false,
-        error: 'An unexpected error occurred'
-      });
-    }
-  };
-  
-  // More controller methods...
-}
+## Performance Considerations
+
+### Frontend Performance
+- **Code Splitting** - Lazy loading of components
+- **Image Optimization** - Responsive images and compression
+- **Bundle Optimization** - Minimized JavaScript bundles
+- **Caching Strategy** - Browser caching for static assets
+
+### Backend Performance
+- **Database Indexing** - Optimized database queries
+- **Connection Pooling** - Efficient database connections
+- **Response Caching** - Strategic API response caching
+- **Compression** - Gzip compression for responses
+
+### Scalability
+- **Stateless Backend** - Horizontal scaling capability
+- **Database Optimization** - Query optimization and indexing
+- **CDN Integration** - Global content delivery
+- **Load Balancing** - Multiple server instances (future)
+
+## Security Implementation
+
+### Authentication Security
+- **JWT Security** - Secure token generation and validation
+- **Password Security** - Bcrypt hashing with salt rounds
+- **Session Security** - HTTP-only cookies and secure flags
+- **Rate Limiting** - Brute force attack prevention
+
+### Data Security
+- **Input Sanitization** - XSS and injection prevention
+- **SQL Injection Prevention** - Parameterized queries
+- **Data Encryption** - Sensitive data encryption
+- **Audit Logging** - Security event logging
+
+### Infrastructure Security
+- **HTTPS Enforcement** - SSL/TLS encryption
+- **Security Headers** - Helmet.js security headers
+- **Environment Variables** - Secure configuration management
+- **Access Control** - Role-based access control
+
+## Monitoring & Logging
+
+### Application Monitoring
+- **Error Tracking** - Comprehensive error logging
+- **Performance Monitoring** - Response time tracking
+- **User Analytics** - Usage pattern analysis
+- **Health Checks** - System health monitoring
+
+### Database Monitoring
+- **Query Performance** - Slow query identification
+- **Connection Monitoring** - Database connection tracking
+- **Storage Monitoring** - Database size and growth
+- **Backup Monitoring** - Backup success and failure tracking
+
+## Future Technology Roadmap
+
+### Planned Upgrades
+- **React 19** - Latest React features and improvements
+- **Node.js 20+** - Latest Node.js LTS version
+- **PostgreSQL 16+** - Latest database features
+- **TypeScript 5+** - Enhanced type system
+
+### New Technologies
+- **Redis** - Caching and session storage
+- **WebSockets** - Real-time communication
+- **GraphQL** - Alternative API architecture
+- **Docker** - Containerization and deployment
+
+### Performance Improvements
+- **Server-Side Rendering** - Next.js or similar
+- **Progressive Web App** - Offline capabilities
+- **Microservices** - Service-oriented architecture
+- **Kubernetes** - Container orchestration
+
+## Development Environment Setup
+
+### Prerequisites
+- **Node.js 18+** - JavaScript runtime
+- **PostgreSQL 15+** - Database system
+- **Git** - Version control
+- **VS Code** - Recommended IDE
+
+### Installation Steps
+1. Clone repository
+2. Install dependencies (`npm install`)
+3. Set up environment variables
+4. Initialize database
+5. Run migrations
+6. Start development servers
+
+### Environment Variables
+```bash
+# Database
+DATABASE_URL=postgresql://user:password@host:port/database
+
+# Authentication
+JWT_SECRET=your-secret-key
+JWT_EXPIRES_IN=24h
+
+# File Storage
+BLOB_READ_WRITE_TOKEN=your-blob-token
+
+# Email (future)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
 ```
 
-## Code Example: Database Model
+## Implementation Status
 
-```typescript
-// models/Lesson.ts
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
-  Index
-} from 'typeorm';
-import { Module } from './Module';
-import { User } from './User';
+### ✅ Fully Implemented
+- React 18 with TypeScript
+- Express.js backend
+- PostgreSQL database
+- JWT authentication
+- Tailwind CSS styling
+- Vercel deployment
+- Supabase hosting
 
-@Entity('lessons')
-export class Lesson {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-  
-  @Column()
-  @Index()
-  title: string;
-  
-  @Column({ type: 'text', nullable: true })
-  description: string;
-  
-  @Column({ type: 'jsonb' })
-  content: Record<string, any>;
-  
-  @Column()
-  @Index()
-  moduleId: string;
-  
-  @ManyToOne(() => Module, module => module.lessons)
-  @JoinColumn({ name: 'moduleId' })
-  module: Module;
-  
-  @Column()
-  @Index()
-  tenantId: string;
-  
-  @Column()
-  createdBy: string;
-  
-  @ManyToOne(() => User)
-  @JoinColumn({ name: 'createdBy' })
-  creator: User;
-  
-  @Column({ type: 'int', default: 0 })
-  orderIndex: number;
-  
-  @Column({ type: 'int', nullable: true })
-  durationMinutes: number;
-  
-  @Column({
-    type: 'enum',
-    enum: ['draft', 'published', 'archived'],
-    default: 'draft'
-  })
-  status: 'draft' | 'published' | 'archived';
-  
-  @CreateDateColumn()
-  createdAt: Date;
-  
-  @UpdateDateColumn()
-  updatedAt: Date;
-}
-```
+### 🚧 Partially Implemented
+- Testing framework (Jest setup needed)
+- Error monitoring (basic logging only)
+- Performance monitoring (manual only)
+- Documentation (in progress)
 
-## Third-Party Integrations
+### 📋 Planned
+- Redis caching
+- WebSocket real-time features
+- Advanced analytics
+- Mobile app (React Native)
+- Microservices architecture
 
-### Payment Processing
+---
 
-- Stripe for subscription and payment processing
-- PayPal as an alternative payment option
-- Invoice generation and management
-
-### Email Services
-
-- SendGrid or Mailgun for transactional emails
-- Email template system
-- Delivery tracking and analytics
-
-### Video Conferencing
-
-- Zoom API integration for virtual classroom sessions
-- Recording and playback capabilities
-- Calendar integration for scheduling
-
-### Analytics
-
-- Google Analytics for web analytics
-- Mixpanel for user behavior tracking
-- Hotjar for heatmaps and session recording
-
-## Scalability Considerations
-
-- Horizontal scaling of services based on load
-- Database read replicas for query-heavy operations
-- Caching strategies for frequently accessed data
-- Asynchronous processing for non-critical operations
-- Content delivery optimization through CDN
-
-## DevOps Practices
-
-- Infrastructure as Code using Terraform
-- Blue-green deployments for zero-downtime updates
-- Automated testing in CI/CD pipeline
-- Canary releases for new features
-- Disaster recovery planning and testing
+*This technical stack documentation is maintained alongside the codebase and reflects the current technology choices as of October 2025.*

@@ -121,7 +121,7 @@ const CertificateGenerator: React.FC<CertificateGeneratorProps> = ({
       );
 
       // Generate and add QR code
-      const verificationUrl = `https://udrive.com/verify/${data.certificateId}`;
+      const verificationUrl = `https://sunlms.com/verify/${data.certificateId}`;
       const qrCodeDataUrl = await generateQRCode(verificationUrl);
       doc.addImage(
         qrCodeDataUrl,

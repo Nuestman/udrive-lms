@@ -179,7 +179,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ navItems, isOpen = true, onClo
         <div className="h-full flex flex-col">
           {/* Mobile close button */}
           <div className="flex items-center justify-between p-4 md:hidden">
-            <span className="text-primary-600 font-bold text-xl">UDrive</span>
+            <span className="text-primary-600 font-bold text-xl">SunLMS</span>
             <button
               onClick={onClose}
               aria-label="Close menu"
