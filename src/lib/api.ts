@@ -321,6 +321,50 @@ export const studentsApi = {
 };
 
 /**
+ * Enrollments API - Universal enrollment for all user roles
+ */
+export const enrollmentsApi = {
+  getAll: (params?: {
+    student_id?: string;
+    course_id?: string;
+    status?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return get<{ success: boolean; data: any[] }>(
+      `/enrollments${queryString ? `?${queryString}` : ''}`
+    );
+  },
+
+  getById: (id: string) =>
+    get<{ success: boolean; data: any }>(`/enrollments/${id}`),
+
+  getByStudent: (studentId: string) =>
+    get<{ success: boolean; data: any[] }>(`/enrollments/student/${studentId}`),
+
+  create: (data: {
+    student_id?: string; // Optional - defaults to current user if not provided
+    course_id: string;
+  }) => post<{ success: boolean; data: any; message: string }>('/enrollments', data),
+
+  updateStatus: (id: string, status: string) =>
+    put<{ success: boolean; data: any; message: string }>(`/enrollments/${id}/status`, { status }),
+
+  updateProgress: (id: string, progress_percentage: number) =>
+    put<{ success: boolean; data: any }>(`/enrollments/${id}/progress`, { progress_percentage }),
+
+  delete: (id: string) =>
+    del<{ success: boolean; message: string }>(`/enrollments/${id}`),
+};
+
+/**
  * Quizzes API
  */
 export const quizzesApi = {
@@ -389,6 +433,7 @@ export default {
   usersApi,
   instructorsApi,
   studentsApi,
+  enrollmentsApi,
   quizzesApi,
 };
 

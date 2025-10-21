@@ -3,6 +3,7 @@ import React from 'react';
 import { Users, BookOpen, TrendingUp, Award, Calendar, Plus, UserPlus, FileText, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAnalytics, useRecentActivity } from '../../hooks/useAnalytics';
+import UniversalStudentDashboard from '../common/UniversalStudentDashboard';
 
 const SchoolDashboard: React.FC = () => {
   const { stats, loading: statsLoading } = useAnalytics();
@@ -219,6 +220,9 @@ const SchoolDashboard: React.FC = () => {
           <p className="text-2xl font-bold text-gray-900">{stats?.averageProgress || 0}%</p>
         </div>
       </div>
+
+      {/* My Learning - Courses I'm Taking */}
+      <UniversalStudentDashboard className="mt-6" />
     </div>
   );
 };

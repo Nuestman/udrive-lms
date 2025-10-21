@@ -52,8 +52,8 @@ router.get('/:id', asyncHandler(async (req, res) => {
 
   const enrollment = result.rows[0];
 
-  // Students can only view their own enrollment
-  if (req.user.role === 'student' && req.user.id !== enrollment.student_id) {
+  // Users can only view their own enrollment unless they have admin privileges
+  if (req.user.id !== enrollment.student_id && !['super_admin', 'school_admin', 'instructor'].includes(req.user.role)) {
     return res.status(403).json({ success: false, error: 'You can only view your own enrollments' });
   }
 
@@ -65,8 +65,8 @@ router.get('/:id', asyncHandler(async (req, res) => {
  * Get enrollments for a student
  */
 router.get('/student/:studentId', asyncHandler(async (req, res) => {
-  // Students can view their own enrollments
-  if (req.user.role === 'student' && req.user.id !== req.params.studentId) {
+  // Users can view their own enrollments, admins can view any enrollments
+  if (req.user.id !== req.params.studentId && !['super_admin', 'school_admin', 'instructor'].includes(req.user.role)) {
     return res.status(403).json({ 
       success: false, 
       error: 'You can only view your own enrollments' 
@@ -86,9 +86,9 @@ router.get('/student/:studentId', asyncHandler(async (req, res) => {
  * Enroll student in course
  */
 router.post('/', asyncHandler(async (req, res) => {
-  // If the actor is a student, force student_id to authenticated user id
+  // If the actor is enrolling themselves, force student_id to authenticated user id
   const payload = { ...req.body };
-  if (req.user.role === 'student') {
+  if (!payload.student_id || payload.student_id === req.user.id) {
     payload.student_id = req.user.id;
   }
 
@@ -97,7 +97,7 @@ router.post('/', asyncHandler(async (req, res) => {
   res.status(201).json({
     success: true,
     data: enrollment,
-    message: 'Student enrolled successfully'
+    message: 'User enrolled successfully'
   });
 }));
 
@@ -133,7 +133,7 @@ router.put('/:id/progress', asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, error: 'Enrollment not found' });
   }
 
-  if (req.user.role === 'student' && req.user.id !== enrollment.rows[0].student_id) {
+  if (req.user.id !== enrollment.rows[0].student_id && !['super_admin', 'school_admin', 'instructor'].includes(req.user.role)) {
     return res.status(403).json({ success: false, error: 'Forbidden' });
   }
 

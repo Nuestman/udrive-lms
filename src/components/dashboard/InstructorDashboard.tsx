@@ -5,6 +5,7 @@ import { BookOpen, Users, TrendingUp, Award, Plus, FileText, BarChart3 } from 'l
 import { useAuth } from '../../contexts/AuthContext';
 import { useCourses } from '../../hooks/useCourses';
 import { useEnrollments } from '../../hooks/useEnrollments';
+import UniversalStudentDashboard from '../common/UniversalStudentDashboard';
 
 const InstructorDashboard: React.FC = () => {
   const { profile } = useAuth();
@@ -237,6 +238,9 @@ const InstructorDashboard: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* My Learning - Courses I'm Taking */}
+      <UniversalStudentDashboard className="mt-6" />
     </div>
   );
 };

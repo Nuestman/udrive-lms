@@ -1,13 +1,15 @@
 // Courses Page - Real Database Integration
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, BookOpen, Users, Clock, Edit, Trash2, Eye, MoreVertical } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCourses } from '../../hooks/useCourses';
 import { useToast } from '../../contexts/ToastContext';
+import { enrollmentsApi } from '../../lib/api';
 import PageLayout from '../ui/PageLayout';
 import CreateCourseModal from './CreateCourseModal';
 import EditCourseModal from './EditCourseModal';
+import UniversalEnrollmentButton from '../common/UniversalEnrollmentButton';
 import type { Course } from '../../types/database.types';
 
 interface CoursesPageProps {
@@ -25,6 +27,8 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ role }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [userEnrollments, setUserEnrollments] = useState<Set<string>>(new Set());
+  const [enrollmentData, setEnrollmentData] = useState<Map<string, { progress: number; status: string }>>(new Map());
 
   // Filter courses
   const filteredCourses = courses.filter(course => {
@@ -55,6 +59,34 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ role }) => {
       showError(err.message || 'Failed to publish course');
     }
   };
+
+  // Load user enrollments for non-student roles
+  useEffect(() => {
+    const loadEnrollments = async () => {
+      if (profile?.id && role !== 'student') {
+        try {
+          const response = await enrollmentsApi.getByStudent(profile.id);
+          const enrolledCourseIds = new Set<string>();
+          const enrollmentMap = new Map<string, { progress: number; status: string }>();
+          
+          response.data?.forEach((enrollment: any) => {
+            enrolledCourseIds.add(enrollment.course_id);
+            enrollmentMap.set(enrollment.course_id, {
+              progress: enrollment.progress_percentage || 0,
+              status: enrollment.status || 'active'
+            });
+          });
+          
+          setUserEnrollments(enrolledCourseIds);
+          setEnrollmentData(enrollmentMap);
+        } catch (error) {
+          console.error('Failed to load enrollments:', error);
+        }
+      }
+    };
+    
+    loadEnrollments();
+  }, [profile?.id, role]);
 
   // Temporarily allow all actions for testing
   const canCreate = true; // Was: ['super_admin', 'school_admin', 'instructor'].includes(role);
@@ -304,6 +336,48 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ role }) => {
                       <p className="text-xs text-gray-500">
                         Instructor: <span className="text-gray-700 font-medium">{course.instructor_name}</span>
                       </p>
+                    </div>
+                  )}
+
+                  {/* Enrollment Button for Non-Student Roles */}
+                  {role !== 'student' && course.status === 'published' && (
+                    <div className="mt-4 pt-3 border-t border-gray-200">
+                      <UniversalEnrollmentButton
+                        courseId={course.id}
+                        courseTitle={course.title}
+                        isEnrolled={userEnrollments.has(course.id)}
+                        enrollmentProgress={enrollmentData.get(course.id)?.progress || 0}
+                        enrollmentStatus={enrollmentData.get(course.id)?.status || 'active'}
+                        onEnrollmentChange={() => {
+                          // Refresh enrollments
+                          const loadEnrollments = async () => {
+                            if (profile?.id) {
+                              try {
+                                const response = await enrollmentsApi.getByStudent(profile.id);
+                                const enrolledCourseIds = new Set<string>();
+                                const enrollmentMap = new Map<string, { progress: number; status: string }>();
+                                
+                                response.data?.forEach((enrollment: any) => {
+                                  enrolledCourseIds.add(enrollment.course_id);
+                                  enrollmentMap.set(enrollment.course_id, {
+                                    progress: enrollment.progress_percentage || 0,
+                                    status: enrollment.status || 'active'
+                                  });
+                                });
+                                
+                                setUserEnrollments(enrolledCourseIds);
+                                setEnrollmentData(enrollmentMap);
+                              } catch (error) {
+                                console.error('Failed to load enrollments:', error);
+                              }
+                            }
+                          };
+                          loadEnrollments();
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                      />
                     </div>
                   )}
                 </div>

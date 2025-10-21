@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, Users, BookOpen, TrendingUp, Award, Plus, BarChart3, Settings as SettingsIcon, Globe } from 'lucide-react';
 import { useAnalytics, useRecentActivity } from '../../hooks/useAnalytics';
 import { useSchools } from '../../hooks/useSchools';
+import UniversalStudentDashboard from '../common/UniversalStudentDashboard';
 
 const SuperAdminDashboard: React.FC = () => {
   const { stats, loading: statsLoading } = useAnalytics();
@@ -291,6 +292,9 @@ const SuperAdminDashboard: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* My Learning - Courses I'm Taking */}
+      <UniversalStudentDashboard className="mt-6" />
     </div>
   );
 };

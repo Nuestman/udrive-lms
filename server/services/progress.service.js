@@ -5,19 +5,19 @@ import { query } from '../lib/db.js';
  * Get student's overall progress
  */
 export async function getStudentProgress(studentId, tenantId, isSuperAdmin = false) {
-  // Verify student access
+  // Verify user access (any role can have student progress)
   if (!isSuperAdmin) {
-    const studentCheck = await query(
+    const userCheck = await query(
       'SELECT id FROM users WHERE id = $1 AND tenant_id = $2',
       [studentId, tenantId]
     );
     
-    if (studentCheck.rows.length === 0) {
-      throw new Error('Student not found or access denied');
+    if (userCheck.rows.length === 0) {
+      throw new Error('User not found or access denied');
     }
   }
 
-  // Get all enrollments with progress
+  // Get all enrollments with comprehensive progress data
   const result = await query(
     `SELECT e.*,
       c.title as course_title,
@@ -26,10 +26,25 @@ export async function getStudentProgress(studentId, tenantId, isSuperAdmin = fal
       (SELECT COUNT(*) FROM lessons l 
        JOIN modules m ON l.module_id = m.id 
        WHERE m.course_id = c.id) as total_lessons,
-      (SELECT COUNT(*) FROM lesson_progress lp
-       JOIN lessons l ON lp.lesson_id = l.id
+      (SELECT COUNT(*) FROM quizzes q
+       JOIN modules m ON q.module_id = m.id 
+       WHERE m.course_id = c.id AND q.status = 'published') as total_quizzes,
+      (SELECT COUNT(*) FROM content_progress cp
+       JOIN lessons l ON cp.content_id = l.id
        JOIN modules m ON l.module_id = m.id
-       WHERE m.course_id = c.id AND lp.student_id = e.student_id AND lp.status = 'completed') as completed_lessons
+       WHERE m.course_id = c.id AND cp.student_id = e.student_id AND cp.content_type = 'lesson' AND cp.status = 'completed') as completed_lessons,
+      (SELECT COUNT(*) FROM content_progress cp
+       JOIN quizzes q ON cp.content_id = q.id
+       JOIN modules m ON q.module_id = m.id
+       WHERE m.course_id = c.id AND cp.student_id = e.student_id AND cp.content_type = 'quiz' AND cp.status = 'completed') as completed_quizzes,
+      (SELECT AVG(score) FROM quiz_attempts qa
+       JOIN quizzes q ON qa.quiz_id = q.id
+       JOIN modules m ON q.module_id = m.id
+       WHERE m.course_id = c.id AND qa.student_id = e.student_id AND qa.status = 'completed') as average_score,
+      (SELECT SUM(EXTRACT(EPOCH FROM (cp.completed_at - cp.started_at))/60) FROM content_progress cp
+       JOIN lessons l ON cp.content_id = l.id
+       JOIN modules m ON l.module_id = m.id
+       WHERE m.course_id = c.id AND cp.student_id = e.student_id AND cp.content_type = 'lesson' AND cp.status = 'completed') as time_spent_minutes
      FROM enrollments e
      JOIN courses c ON e.course_id = c.id
      WHERE e.student_id = $1
@@ -38,6 +53,75 @@ export async function getStudentProgress(studentId, tenantId, isSuperAdmin = fal
   );
 
   return result.rows;
+}
+
+/**
+ * Get student analytics including study streak and weekly progress
+ */
+export async function getStudentAnalytics(studentId, tenantId, isSuperAdmin = false) {
+  // Verify user access (any role can have student progress)
+  if (!isSuperAdmin) {
+    const userCheck = await query(
+      'SELECT id FROM users WHERE id = $1 AND tenant_id = $2',
+      [studentId, tenantId]
+    );
+    
+    if (userCheck.rows.length === 0) {
+      throw new Error('User not found or access denied');
+    }
+  }
+
+  // Get study streak (consecutive days with activity)
+  const streakResult = await query(
+    `WITH daily_activity AS (
+      SELECT DISTINCT DATE(cp.completed_at) as activity_date
+      FROM content_progress cp
+      WHERE cp.student_id = $1 AND cp.status = 'completed'
+      ORDER BY activity_date DESC
+    ),
+    streak_calculation AS (
+      SELECT 
+        activity_date,
+        ROW_NUMBER() OVER (ORDER BY activity_date DESC) as row_num,
+        activity_date + INTERVAL '1 day' * ROW_NUMBER() OVER (ORDER BY activity_date DESC) as expected_date
+      FROM daily_activity
+    )
+    SELECT COUNT(*) as current_streak
+    FROM streak_calculation
+    WHERE activity_date = expected_date AND activity_date >= CURRENT_DATE - INTERVAL '30 days'
+    AND row_num <= (
+      SELECT MIN(row_num) 
+      FROM streak_calculation 
+      WHERE activity_date != expected_date
+    )`,
+    [studentId]
+  );
+
+  // Get weekly progress for the last 8 weeks
+  const weeklyProgressResult = await query(
+    `SELECT 
+      DATE_TRUNC('week', cp.completed_at) as week_start,
+      COUNT(*) FILTER (WHERE cp.content_type = 'lesson') as lessons_completed,
+      COUNT(*) FILTER (WHERE cp.content_type = 'quiz') as quizzes_completed,
+      SUM(EXTRACT(EPOCH FROM (cp.completed_at - cp.started_at))/60) as time_spent_minutes
+    FROM content_progress cp
+    WHERE cp.student_id = $1 
+      AND cp.status = 'completed'
+      AND cp.completed_at >= CURRENT_DATE - INTERVAL '8 weeks'
+    GROUP BY DATE_TRUNC('week', cp.completed_at)
+    ORDER BY week_start DESC`,
+    [studentId]
+  );
+
+  return {
+    currentStreak: streakResult.rows[0]?.current_streak || 0,
+    weeklyProgress: weeklyProgressResult.rows.map(row => ({
+      week: row.week_start,
+      lessonsCompleted: parseInt(row.lessons_completed) || 0,
+      quizzesCompleted: parseInt(row.quizzes_completed) || 0,
+      timeSpent: parseInt(row.time_spent_minutes) || 0
+    }))
+  };
 }
 
 /**
@@ -517,6 +601,7 @@ export async function isQuizCompleted(quizId, studentId, tenantId, isSuperAdmin 
 
 export default {
   getStudentProgress,
+  getStudentAnalytics,
   getCourseProgress,
   getUnifiedCourseProgress,
   markLessonComplete,

@@ -104,9 +104,9 @@ export async function enrollStudent(enrollmentData, tenantId) {
     throw new ValidationError('Student ID and Course ID are required');
   }
 
-  // Verify student exists and belongs to tenant
+  // Verify user exists and belongs to tenant (any role can enroll as student)
   const studentCheck = await query(
-    'SELECT id FROM users WHERE id = $1 AND tenant_id = $2 AND role = \'student\'',
+    'SELECT id, role FROM users WHERE id = $1 AND tenant_id = $2',
     [student_id, tenantId]
   );
 

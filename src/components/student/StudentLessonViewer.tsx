@@ -2,7 +2,7 @@
 // Student Lesson Viewer - View and complete lessons
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, Circle, ChevronLeft, ChevronRight, Clock, Menu, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Circle, ChevronLeft, ChevronRight, Clock, Menu, X, Settings } from 'lucide-react';
 import { useProgress } from '../../hooks/useProgress';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEnrollments } from '../../hooks/useEnrollments';
@@ -16,7 +16,7 @@ import QuizEngine from '../quiz/QuizEngine';
 const StudentLessonViewer: React.FC = () => {
   const { courseId: courseSlugOrId, lessonId: lessonParam } = useParams<{ courseId: string; lessonId: string }>();
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   
   const [course, setCourse] = useState<any>(null);
   const [modules, setModules] = useState<any[]>([]);
@@ -408,6 +408,13 @@ const StudentLessonViewer: React.FC = () => {
     } else {
       navigate('/student/certificates');
     }
+  };
+
+  const navigateToManagement = () => {
+    const basePath = user?.role === 'student' ? '/student' : 
+                    user?.role === 'instructor' ? '/instructor' :
+                    user?.role === 'school_admin' ? '/school' : '/admin';
+    navigate(`${basePath}/courses/${resolvedCourseId}`);
   };
 
   const isCourseFullyCompleted = () => {
@@ -997,12 +1004,28 @@ const StudentLessonViewer: React.FC = () => {
       <PageLayout
         title={course.title}
         breadcrumbs={[
-          { label: 'My Courses', href: '/student/courses' },
+          { 
+            label: 'My Courses', 
+            href: user?.role === 'student' ? '/student/courses' : 
+                  user?.role === 'instructor' ? '/instructor/courses' :
+                  user?.role === 'school_admin' ? '/school/courses' : '/school/courses'
+          },
           { label: course.title },
           { label: currentLesson?.title || currentQuiz?.title || 'Content' }
         ]}
         actions={
           <div className="flex items-center gap-2">
+            {/* Back to Management button for elevated roles */}
+            {user?.role !== 'student' && (
+              <button
+                onClick={navigateToManagement}
+                className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                title="Back to course management"
+              >
+                <Settings size={18} className="mr-2" />
+                Back to Management
+              </button>
+            )}
             {/* Mobile sidebar toggle button */}
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -1014,7 +1037,12 @@ const StudentLessonViewer: React.FC = () => {
             </button>
             
             <button
-              onClick={() => navigate('/student/courses')}
+              onClick={() => {
+                const backPath = user?.role === 'student' ? '/student/courses' : 
+                                user?.role === 'instructor' ? '/instructor/courses' :
+                                user?.role === 'school_admin' ? '/school/courses' : '/school/courses';
+                navigate(backPath);
+              }}
               className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
             >
               <ArrowLeft size={18} className="mr-2" />

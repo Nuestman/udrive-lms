@@ -53,6 +53,9 @@ const ContactPage = lazy(() => import('./components/pages/ContactPage'));
 // Profile Page
 const UserProfilePage = lazy(() => import('./components/profile/UserProfilePage'));
 
+// Documentation Pages
+const DocumentationLayout = lazy(() => import('./components/docs/DocumentationLayout'));
+
 // Auth Context
 import { useAuth } from './contexts/AuthContext';
 
@@ -126,7 +129,7 @@ function App() {
       id: 'block-1',
       type: 'text',
       content: {
-        text: 'Welcome to UDrive - The comprehensive Learning Management System for driving schools. This platform helps schools manage their curriculum, track student progress, and deliver high-quality educational content.',
+        text: 'Welcome to SunLMS - The comprehensive Learning Management System and Content Management System. This platform helps organizations across various industries manage their curriculum, track progress, and deliver high-quality educational content.',
         formatting: 'paragraph'
       }
     },
@@ -135,7 +138,7 @@ function App() {
       type: 'image',
       content: {
         imageUrl: 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-        caption: 'Professional driving instruction made easy with UDrive LMS',
+        caption: 'Professional learning and training made easy with SunLMS',
         altText: 'Driving instructor teaching a student in a car'
       }
     },
@@ -272,7 +275,7 @@ function App() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-700 text-lg">Loading UDrive LMS...</p>
+          <p className="text-gray-700 text-lg">Loading SunLMS...</p>
         </div>
       </div>
     );
@@ -299,6 +302,10 @@ function App() {
           <Route path="/signup/super-admin" element={<SignupSuperAdminPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          
+          {/* Documentation Route */}
+          <Route path="/docs" element={<DocumentationLayout />} />
+          
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </Suspense>
@@ -345,6 +352,7 @@ function App() {
           <Route path="/school/dashboard" element={<SchoolAdminDashboard />} />
           <Route path="/school/courses" element={<CoursesPage role="school_admin" />} />
           <Route path="/school/courses/:id" element={<CourseDetailsPage />} />
+          <Route path="/school/courses/:courseId/lessons/:lessonId" element={<StudentLessonViewer />} />
           <Route path="/school/students" element={<StudentsPage />} />
           <Route path="/school/instructors" element={<InstructorsPage />} />
           <Route path="/school/enrollments" element={<EnrollmentsPage />} />
@@ -362,12 +370,14 @@ function App() {
           <Route path="/admin/analytics" element={<AnalyticsPage role="super_admin" />} />
           <Route path="/admin/settings" element={<SettingsPage role="super_admin" />} />
           <Route path="/admin/certificates" element={<CertificateManagementPage />} />
+          <Route path="/admin/courses/:courseId/lessons/:lessonId" element={<StudentLessonViewer />} />
           <Route path="/admin/profile" element={<UserProfilePage />} />
           
           {/* Instructor Routes */}
           <Route path="/instructor/dashboard" element={<InstructorDashboard />} />
           <Route path="/instructor/courses" element={<CoursesPage role="instructor" />} />
           <Route path="/instructor/certificates" element={<CertificateManagementPage />} />
+          <Route path="/instructor/courses/:courseId/lessons/:lessonId" element={<StudentLessonViewer />} />
           <Route path="/instructor/profile" element={<UserProfilePage />} />
 
           {/* Student Routes */}

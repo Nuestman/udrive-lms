@@ -1,7 +1,7 @@
 // Course Details Page - View course structure with modules and lessons
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, BookOpen, Clock, Users, Edit, Trash2, GripVertical, ChevronDown, ChevronRight, FileText } from 'lucide-react';
+import { ArrowLeft, Plus, BookOpen, Clock, Users, Edit, Trash2, GripVertical, ChevronDown, ChevronRight, FileText, Play, Eye } from 'lucide-react';
 import { useModules } from '../../hooks/useModules';
 import { useLessons } from '../../hooks/useLessons';
 import api, { quizzesApi } from '../../lib/api';
@@ -10,10 +10,13 @@ import LessonEditorModal from '../lessons/LessonEditorModal';
 import QuizBuilderModal from '../quiz/QuizBuilderModal';
 import QuizEditModal from '../quiz/QuizEditModal';
 import { useToast } from '../../contexts/ToastContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const CourseDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { showToast } = useToast();
   const { modules, loading: modulesLoading, createModule, deleteModule } = useModules(id);
   
   const [course, setCourse] = useState<any>(null);
@@ -54,9 +57,9 @@ const CourseDetailsPage: React.FC = () => {
       });
       setNewModuleTitle('');
       setShowAddModule(false);
-      success('Module created');
+      showToast('Module created', 'success');
     } catch (err: any) {
-      error(err.message || 'Failed to create module');
+      showToast(err.message || 'Failed to create module', 'error');
     }
   };
 
@@ -64,9 +67,9 @@ const CourseDetailsPage: React.FC = () => {
     if (window.confirm(`Delete module "${moduleName}"?`)) {
       try {
         await deleteModule(moduleId);
-        success('Module deleted');
+        showToast('Module deleted', 'success');
       } catch (err: any) {
-        error(err.message || 'Failed to delete module');
+        showToast(err.message || 'Failed to delete module', 'error');
       }
     }
   };
@@ -99,7 +102,48 @@ const CourseDetailsPage: React.FC = () => {
         // Refresh will happen via useLessons hook in child component
       }
     } catch (err: any) {
-      error(err.message || 'Failed to create lesson');
+      showToast(err.message || 'Failed to create lesson', 'error');
+    }
+  };
+
+  const handleStudentView = async () => {
+    try {
+      // Get course modules and navigate to first lesson
+      if (modules && modules.length > 0) {
+        const firstModule = modules[0];
+        
+        // Fetch lessons for the first module
+        try {
+          const lessonsResponse = await api.get(`/lessons/module/${firstModule.id}`);
+          if (lessonsResponse.success && lessonsResponse.data.length > 0) {
+            const firstLesson = lessonsResponse.data[0];
+            const slug = (firstLesson.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+            
+            // Navigate based on user role
+            const basePath = user?.role === 'student' ? '/student' : 
+                            user?.role === 'school_admin' ? '/school' : 
+                            user?.role === 'super_admin' ? '/admin' : 
+                            user?.role === 'instructor' ? '/instructor' : '/school';
+            
+            const lessonPath = `${basePath}/courses/${id}/lessons/${slug}-${firstLesson.id}`;
+            navigate(lessonPath);
+            return;
+          }
+        } catch (lessonError) {
+          console.error('Error fetching lessons for module:', lessonError);
+        }
+      }
+      
+      // Fallback to course overview or show message
+      if (!modules || modules.length === 0) {
+        showToast('This course has no modules yet. Please add modules and lessons first.', 'error');
+        return;
+      }
+      
+      showToast('This course has no lessons yet. Please add lessons to the modules first.', 'error');
+    } catch (error: any) {
+      console.error('Error navigating to student view:', error);
+      showToast('Failed to navigate to student view', 'error');
     }
   };
 
@@ -119,17 +163,38 @@ const CourseDetailsPage: React.FC = () => {
     <PageLayout
       title={course.title}
       breadcrumbs={[
-        { label: 'Courses', href: '/school/courses' },
+        { 
+          label: 'Courses', 
+          href: user?.role === 'student' ? '/student/courses' : 
+                user?.role === 'instructor' ? '/instructor/courses' :
+                user?.role === 'super_admin' ? '/school/courses' : '/school/courses'
+        },
         { label: course.title }
       ]}
       actions={
-        <button
-          onClick={() => navigate('/school/courses')}
-          className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-        >
-          <ArrowLeft size={18} className="mr-2" />
-          Back to Courses
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={handleStudentView}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Take this course as a student"
+            disabled={!course || loading}
+          >
+            <Play size={18} className="mr-2" />
+            {loading ? 'Loading...' : 'Student View'}
+          </button>
+          <button
+            onClick={() => {
+              const backPath = user?.role === 'student' ? '/student/courses' : 
+                              user?.role === 'instructor' ? '/instructor/courses' :
+                              user?.role === 'super_admin' ? '/school/courses' : '/school/courses';
+              navigate(backPath);
+            }}
+            className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            <ArrowLeft size={18} className="mr-2" />
+            Back to Courses
+          </button>
+        </div>
       }
     >
       {/* Course Info */}
@@ -246,7 +311,7 @@ interface ModuleWithLessonsProps {
 
 const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, isExpanded, onToggle, onDelete }) => {
   const { lessons, loading, createLesson, updateLesson, deleteLesson } = useLessons(isExpanded ? module.id : undefined);
-  const { info, success, error } = useToast();
+  const { showToast } = useToast();
   const [showAddLesson, setShowAddLesson] = useState(false);
   const [newLessonTitle, setNewLessonTitle] = useState('');
   const [newLessonStatus, setNewLessonStatus] = useState<'draft' | 'published'>('draft');
@@ -273,13 +338,13 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
       setNewLessonTitle('');
       setNewLessonStatus('draft');
       setShowAddLesson(false);
-      success('Lesson created');
+      showToast('Lesson created', 'success');
       // Automatically open the TinyMCE editor for the new lesson
       if (newLesson) {
         setEditingLesson(newLesson);
       }
     } catch (err: any) {
-      error(err.message || 'Failed to create lesson');
+      showToast(err.message || 'Failed to create lesson', 'error');
     }
   };
 
@@ -307,10 +372,10 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
     try {
       // naive inline update through modules API via useModules hook is not available here; use raw api
       await api.put(`/modules/${module.id}`, { title: moduleTitleDraft });
-      success('Module updated');
+      showToast('Module updated', 'success');
       setIsEditingModule(false);
     } catch (e: any) {
-      error(e.message || 'Failed to update module');
+      showToast(e.message || 'Failed to update module', 'error');
     }
   };
 
@@ -447,9 +512,9 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
                             if (window.confirm(`Delete lesson "${lesson.title}"?`)) {
                               try {
                                 await deleteLesson(lesson.id);
-                                success('Lesson deleted');
+                                showToast('Lesson deleted', 'success');
                               } catch (err: any) {
-                                error(err.message || 'Failed to delete lesson');
+                                showToast(err.message || 'Failed to delete lesson', 'error');
                               }
                             }
                           }}
@@ -551,9 +616,9 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
                               try {
                                 await quizzesApi.update(q.id, { status: newStatus });
                                 setQuizzes((prev) => prev.map((it) => it.id === q.id ? { ...it, status: newStatus } : it));
-                                success(`Quiz ${newStatus}`);
+                                showToast(`Quiz ${newStatus}`, 'success');
                               } catch (e: any) {
-                                error(e.message || 'Failed to update quiz');
+                                showToast(e.message || 'Failed to update quiz', 'error');
                               }
                             }}
                           >
@@ -566,9 +631,9 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
                               try {
                                 await quizzesApi.delete(q.id);
                                 setQuizzes((prev) => prev.filter((it) => it.id !== q.id));
-                                success('Quiz deleted');
+                                showToast('Quiz deleted', 'success');
                               } catch (e: any) {
-                                error(e.message || 'Failed to delete quiz');
+                                showToast(e.message || 'Failed to delete quiz', 'error');
                               }
                             }}
                           >
