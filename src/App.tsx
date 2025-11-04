@@ -26,6 +26,7 @@ const AnalyticsPage = lazy(() => import('./components/pages/AnalyticsPage'));
 const SettingsPage = lazy(() => import('./components/pages/SettingsPage'));
 const CertificatesPage = lazy(() => import('./components/pages/CertificatesPage'));
 const HelpPage = lazy(() => import('./components/pages/HelpPage'));
+const NotificationsPage = lazy(() => import('./components/pages/NotificationsPage'));
 const StudentDashboardPage = lazy(() => import('./components/student/StudentDashboardPage'));
 const StudentProgressPage = lazy(() => import('./components/pages/student/StudentProgressPage'));
 const StudentLessonViewer = lazy(() => import('./components/student/StudentLessonViewer'));
@@ -56,8 +57,17 @@ const UserProfilePage = lazy(() => import('./components/profile/UserProfilePage'
 // Documentation Pages
 const DocumentationLayout = lazy(() => import('./components/docs/DocumentationLayout'));
 
-// Auth Context
+// Contexts
 import { useAuth } from './contexts/AuthContext';
+import { SettingsProvider } from './contexts/SettingsContext';
+import { ToastProvider } from './contexts/ToastContext';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { WhiteLabelProvider } from './contexts/WhiteLabelContext';
+import { LanguageProvider } from './contexts/LanguageContext';
+import { TimezoneProvider } from './contexts/TimezoneContext';
+import { CompactModeProvider } from './contexts/CompactModeContext';
+import { FeatureFlagsProvider } from './contexts/FeatureFlagsContext';
 
 // Global scroll-to-top on route change
 function ScrollToTop() {
@@ -70,6 +80,7 @@ function ScrollToTop() {
   }, [location.pathname, location.search]);
   return null;
 }
+
 
 function App() {
   const { user, profile, loading } = useAuth();
@@ -127,7 +138,7 @@ function App() {
   const sampleBlocks = [
     {
       id: 'block-1',
-      type: 'text',
+      type: 'text' as const,
       content: {
         text: 'Welcome to SunLMS - The comprehensive Learning Management System and Content Management System. This platform helps organizations across various industries manage their curriculum, track progress, and deliver high-quality educational content.',
         formatting: 'paragraph'
@@ -135,7 +146,7 @@ function App() {
     },
     {
       id: 'block-2',
-      type: 'image',
+      type: 'image' as const,
       content: {
         imageUrl: 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
         caption: 'Professional learning and training made easy with SunLMS',
@@ -144,7 +155,7 @@ function App() {
     },
     {
       id: 'block-3',
-      type: 'road_sign',
+      type: 'road_sign' as const,
       content: {
         signId: 'stop',
         description: 'Understanding stop signs is crucial for safe driving.',
@@ -154,7 +165,7 @@ function App() {
     },
     {
       id: 'block-4',
-      type: 'scenario',
+      type: 'scenario' as const,
       content: {
         scenarioType: 'intersection',
         description: 'Practice making safe decisions at intersections.',
@@ -243,7 +254,7 @@ function App() {
     description: 'Write a comprehensive essay about defensive driving techniques',
     dueDate: '2024-03-25T23:59:00',
     maxScore: 100,
-    submissionTypes: ['text', 'file'] as const,
+    submissionTypes: ['text', 'file'] as ('file' | 'image' | 'text' | 'video')[],
     instructions: 'Write a 500-word essay discussing the importance of defensive driving techniques. Include at least three specific examples of defensive driving strategies and explain how they help prevent accidents.',
     status: 'not_submitted' as const,
     rubric: [
@@ -284,6 +295,7 @@ function App() {
   // If user is not logged in, show login/signup pages
   if (!user) {
     return (
+      <WhiteLabelProvider>
       <Router>
         <ScrollToTop />
         <Suspense fallback={
@@ -310,6 +322,7 @@ function App() {
         </Routes>
         </Suspense>
       </Router>
+      </WhiteLabelProvider>
     );
   }
 
@@ -327,17 +340,26 @@ function App() {
 
   // If user is logged in and has profile, show the main dashboard
   return (
-    <Router>
-      <ScrollToTop />
-      <Suspense fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-            <p className="text-gray-700 text-lg">Loading dashboard...</p>
-          </div>
-        </div>
-      }>
-      <DashboardLayout role={profile.role} currentPath={window.location.pathname}>
+    <ToastProvider>
+      <ThemeProvider>
+        <SettingsProvider>
+          <FeatureFlagsProvider>
+            <WhiteLabelProvider>
+              <NotificationProvider>
+                <LanguageProvider>
+                  <TimezoneProvider>
+                    <CompactModeProvider>
+            <Router>
+          <ScrollToTop />
+          <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                <p className="text-gray-700 text-lg">Loading dashboard...</p>
+              </div>
+            </div>
+          }>
+          <DashboardLayout role={profile.role} currentPath={window.location.pathname}>
         <Routes>
           {/* Default route for logged-in users - redirect based on role */}
           <Route path="/" element={
@@ -390,6 +412,7 @@ function App() {
           <Route path="/student/profile" element={<UserProfilePage />} />
 
           {/* Common Pages - Accessible to all roles */}
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/help" element={<HelpPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
@@ -417,9 +440,18 @@ function App() {
             <Navigate to="/student/dashboard" replace />
           } />
         </Routes>
-      </DashboardLayout>
-      </Suspense>
-    </Router>
+        </DashboardLayout>
+        </Suspense>
+        </Router>
+        </CompactModeProvider>
+        </TimezoneProvider>
+        </LanguageProvider>
+        </NotificationProvider>
+        </WhiteLabelProvider>
+        </FeatureFlagsProvider>
+        </SettingsProvider>
+        </ThemeProvider>
+        </ToastProvider>
   );
 }
 

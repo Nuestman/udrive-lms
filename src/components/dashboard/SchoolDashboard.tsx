@@ -1,6 +1,7 @@
 // School Dashboard - Real Statistics from Database
 import React from 'react';
-import { Users, BookOpen, TrendingUp, Award, Calendar, Plus, UserPlus, FileText, BarChart3 } from 'lucide-react';
+import { useWhiteLabel } from '../../contexts/WhiteLabelContext';
+import { Users, BookOpen, TrendingUp, Award, UserPlus, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAnalytics, useRecentActivity } from '../../hooks/useAnalytics';
 import UniversalStudentDashboard from '../common/UniversalStudentDashboard';
@@ -9,6 +10,7 @@ const SchoolDashboard: React.FC = () => {
   const { stats, loading: statsLoading } = useAnalytics();
   const { activities, loading: activityLoading } = useRecentActivity(5);
   const navigate = useNavigate();
+  const { getBrandingConfig } = useWhiteLabel();
 
   const formatTimeAgo = (timestamp: string) => {
     const seconds = Math.floor((new Date().getTime() - new Date(timestamp).getTime()) / 1000);
@@ -34,7 +36,7 @@ const SchoolDashboard: React.FC = () => {
       description: 'Enroll a new student',
       icon: <UserPlus className="w-6 h-6" />,
       action: () => navigate('/school/students'),
-      color: 'bg-blue-500'
+      color: 'bg-primary-500'
     },
     {
       id: 'create-course',
@@ -50,7 +52,7 @@ const SchoolDashboard: React.FC = () => {
       description: 'Check performance',
       icon: <BarChart3 className="w-6 h-6" />,
       action: () => navigate('/school/analytics'),
-      color: 'bg-purple-500'
+      color: 'bg-primary-500'
     },
     {
       id: 'certificates',
@@ -66,8 +68,8 @@ const SchoolDashboard: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">School Dashboard</h1>
-        <p className="text-gray-600">Welcome back! Here's what's happening with your driving school.</p>
+        <h1 className="text-2xl font-bold text-gray-900">{getBrandingConfig().companyName || 'School'} Dashboard</h1>
+        <p className="text-gray-600">Welcome back! Here's what's happening.</p>
       </div>
 
       {/* Stats Grid */}
@@ -82,8 +84,8 @@ const SchoolDashboard: React.FC = () => {
                 +{stats?.newStudentsThisMonth || 0} this month
               </p>
             </div>
-            <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Users className="h-6 w-6 text-blue-600" />
+            <div className="h-12 w-12 bg-primary-100 rounded-lg flex items-center justify-center">
+              <Users className="h-6 w-6 text-primary-600" />
             </div>
           </div>
         </div>
@@ -114,8 +116,8 @@ const SchoolDashboard: React.FC = () => {
                 {stats?.activeEnrollments || 0} active enrollments
               </p>
             </div>
-            <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="h-6 w-6 text-purple-600" />
+            <div className="h-12 w-12 bg-primary-100 rounded-lg flex items-center justify-center">
+              <TrendingUp className="h-6 w-6 text-primary-600" />
             </div>
           </div>
         </div>
@@ -177,12 +179,12 @@ const SchoolDashboard: React.FC = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex items-start">
                     <div className={`mt-0.5 h-8 w-8 rounded-full flex items-center justify-center ${
-                      activity.type === 'enrollment' ? 'bg-blue-100' :
+                      activity.type === 'enrollment' ? 'bg-primary-100' :
                       activity.type === 'certificate' ? 'bg-yellow-100' :
                       activity.type === 'completion' ? 'bg-green-100' :
                       'bg-gray-100'
                     }`}>
-                      {activity.type === 'enrollment' && <BookOpen className="h-4 w-4 text-blue-600" />}
+                      {activity.type === 'enrollment' && <BookOpen className="h-4 w-4 text-primary-600" />}
                       {activity.type === 'certificate' && <Award className="h-4 w-4 text-yellow-600" />}
                       {activity.type === 'completion' && <TrendingUp className="h-4 w-4 text-green-600" />}
                     </div>

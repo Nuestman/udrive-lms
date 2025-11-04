@@ -138,7 +138,7 @@ const EnrollmentSystem: React.FC<EnrollmentSystemProps> = ({ role, userId }) => 
       case 'rejected':
         return 'bg-red-100 text-red-800';
       case 'completed':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-primary-100 text-primary-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -394,8 +394,8 @@ const EnrollmentSystem: React.FC<EnrollmentSystemProps> = ({ role, userId }) => 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <BookOpen className="w-6 h-6 text-blue-600" />
+                <div className="p-2 bg-primary-100 rounded-lg">
+                  <BookOpen className="w-6 h-6 text-primary-600" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Enrollments</p>
@@ -434,8 +434,8 @@ const EnrollmentSystem: React.FC<EnrollmentSystemProps> = ({ role, userId }) => 
             
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Users className="w-6 h-6 text-purple-600" />
+                <div className="p-2 bg-primary-100 rounded-lg">
+                  <Users className="w-6 h-6 text-primary-600" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Completed</p>

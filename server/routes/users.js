@@ -88,10 +88,10 @@ router.get('/activity', requireRole(['super_admin', 'school_admin']), async (req
  */
 router.get('/top', requireRole(['super_admin', 'school_admin']), async (req, res) => {
   try {
-    const { limit = 10 } = req.query;
+    const { limit = 10, timeFilter = 'all' } = req.query;
     const tenantId = req.user.role === 'school_admin' ? req.user.tenant_id : null;
     
-    const topUsers = await usersService.getTopUsers(tenantId, parseInt(limit));
+    const topUsers = await usersService.getTopUsers(tenantId, parseInt(limit), timeFilter);
 
     res.json({
       success: true,

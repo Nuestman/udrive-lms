@@ -92,7 +92,7 @@ router.post('/', asyncHandler(async (req, res) => {
     payload.student_id = req.user.id;
   }
 
-  const enrollment = await enrollmentsService.enrollStudent(payload, req.tenantId);
+  const enrollment = await enrollmentsService.enrollStudent(payload, req.tenantId, req.app.get('io'));
   
   res.status(201).json({
     success: true,

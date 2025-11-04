@@ -330,7 +330,7 @@ const ApiReference: React.FC = () => {
                       <div className="flex items-center">
                         <span className={`px-2 py-1 text-xs font-medium rounded ${
                           endpoint.method === 'GET' ? 'bg-green-100 text-green-800' : 
-                          endpoint.method === 'POST' ? 'bg-blue-100 text-blue-800' :
+                          endpoint.method === 'POST' ? 'bg-primary-100 text-primary-800' :
                           endpoint.method === 'PUT' ? 'bg-yellow-100 text-yellow-800' :
                           'bg-red-100 text-red-800'
                         }`}>
@@ -431,8 +431,8 @@ const ApiReference: React.FC = () => {
             <p className="text-2xl font-bold text-gray-900">5 requests</p>
             <p className="text-sm text-gray-600">per minute</p>
           </div>
-          <div className="text-center p-4 border border-gray-200 rounded-lg">
-            <Database className="w-8 h-8 text-blue-500 mx-auto mb-3" />
+            <div className="text-center p-4 border border-gray-200 rounded-lg">
+            <Database className="w-8 h-8 text-primary-500 mx-auto mb-3" />
             <h3 className="font-semibold text-gray-900 mb-2">General API</h3>
             <p className="text-2xl font-bold text-gray-900">100 requests</p>
             <p className="text-sm text-gray-600">per minute</p>
@@ -450,9 +450,9 @@ const ApiReference: React.FC = () => {
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">SDKs and Libraries</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="border border-gray-200 rounded-lg p-4">
+            <div className="border border-gray-200 rounded-lg p-4">
             <div className="flex items-center mb-3">
-              <Code className="w-5 h-5 text-blue-500 mr-2" />
+              <Code className="w-5 h-5 text-primary-500 mr-2" />
               <h3 className="font-semibold text-gray-900">JavaScript/TypeScript</h3>
             </div>
             <div className="space-y-2">

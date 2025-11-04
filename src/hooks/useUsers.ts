@@ -10,6 +10,11 @@ export interface User extends UserWithProfile {
   enrollment_count?: number;
   courses_created_count?: number;
   lessons_completed?: number;
+  total_enrollments?: number;
+  completed_lessons?: number;
+  courses_created?: number;
+  quiz_attempts?: number;
+  recent_login_score?: number;
 }
 
 export interface UserStatistics {
@@ -127,8 +132,9 @@ export function useUsers(initialFilters?: {
 
   const bulkUpdate = async (userIds: string[], updates: any) => {
     try {
-      await usersApi.bulkUpdate(userIds, updates);
+      const response = await usersApi.bulkUpdate(userIds, updates);
       await fetchUsers(); // Refresh list
+      return response;
     } catch (err: any) {
       throw new Error(err.message || 'Failed to bulk update users');
     }
@@ -212,7 +218,7 @@ export function useUserActivity(days: number = 30) {
 /**
  * Hook for top users
  */
-export function useTopUsers(limit: number = 10) {
+export function useTopUsers(limit: number = 10, timeFilter: string = 'all') {
   const [topUsers, setTopUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -222,7 +228,7 @@ export function useTopUsers(limit: number = 10) {
       try {
         setLoading(true);
         setError(null);
-        const response = await usersApi.getTopUsers(limit);
+        const response = await usersApi.getTopUsers(limit, timeFilter);
         setTopUsers(response.data);
       } catch (err: any) {
         setError(err.message || 'Failed to fetch top users');
@@ -233,7 +239,7 @@ export function useTopUsers(limit: number = 10) {
     };
 
     fetchTopUsers();
-  }, [limit]);
+  }, [limit, timeFilter]);
 
   return { topUsers, loading, error };
 }

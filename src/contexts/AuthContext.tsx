@@ -33,7 +33,8 @@ interface AuthContextType {
   user: UserProfile | null;
   profile: UserProfile | null;
   loading: boolean;
-  signIn: (credential: string, password: string) => Promise<void>;
+  signIn: (credential: string, password: string, twoFactorToken?: string) => Promise<void | { requires2FA: boolean; userId: string; message: string }>;
+  verify2FA: (userId: string, twoFactorToken: string) => Promise<void>;
   signUp: (email: string, password: string, userData: Partial<UserProfile & { subdomain?: string }>) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -64,6 +65,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (response.success && response.user) {
           logAuthEvent('Session found', { userId: response.user.id, role: response.user.role });
+          // Store token in localStorage
+          if (response.token) {
+            localStorage.setItem('token', response.token);
+            logAuthEvent('Token stored in localStorage');
+          } else {
+            logAuthEvent('No token in response, checking existing token');
+            const existingToken = localStorage.getItem('token');
+            if (!existingToken) {
+              logAuthEvent('No existing token found');
+            }
+          }
           setUser(response.user);
           setProfile(response.user);
         } else {
@@ -82,17 +94,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, []);
 
-  const signIn = async (credential: string, password: string) => {
+  const signIn = async (credential: string, password: string, twoFactorToken?: string) => {
     logAuthEvent('Sign in attempt', { credential: credential.substring(0, 3) + '***' });
     
     try {
       // Our API only supports email login
-      const response = await authApi.login(credential, password);
+      const response = await authApi.login(credential, password, twoFactorToken);
       
       if (response.success && response.user) {
         logAuthEvent('Sign in successful', { userId: response.user.id, role: response.user.role });
+        if (response.token) {
+          localStorage.setItem('token', response.token);
+          logAuthEvent('Token stored in localStorage after sign in');
+        } else {
+          logAuthEvent('No token in sign in response');
+        }
         setUser(response.user);
         setProfile(response.user);
+      } else if (response.requires2FA) {
+        // Return 2FA requirement instead of throwing error
+        return { requires2FA: true, userId: response.userId, message: response.message };
       } else {
         throw new Error('Login failed');
       }
@@ -101,6 +122,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         error: error.message, 
         credential: credential.substring(0, 3) + '***' 
       }, true);
+      throw error;
+    }
+  };
+
+  const verify2FA = async (userId: string, twoFactorToken: string) => {
+    logAuthEvent('2FA verification attempt', { userId });
+    
+    try {
+      const response = await authApi.verify2FA(userId, twoFactorToken);
+      
+      if (response.success && response.user) {
+        logAuthEvent('2FA verification successful', { userId: response.user.id, role: response.user.role });
+        if (response.token) {
+          localStorage.setItem('token', response.token);
+          logAuthEvent('Token stored in localStorage after 2FA verification');
+        } else {
+          logAuthEvent('No token in 2FA verification response');
+        }
+        setUser(response.user);
+        setProfile(response.user);
+      } else {
+        throw new Error('2FA verification failed');
+      }
+    } catch (error: any) {
+      logAuthEvent('2FA verification failed', { error: error.message }, true);
       throw error;
     }
   };
@@ -123,6 +169,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (response.success && response.user) {
         logAuthEvent('Sign up successful', { userId: response.user.id });
+        if (response.token) {
+          localStorage.setItem('token', response.token);
+        }
         setUser(response.user);
         setProfile(response.user);
       } else {
@@ -139,6 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       await authApi.logout();
+      localStorage.removeItem('token');
       setUser(null);
       setProfile(null);
       logAuthEvent('Sign out successful');
@@ -189,6 +239,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     profile,
     loading,
     signIn,
+    verify2FA,
     signUp,
     signOut,
     resetPassword,

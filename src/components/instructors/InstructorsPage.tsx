@@ -101,8 +101,8 @@ const InstructorsPage: React.FC = () => {
                 +{statistics?.new_instructors_month || 0} this month
               </p>
             </div>
-            <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <GraduationCap className="h-6 w-6 text-blue-600" />
+            <div className="h-12 w-12 bg-primary-100 rounded-lg flex items-center justify-center">
+              <GraduationCap className="h-6 w-6 text-primary-600" />
             </div>
           </div>
         </div>
@@ -135,8 +135,8 @@ const InstructorsPage: React.FC = () => {
                 Across all courses
               </p>
             </div>
-            <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <Users className="h-6 w-6 text-purple-600" />
+            <div className="h-12 w-12 bg-primary-100 rounded-lg flex items-center justify-center">
+              <Users className="h-6 w-6 text-primary-600" />
             </div>
           </div>
         </div>
@@ -152,8 +152,8 @@ const InstructorsPage: React.FC = () => {
                 Per instructor
               </p>
             </div>
-            <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="h-6 w-6 text-orange-600" />
+            <div className="h-12 w-12 bg-accent-100 rounded-lg flex items-center justify-center">
+              <TrendingUp className="h-6 w-6 text-accent-600" />
             </div>
           </div>
         </div>

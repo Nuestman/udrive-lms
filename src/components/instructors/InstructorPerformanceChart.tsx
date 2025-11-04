@@ -68,13 +68,14 @@ const InstructorPerformanceChart: React.FC<InstructorPerformanceChartProps> = ({
         {chartData.length > 0 ? (
           <div className="space-y-4 pr-2">
             {chartData.map((instructor, index) => {
+              // For students and courses, use relative comparison
               const maxStudents = Math.max(...chartData.map(i => i.students));
               const maxCourses = Math.max(...chartData.map(i => i.courses));
-              const maxProgress = Math.max(...chartData.map(i => i.progress));
               
               const studentsPercentage = maxStudents > 0 ? (instructor.students / maxStudents) * 100 : 0;
               const coursesPercentage = maxCourses > 0 ? (instructor.courses / maxCourses) * 100 : 0;
-              const progressPercentage = maxProgress > 0 ? (instructor.progress / maxProgress) * 100 : 0;
+              // For progress, use the actual percentage value (not relative to max)
+              const progressPercentage = instructor.progress;
               
               return (
                 <div key={index} className="group p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
@@ -83,9 +84,9 @@ const InstructorPerformanceChart: React.FC<InstructorPerformanceChartProps> = ({
                       {instructor.fullName}
                     </span>
                     <div className="flex items-center gap-4 text-xs">
-                      <span className="text-blue-600 font-medium">{instructor.students} students</span>
+                      <span className="text-primary-600 font-medium">{instructor.students} students</span>
                       <span className="text-green-600 font-medium">{instructor.courses} courses</span>
-                      <span className="text-purple-600 font-medium">{instructor.progress}% avg</span>
+                      <span className="text-primary-600 font-medium">{instructor.progress}% avg</span>
                     </div>
                   </div>
                   
@@ -99,7 +100,7 @@ const InstructorPerformanceChart: React.FC<InstructorPerformanceChartProps> = ({
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
-                          className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500"
+                          className="bg-gradient-to-r from-primary-500 to-primary-600 h-2 rounded-full transition-all duration-500"
                           style={{ width: `${studentsPercentage}%` }}
                         ></div>
                       </div>
@@ -113,7 +114,7 @@ const InstructorPerformanceChart: React.FC<InstructorPerformanceChartProps> = ({
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
-                          className="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full transition-all duration-500"
+                          className="bg-gradient-to-r from-primary-200 to-primary-400 h-2 rounded-full transition-all duration-500"
                           style={{ width: `${coursesPercentage}%` }}
                         ></div>
                       </div>
@@ -127,7 +128,7 @@ const InstructorPerformanceChart: React.FC<InstructorPerformanceChartProps> = ({
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
-                          className="bg-gradient-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-500"
+                          className="bg-gradient-to-r from-green-200 to-green-500 h-2 rounded-full transition-all duration-500"
                           style={{ width: `${progressPercentage}%` }}
                         ></div>
                       </div>

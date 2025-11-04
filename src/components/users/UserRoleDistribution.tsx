@@ -34,9 +34,9 @@ const UserRoleDistribution: React.FC<UserRoleDistributionProps> = ({ statistics,
     {
       name: 'Students',
       count: parseInt(statistics.students) || 0,
-      color: 'bg-orange-500',
-      lightColor: 'bg-orange-100',
-      textColor: 'text-orange-600',
+      color: 'bg-accent-500',
+      lightColor: 'bg-accent-100',
+      textColor: 'text-accent-600',
       icon: <BookOpen className="w-5 h-5" />
     },
     {
@@ -50,9 +50,9 @@ const UserRoleDistribution: React.FC<UserRoleDistributionProps> = ({ statistics,
     {
       name: 'School Admins',
       count: parseInt(statistics.school_admins) || 0,
-      color: 'bg-blue-500',
-      lightColor: 'bg-blue-100',
-      textColor: 'text-blue-600',
+      color: 'bg-primary-500',
+      lightColor: 'bg-primary-100',
+      textColor: 'text-primary-600',
       icon: <Users className="w-5 h-5" />
     },
     {
@@ -96,9 +96,9 @@ const UserRoleDistribution: React.FC<UserRoleDistributionProps> = ({ statistics,
 
                 // Color mapping
                 const strokeColors: { [key: string]: string } = {
-                  'bg-orange-500': '#f97316',
+                  'bg-accent-500': '#D4A730',
                   'bg-green-500': '#22c55e',
-                  'bg-blue-500': '#3b82f6',
+                  'bg-primary-500': '#B98C1B',
                   'bg-purple-500': '#a855f7'
                 };
 

@@ -5,6 +5,7 @@ import { requireAuth } from '../middleware/auth.middleware.js';
 import { requireRole, permissions } from '../middleware/rbac.middleware.js';
 import { tenantContext } from '../middleware/tenant.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { createNotification } from '../services/notifications.service.js';
 
 const router = express.Router();
 
@@ -82,7 +83,32 @@ router.get('/:id/stats', asyncHandler(async (req, res) => {
  * Create new course
  */
 router.post('/', asyncHandler(async (req, res) => {
+  console.log('🎓 [COURSE-CREATE] Course creation request received:', { 
+    userId: req.user.id, 
+    userEmail: req.user.email,
+    courseTitle: req.body.title 
+  });
+  
   const course = await coursesService.createCourse(req.body, req.user);
+  console.log('🎓 [COURSE-CREATE] Course created successfully:', { 
+    courseId: course.id, 
+    courseTitle: course.title 
+  });
+  
+  // Create notification for course creation
+  const io = req.app.get('io');
+  try {
+    await createNotification(req.user.id, {
+      type: 'success',
+      title: 'Course Created',
+      message: `Course "${course.title}" has been created successfully.`,
+      link: `/courses/${course.id}`,
+      data: { courseId: course.id, courseTitle: course.title }
+    }, io);
+    console.log('🎓 [COURSE-CREATE] Notification created successfully');
+  } catch (notificationError) {
+    console.error('🎓 [COURSE-CREATE] Failed to create notification:', notificationError);
+  }
   
   res.status(201).json({
     success: true,
@@ -96,7 +122,8 @@ router.post('/', asyncHandler(async (req, res) => {
  * Update course
  */
 router.put('/:id', asyncHandler(async (req, res) => {
-  const course = await coursesService.updateCourse(req.params.id, req.body, req.user);
+  const io = req.app.get('io');
+  const course = await coursesService.updateCourse(req.params.id, req.body, req.user, io);
   
   res.json({
     success: true,
@@ -124,6 +151,16 @@ router.delete('/:id', asyncHandler(async (req, res) => {
  */
 router.post('/:id/publish', asyncHandler(async (req, res) => {
   const course = await coursesService.publishCourse(req.params.id, req.user);
+  
+  // Create notification for course publishing
+  const io = req.app.get('io');
+  await createNotification(req.user.id, {
+    type: 'success',
+    title: 'Course Published',
+    message: `Course "${course.title}" has been published and is now available to students.`,
+    link: `/courses/${course.id}`,
+    data: { courseId: course.id, courseTitle: course.title }
+  }, io);
   
   res.json({
     success: true,

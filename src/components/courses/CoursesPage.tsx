@@ -187,8 +187,8 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ role }) => {
 
         {/* Info Message for Students */}
         {!loading && !error && !canCreate && (
-          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-800">
+          <div className="mb-4 bg-primary-50 border border-primary-200 rounded-lg p-4">
+            <p className="text-sm text-primary-800">
               <strong>Student View:</strong> Browse available courses. Contact your instructor or admin to enroll.
             </p>
           </div>
@@ -204,7 +204,7 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ role }) => {
                 onClick={() => navigate(`/school/courses/${course.id}`)}
               >
                 {/* Thumbnail */}
-                <div className="h-40 bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center">
+                <div className="h-40 bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
                   {course.thumbnail_url ? (
                     <img
                       src={course.thumbnail_url}

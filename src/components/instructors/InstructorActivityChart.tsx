@@ -52,8 +52,8 @@ const InstructorActivityChart: React.FC<InstructorActivityChartProps> = ({ activ
         </div>
       </div>
 
-      <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="h-64 min-h-[256px] min-w-[200px]">
+        <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={256}>
           <AreaChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <defs>
               <linearGradient id="colorNewInstructors" x1="0" y1="0" x2="0" y2="1">

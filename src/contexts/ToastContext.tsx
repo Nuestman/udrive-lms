@@ -77,7 +77,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       case 'warning':
         return <AlertCircle className="w-5 h-5 text-yellow-600" />;
       case 'info':
-        return <Info className="w-5 h-5 text-blue-600" />;
+        return <Info className="w-5 h-5 text-primary-600" />;
     }
   };
 
@@ -90,7 +90,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       case 'warning':
         return 'bg-yellow-50 border-yellow-200 text-yellow-800';
       case 'info':
-        return 'bg-blue-50 border-blue-200 text-blue-800';
+        return 'bg-primary-50 border-primary-200 text-primary-800';
     }
   };
 

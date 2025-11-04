@@ -214,8 +214,8 @@ const CertificateManagementPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <CheckCircle className="h-6 w-6 text-blue-600" />
+              <div className="p-2 bg-primary-100 rounded-lg">
+                <CheckCircle className="h-6 w-6 text-primary-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Total</p>
@@ -250,8 +250,8 @@ const CertificateManagementPage: React.FC = () => {
           
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <CheckCircle className="h-6 w-6 text-purple-600" />
+              <div className="p-2 bg-primary-100 rounded-lg">
+                <CheckCircle className="h-6 w-6 text-primary-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Last 30 Days</p>
@@ -262,8 +262,8 @@ const CertificateManagementPage: React.FC = () => {
           
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <CheckCircle className="h-6 w-6 text-orange-600" />
+              <div className="p-2 bg-accent-100 rounded-lg">
+                <CheckCircle className="h-6 w-6 text-accent-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Last 7 Days</p>

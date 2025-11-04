@@ -179,9 +179,9 @@ const SystemArchitecture: React.FC = () => {
           {/* Architecture Diagram */}
           <div className="space-y-4">
             {/* Frontend Layer */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-6">
               <div className="flex items-center mb-4">
-                <Globe className="w-6 h-6 text-blue-600 mr-3" />
+                <Globe className="w-6 h-6 text-primary-600 mr-3" />
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">Frontend Layer</h3>
                   <p className="text-sm text-gray-600">React 18 with TypeScript</p>
@@ -209,9 +209,9 @@ const SystemArchitecture: React.FC = () => {
             </div>
 
             {/* Database Layer */}
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-6">
               <div className="flex items-center mb-4">
-                <Database className="w-6 h-6 text-purple-600 mr-3" />
+                <Database className="w-6 h-6 text-primary-600 mr-3" />
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">Database Layer</h3>
                   <p className="text-sm text-gray-600">PostgreSQL (Supabase)</p>
@@ -344,7 +344,7 @@ const SystemArchitecture: React.FC = () => {
           
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-center mb-4">
-              <Database className="w-5 h-5 text-blue-500 mr-2" />
+              <Database className="w-5 h-5 text-primary-500 mr-2" />
               <h3 className="font-semibold text-gray-900">Database Performance</h3>
             </div>
             <ul className="space-y-2 text-sm">

@@ -1,6 +1,8 @@
 import React, { ReactNode, useEffect, useRef, useState } from 'react';
+import { useWhiteLabel } from '../../contexts/WhiteLabelContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotifications } from '../../contexts/NotificationContext';
 import { Layout, Sidebar, Header, Footer } from '../ui/Layout';
 import { 
   BookOpen, 
@@ -11,13 +13,12 @@ import {
   FileText, 
   Award, 
   HelpCircle,
-  FileCode,
-  FileStack,
   Home,
   TrendingUp,
   UserCheck,
   GraduationCap,
-  User
+  User,
+  Bell
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -33,6 +34,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { profile, signOut } = useAuth();
+  const { unreadCount } = useNotifications();
   const navigate = useNavigate();
   const routerLocation = useLocation();
   const location = routerLocation.pathname; // current path
@@ -48,16 +50,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const getNavItems = () => {
     const commonItems = [
       { 
-        icon: <FileCode size={20} />, 
-        label: 'Technical Implementation', 
-        href: '/docs/technical-implementation',
-        isActive: currentPath === '/docs/technical-implementation'
-      },
-      { 
-        icon: <FileStack size={20} />, 
-        label: 'Core Features', 
-        href: '/docs/core-features',
-        isActive: currentPath === '/docs/core-features'
+        icon: <Bell size={20} />, 
+        label: 'Notifications', 
+        href: '/notifications',
+        isActive: currentPath === '/notifications',
+        badge: unreadCount > 0 ? unreadCount : undefined
       },
       { 
         icon: <HelpCircle size={20} />, 
@@ -298,10 +295,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   return (
     <Layout>
       <Header 
-        title="SunLMS" 
+        title={(useWhiteLabel().getBrandingConfig().companyName) || "SunLMS"} 
         userProfile={{
           name: getUserName(),
-          avatar: profile?.avatar_url || "https://ui-avatars.com/api/?name=" + encodeURIComponent(getUserName()) + "&background=0D8ABC&color=fff",
+          avatar: profile?.avatar_url || "https://ui-avatars.com/api/?name=" + encodeURIComponent(getUserName()) + "&background=B98C1B&color=fff",
           role: profile?.role || role
         }}
         onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
@@ -314,7 +311,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           onClose={() => setSidebarOpen(false)}
           onLogout={handleLogout}
         />
-        <main ref={mainRef} className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-6">
+        <main ref={mainRef} className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
           {children}
         </main>
       </div>

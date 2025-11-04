@@ -225,10 +225,10 @@ const QuizEngine: React.FC<QuizEngineProps> = ({
           </div>
 
           {showExplanation && isAnswered && currentQuestion.explanation && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+            <div className="mt-4 p-4 bg-primary-50 border border-primary-100 rounded-lg">
               <div className="flex items-start">
-                <AlertCircle className="w-5 h-5 text-blue-500 mr-2 mt-0.5" />
-                <p className="text-blue-900">{currentQuestion.explanation}</p>
+                <AlertCircle className="w-5 h-5 text-primary-500 mr-2 mt-0.5" />
+                <p className="text-primary-900">{currentQuestion.explanation}</p>
               </div>
             </div>
           )}

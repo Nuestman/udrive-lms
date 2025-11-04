@@ -255,9 +255,9 @@ const BlockEditor: React.FC<BlockEditorProps> = ({
       case 'quiz':
         return (
           <div className="p-4 bg-white rounded-md border border-gray-200">
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="p-3 bg-primary-50 border border-primary-200 rounded-md">
               <div className="flex items-center">
-                <HelpCircle size={20} className="text-blue-500 mr-2" />
+                <HelpCircle size={20} className="text-primary-500 mr-2" />
                 <span className="font-medium">Quiz Question</span>
               </div>
               {!readOnly && (

@@ -97,7 +97,7 @@ const AssignmentSubmission: React.FC<AssignmentSubmissionProps> = ({
       case 'not_submitted':
         return isOverdue ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800';
       case 'submitted':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-primary-100 text-primary-800';
       case 'graded':
         return 'bg-green-100 text-green-800';
       case 'late':
@@ -289,12 +289,12 @@ const AssignmentSubmission: React.FC<AssignmentSubmissionProps> = ({
           )}
 
           {assignment.submission.feedback && (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="p-4 bg-primary-50 border border-primary-200 rounded-lg">
               <div className="flex items-start">
-                <MessageCircle className="w-5 h-5 text-blue-500 mr-2 mt-0.5" />
+                <MessageCircle className="w-5 h-5 text-primary-500 mr-2 mt-0.5" />
                 <div>
-                  <h5 className="font-medium text-blue-900 mb-1">Instructor Feedback:</h5>
-                  <p className="text-blue-800">{assignment.submission.feedback}</p>
+                  <h5 className="font-medium text-primary-900 mb-1">Instructor Feedback:</h5>
+                  <p className="text-primary-800">{assignment.submission.feedback}</p>
                 </div>
               </div>
             </div>

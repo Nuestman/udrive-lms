@@ -170,7 +170,7 @@ const DevelopmentSetup: React.FC = () => {
                     <span className={`px-2 py-1 text-xs font-medium rounded ${
                       prereq.status === 'required' 
                         ? 'bg-red-100 text-red-800' 
-                        : 'bg-blue-100 text-blue-800'
+                        : 'bg-primary-100 text-primary-800'
                     }`}>
                       {prereq.status}
                     </span>

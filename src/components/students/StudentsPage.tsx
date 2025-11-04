@@ -262,8 +262,8 @@ const StudentsPage: React.FC = () => {
         
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-blue-600" />
+            <div className="p-2 bg-primary-100 rounded-lg">
+              <TrendingUp className="w-6 h-6 text-primary-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Avg. Progress</p>
@@ -475,7 +475,7 @@ const StudentsPage: React.FC = () => {
                     <div className="flex items-center">
                       <img
                         className="h-10 w-10 rounded-full"
-                        src={student.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(`${student.first_name} ${student.last_name}`)}&background=0D8ABC&color=fff`}
+                        src={student.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(`${student.first_name} ${student.last_name}`)}&background=B98C1B&color=fff`}
                         alt={`${student.first_name} ${student.last_name}`}
                       />
                       <div className="ml-4">
@@ -569,7 +569,7 @@ const StudentsPage: React.FC = () => {
                     <div className="flex items-center">
                       <img
                         className="h-12 w-12 rounded-full"
-                        src={student.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(`${student.first_name} ${student.last_name}`)}&background=0D8ABC&color=fff`}
+                        src={student.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(`${student.first_name} ${student.last_name}`)}&background=B98C1B&color=fff`}
                         alt={`${student.first_name} ${student.last_name}`}
                       />
                       <div className="ml-3">
@@ -748,7 +748,7 @@ const StudentsPage: React.FC = () => {
                 <div className="flex items-center space-x-4">
                   <img
                     className="h-20 w-20 rounded-full"
-                    src={viewingStudent.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(`${viewingStudent.first_name} ${viewingStudent.last_name}`)}&background=0D8ABC&color=fff`}
+                    src={viewingStudent.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(`${viewingStudent.first_name} ${viewingStudent.last_name}`)}&background=B98C1B&color=fff`}
                     alt={`${viewingStudent.first_name} ${viewingStudent.last_name}`}
                   />
                   <div>

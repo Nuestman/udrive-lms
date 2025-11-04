@@ -103,7 +103,7 @@ const UserProfilePage: React.FC = () => {
   const getRoleBadge = (role?: string) => {
     const badges: Record<string, { color: string; label: string }> = {
       super_admin: { color: 'bg-purple-100 text-purple-800', label: 'Super Admin' },
-      school_admin: { color: 'bg-blue-100 text-blue-800', label: 'School Admin' },
+      school_admin: { color: 'bg-primary-100 text-primary-800', label: 'School Admin' },
       instructor: { color: 'bg-green-100 text-green-800', label: 'Instructor' },
       student: { color: 'bg-yellow-100 text-yellow-800', label: 'Student' },
     };
@@ -698,7 +698,7 @@ const UserProfilePage: React.FC = () => {
                 <div className="space-y-3">
                   <div>
                     <label htmlFor="linkedin_url" className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
-                      <Linkedin className="w-4 h-4 mr-2 text-blue-600" />
+                      <Linkedin className="w-4 h-4 mr-2 text-primary-600" />
                       LinkedIn
                     </label>
                     {isEditing ? (
@@ -730,7 +730,7 @@ const UserProfilePage: React.FC = () => {
                   </div>
                   <div>
                     <label htmlFor="twitter_url" className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
-                      <Twitter className="w-4 h-4 mr-2 text-blue-400" />
+                      <Twitter className="w-4 h-4 mr-2 text-primary-400" />
                       Twitter
                     </label>
                     {isEditing ? (

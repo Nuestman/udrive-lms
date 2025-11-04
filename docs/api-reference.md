@@ -4,10 +4,605 @@
 
 The SunLMS API provides a comprehensive RESTful interface for managing courses, users, progress, and all system functionality. The API follows REST conventions with JSON responses and includes comprehensive authentication and authorization, designed to support various industry-specific implementations.
 
-## Base URL
+## Base URL Structure
+
+### Current Implementation
 ```
 Production: https://sunlms.com/api
-Development: http://localhost:3001/api
+Development: http://localhost:5000/api
+```
+
+### URL Architecture Best Practices
+
+Our API follows the **industry best practice** of including `/api` in the base URL for the following reasons:
+
+#### ✅ **Advantages of Current Approach:**
+- **Cleaner frontend code** - No need to repeat `/api` in every API call
+- **Consistent with modern frameworks** - Express.js, FastAPI, Next.js follow this pattern
+- **Easier API versioning** - Can seamlessly switch to `/api/v2` by changing base URL
+- **Less error-prone** - Developers can't forget to add `/api` prefix
+- **Better for microservices** - Each service can have its own base URL with different paths
+- **Enterprise-ready** - Better for API gateways and reverse proxies
+
+#### 🔧 **Frontend Implementation:**
+```javascript
+// Environment variables
+VITE_API_URL=http://localhost:5000/api
+
+// Frontend API calls (clean and consistent)
+api.get('/users')           // → http://localhost:5000/api/users
+api.get('/notifications')   // → http://localhost:5000/api/notifications
+api.post('/auth/login')     // → http://localhost:5000/api/auth/login
+```
+
+#### 🚫 **Alternative Approach (Not Recommended):**
+```javascript
+// Would require repetitive /api prefixes
+VITE_API_URL=http://localhost:5000
+api.get('/api/users')       // → http://localhost:5000/api/users
+api.get('/api/notifications') // → http://localhost:5000/api/notifications
+```
+
+### Environment-Specific URLs
+```javascript
+// Development
+VITE_API_URL=http://localhost:5000/api
+
+// Staging  
+VITE_API_URL=https://staging-api.udrive.com
+
+// Production
+VITE_API_URL=https://api.udrive.com
+```
+
+### Multiple API Services (Future)
+```javascript
+// Main API
+VITE_API_URL=http://localhost:5000/api
+
+// File upload service
+VITE_UPLOAD_API_URL=http://localhost:5001/upload
+
+// Analytics service  
+VITE_ANALYTICS_API_URL=http://localhost:5002/analytics
+```
+
+## API Versioning Strategy
+
+### Current Version: v1 (Implicit)
+Currently, our API operates on version 1 without explicit versioning in the URL. This is common for initial API releases and works well for internal applications.
+
+### Versioning Approaches
+
+#### 1. **URL Path Versioning (Recommended)**
+```
+Current: https://api.udrive.com/api/users
+v2:      https://api.udrive.com/api/v2/users
+v3:      https://api.udrive.com/api/v3/users
+```
+
+**Implementation:**
+```javascript
+// Environment variables for different versions
+VITE_API_URL_V1=http://localhost:5000/api
+VITE_API_URL_V2=http://localhost:5000/api/v2
+
+// Frontend usage
+const apiV1 = new APIClient(VITE_API_URL_V1);
+const apiV2 = new APIClient(VITE_API_URL_V2);
+```
+
+#### 2. **Header Versioning (Alternative)**
+```http
+GET /api/users
+API-Version: v2
+```
+
+#### 3. **Query Parameter Versioning (Not Recommended)**
+```
+https://api.udrive.com/api/users?version=v2
+```
+
+### When API Versioning Becomes Necessary
+
+#### 🚨 **Breaking Changes Requiring New Version:**
+
+1. **Schema Changes:**
+   ```json
+   // v1 Response
+   {
+     "user": {
+       "id": "123",
+       "name": "John Doe"
+     }
+   }
+   
+   // v2 Response (Breaking change)
+   {
+     "user": {
+       "id": "123",
+       "firstName": "John",
+       "lastName": "Doe"
+     }
+   }
+   ```
+
+2. **Endpoint Removal:**
+   ```javascript
+   // v1: Available
+   GET /api/legacy-feature
+   
+   // v2: Removed (breaking change)
+   // Endpoint no longer exists
+   ```
+
+3. **Authentication Changes:**
+   ```javascript
+   // v1: Basic JWT
+   Authorization: Bearer <token>
+   
+   // v2: OAuth 2.0 + JWT
+   Authorization: Bearer <oauth_token>
+   X-API-Key: <api_key>
+   ```
+
+4. **Response Format Changes:**
+   ```json
+   // v1: Simple response
+   {
+     "success": true,
+     "data": [...]
+   }
+   
+   // v2: Enhanced response with metadata
+   {
+     "success": true,
+     "data": [...],
+     "meta": {
+       "pagination": {...},
+       "rateLimit": {...}
+     }
+   }
+   ```
+
+5. **HTTP Method Changes:**
+   ```javascript
+   // v1: POST for data retrieval
+   POST /api/courses/search
+   
+   // v2: GET for data retrieval (RESTful)
+   GET /api/courses?search=term
+   ```
+
+#### ✅ **Non-Breaking Changes (No Versioning Needed):**
+
+1. **Adding New Fields:**
+   ```json
+   // v1: Basic user
+   {
+     "id": "123",
+     "name": "John Doe"
+   }
+   
+   // v1.1: Added field (backward compatible)
+   {
+     "id": "123",
+     "name": "John Doe",
+     "email": "john@example.com"  // New field
+   }
+   ```
+
+2. **Adding New Endpoints:**
+   ```javascript
+   // v1: Existing endpoints
+   GET /api/users
+   POST /api/users
+   
+   // v1.1: New endpoints (backward compatible)
+   GET /api/users/search
+   GET /api/users/analytics
+   ```
+
+3. **Optional Parameters:**
+   ```javascript
+   // v1: Basic endpoint
+   GET /api/courses
+   
+   // v1.1: Added optional parameters
+   GET /api/courses?status=published&limit=10
+   ```
+
+### Versioning Implementation Strategy
+
+#### **Phase 1: Current State (v1 Implicit)**
+```javascript
+// Current implementation
+VITE_API_URL=http://localhost:5000/api
+```
+
+#### **Phase 2: Explicit v1 (Migration)**
+```javascript
+// Add explicit v1 versioning
+VITE_API_URL=http://localhost:5000/api/v1
+
+// Backward compatibility
+app.use('/api', v1Routes);        // Legacy support
+app.use('/api/v1', v1Routes);     // Explicit v1
+```
+
+#### **Phase 3: v2 Development**
+```javascript
+// Parallel development
+VITE_API_URL_V1=http://localhost:5000/api/v1
+VITE_API_URL_V2=http://localhost:5000/api/v2
+
+// Server routing
+app.use('/api/v1', v1Routes);
+app.use('/api/v2', v2Routes);
+```
+
+#### **Phase 4: v1 Deprecation**
+```javascript
+// Deprecation headers
+app.use('/api/v1', (req, res, next) => {
+  res.set('Deprecation', 'true');
+  res.set('Sunset', '2025-12-31');
+  res.set('Link', '</api/v2>; rel="successor-version"');
+  next();
+}, v1Routes);
+```
+
+### Version Lifecycle Management
+
+#### **Version Support Timeline:**
+```
+v1: 2024-01-01 → 2025-12-31 (24 months)
+v2: 2025-01-01 → 2027-12-31 (36 months)
+v3: 2027-01-01 → 2030-12-31 (36 months)
+```
+
+#### **Deprecation Process:**
+1. **Announcement** (6 months before deprecation)
+2. **Warning Headers** (3 months before deprecation)
+3. **Sunset Date** (Final deprecation)
+4. **Grace Period** (30 days after sunset)
+
+### Real-World Examples
+
+#### **GitHub API Versioning:**
+```
+https://api.github.com/user          // v3 (default)
+https://api.github.com/v4/graphql    // v4 (GraphQL)
+```
+
+#### **Stripe API Versioning:**
+```
+https://api.stripe.com/v1/charges    // v1
+https://api.stripe.com/v2/charges    // v2
+```
+
+#### **Twitter API Versioning:**
+```
+https://api.twitter.com/1.1/statuses/update.json  // v1.1
+https://api.twitter.com/2/tweets                   // v2
+```
+
+### Best Practices for Our API
+
+#### **1. Semantic Versioning for API Changes:**
+- **Major (v2.0.0)**: Breaking changes
+- **Minor (v1.1.0)**: New features, backward compatible
+- **Patch (v1.0.1)**: Bug fixes, backward compatible
+
+#### **2. Version Communication:**
+```http
+# Response headers
+API-Version: v1
+API-Supported-Versions: v1, v2
+API-Deprecated-Versions: v1
+```
+
+#### **3. Client-Side Version Management:**
+```javascript
+// API client with version support
+class UDriveAPI {
+  constructor(baseURL, version = 'v1') {
+    this.baseURL = `${baseURL}/${version}`;
+    this.version = version;
+  }
+  
+  async request(endpoint, options = {}) {
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      ...options,
+      headers: {
+        'API-Version': this.version,
+        ...options.headers
+      }
+    });
+    
+    // Check for deprecation warnings
+    if (response.headers.get('Deprecation') === 'true') {
+      console.warn(`API version ${this.version} is deprecated`);
+    }
+    
+    return response;
+  }
+}
+```
+
+#### **4. Migration Strategy:**
+```javascript
+// Gradual migration approach
+const apiClient = new UDriveAPI('http://localhost:5000/api', 'v1');
+
+// Feature flags for new version testing
+if (featureFlags.useV2API) {
+  apiClient.setVersion('v2');
+}
+```
+
+### When to Implement Versioning
+
+#### **Immediate Implementation Needed:**
+- Breaking changes to existing endpoints
+- Major authentication system changes
+- Database schema changes affecting API responses
+- Third-party integrations requiring stable APIs
+
+#### **Future Implementation:**
+- Mobile app requiring long-term API stability
+- Public API for third-party developers
+- Enterprise customers with strict compatibility requirements
+- Regulatory compliance requiring API stability
+
+## API Client Implementation
+
+### Current Frontend API Client
+
+Our frontend uses a centralized API client that handles URL construction, authentication, and error handling automatically.
+
+#### **API Client Features:**
+```javascript
+// src/lib/api.ts
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+// Automatic double /api prevention
+const shouldStripLeadingApi = API_URL.endsWith('/api') && endpoint.startsWith('/api/');
+const normalizedEndpoint = shouldStripLeadingApi ? endpoint.slice(4) : endpoint;
+
+// Automatic authentication headers
+headers: {
+  'Authorization': `Bearer ${localStorage.getItem('token')}`,
+  'Content-Type': 'application/json',
+}
+```
+
+#### **Usage Examples:**
+```javascript
+import { get, post, put, del } from '../lib/api';
+
+// GET request
+const users = await get('/users');
+
+// POST request with data
+const newUser = await post('/users', {
+  email: 'user@example.com',
+  name: 'John Doe'
+});
+
+// PUT request
+const updatedUser = await put('/users/123', {
+  name: 'Jane Doe'
+});
+
+// DELETE request
+await del('/users/123');
+```
+
+#### **FormData Support:**
+```javascript
+// File upload with FormData
+const formData = new FormData();
+formData.append('file', file);
+formData.append('type', 'avatar');
+
+const response = await post('/upload/avatar', formData);
+// Automatically handles Content-Type for FormData
+```
+
+### Error Handling
+
+#### **Automatic Error Handling:**
+```javascript
+try {
+  const data = await get('/users');
+  // Handle success
+} catch (error) {
+  // Automatic error handling
+  console.error('API Error:', error.message);
+}
+```
+
+#### **Response Format:**
+```javascript
+// Success response
+{
+  success: true,
+  data: { ... },
+  message: "Optional success message"
+}
+
+// Error response
+{
+  success: false,
+  error: "Error message",
+  code: "ERROR_CODE",
+  details: { ... }
+}
+```
+
+### Best Practices for API Usage
+
+#### **1. Consistent Error Handling:**
+```javascript
+// Good: Centralized error handling
+const handleApiCall = async (apiFunction) => {
+  try {
+    const result = await apiFunction();
+    return { success: true, data: result };
+  } catch (error) {
+    console.error('API Error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Usage
+const result = await handleApiCall(() => get('/users'));
+if (result.success) {
+  setUsers(result.data);
+} else {
+  showError(result.error);
+}
+```
+
+#### **2. Loading States:**
+```javascript
+const [loading, setLoading] = useState(false);
+
+const fetchUsers = async () => {
+  setLoading(true);
+  try {
+    const users = await get('/users');
+    setUsers(users.data);
+  } catch (error) {
+    setError(error.message);
+  } finally {
+    setLoading(false);
+  }
+};
+```
+
+#### **3. TypeScript Support:**
+```typescript
+interface User {
+  id: string;
+  email: string;
+  name: string;
+}
+
+// Typed API calls
+const users = await get<User[]>('/users');
+const newUser = await post<User>('/users', userData);
+```
+
+#### **4. Request/Response Interceptors:**
+```javascript
+// Future enhancement: Add interceptors for logging, retries, etc.
+class APIClient {
+  constructor() {
+    this.interceptors = {
+      request: [],
+      response: []
+    };
+  }
+  
+  addRequestInterceptor(interceptor) {
+    this.interceptors.request.push(interceptor);
+  }
+  
+  addResponseInterceptor(interceptor) {
+    this.interceptors.response.push(interceptor);
+  }
+}
+```
+
+### API Client Configuration
+
+#### **Environment Variables:**
+```bash
+# .env.development
+VITE_API_URL=http://localhost:5000/api
+
+# .env.production
+VITE_API_URL=https://api.udrive.com
+
+# .env.staging
+VITE_API_URL=https://staging-api.udrive.com
+```
+
+#### **Multiple API Services:**
+```javascript
+// Future: Support for multiple API services
+const mainAPI = new APIClient(import.meta.env.VITE_API_URL);
+const uploadAPI = new APIClient(import.meta.env.VITE_UPLOAD_API_URL);
+const analyticsAPI = new APIClient(import.meta.env.VITE_ANALYTICS_API_URL);
+```
+
+### Migration from Manual Fetch
+
+#### **Before (Manual Fetch):**
+```javascript
+// ❌ Manual fetch with potential issues
+const response = await fetch('/api/users', {
+  method: 'GET',
+  headers: {
+    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+    'Content-Type': 'application/json'
+  }
+});
+
+if (!response.ok) {
+  throw new Error('Failed to fetch users');
+}
+
+const data = await response.json();
+```
+
+#### **After (API Client):**
+```javascript
+// ✅ Clean API client usage
+const data = await get('/users');
+```
+
+### Performance Optimizations
+
+#### **1. Request Deduplication:**
+```javascript
+// Future: Prevent duplicate requests
+const requestCache = new Map();
+
+const deduplicatedGet = async (endpoint) => {
+  if (requestCache.has(endpoint)) {
+    return requestCache.get(endpoint);
+  }
+  
+  const promise = get(endpoint);
+  requestCache.set(endpoint, promise);
+  
+  try {
+    const result = await promise;
+    return result;
+  } finally {
+    requestCache.delete(endpoint);
+  }
+};
+```
+
+#### **2. Request Cancellation:**
+```javascript
+// Future: Support for request cancellation
+const controller = new AbortController();
+
+const cancelableGet = async (endpoint) => {
+  return get(endpoint, {
+    signal: controller.signal
+  });
+};
+
+// Cancel request if component unmounts
+useEffect(() => {
+  return () => controller.abort();
+}, []);
 ```
 
 ## Authentication

@@ -20,14 +20,29 @@ async function request<T = any>(
   const normalizedEndpoint = shouldStripLeadingApi ? endpoint.slice(4) : endpoint;
   const url = `${API_URL}${normalizedEndpoint}`;
   
+  const bearer = localStorage.getItem('token');
   const config: RequestInit = {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(bearer ? { 'Authorization': `Bearer ${bearer}` } : {}),
       ...options.headers,
     },
     credentials: 'include', // Include cookies
   };
+
+  // Detect FormData robustly to avoid forcing JSON headers on uploads
+  const isFormData =
+    typeof FormData !== 'undefined' &&
+    options.body &&
+    (options.body instanceof FormData || (typeof (options.body as any).append === 'function' && typeof (options.body as any) !== 'string'));
+
+  // Only set Content-Type for JSON requests
+  if (!isFormData) {
+    config.headers = {
+      'Content-Type': 'application/json',
+      ...config.headers,
+    };
+  }
 
   try {
     const response = await fetch(url, config);
@@ -57,7 +72,7 @@ export function get<T = any>(endpoint: string): Promise<T> {
 export function post<T = any>(endpoint: string, data?: any): Promise<T> {
   return request<T>(endpoint, {
     method: 'POST',
-    body: data ? JSON.stringify(data) : undefined,
+    body: data instanceof FormData ? data : (data ? JSON.stringify(data) : undefined),
   });
 }
 
@@ -67,7 +82,7 @@ export function post<T = any>(endpoint: string, data?: any): Promise<T> {
 export function put<T = any>(endpoint: string, data?: any): Promise<T> {
   return request<T>(endpoint, {
     method: 'PUT',
-    body: data ? JSON.stringify(data) : undefined,
+    body: data instanceof FormData ? data : (data ? JSON.stringify(data) : undefined),
   });
 }
 
@@ -82,8 +97,11 @@ export function del<T = any>(endpoint: string): Promise<T> {
  * Authentication API
  */
 export const authApi = {
-  login: (email: string, password: string) =>
-    post<{ success: boolean; user: any; token: string }>('/auth/login', { email, password }),
+  login: (email: string, password: string, twoFactorToken?: string) =>
+    post<{ success: boolean; user: any; token: string; requires2FA?: boolean; userId?: string; message?: string }>('/auth/login', { email, password, twoFactorToken }),
+
+  verify2FA: (userId: string, twoFactorToken: string) =>
+    post<{ success: boolean; user: any; token: string }>('/auth/verify-2fa', { userId, twoFactorToken }),
 
   signup: (data: {
     email: string;
@@ -98,7 +116,7 @@ export const authApi = {
 
   logout: () => post('/auth/logout'),
 
-  getCurrentUser: () => get<{ success: boolean; user: any }>('/auth/me'),
+  getCurrentUser: () => get<{ success: boolean; user: any; token: string }>('/auth/me'),
 
   updateProfile: (updates: any) => put('/auth/profile', updates),
 
@@ -174,8 +192,8 @@ export const usersApi = {
   getActivity: (days: number = 30) =>
     get<{ success: boolean; data: any[] }>(`/users/activity?days=${days}`),
 
-  getTopUsers: (limit: number = 10) =>
-    get<{ success: boolean; data: any[] }>(`/users/top?limit=${limit}`),
+  getTopUsers: (limit: number = 10, timeFilter: string = 'all') =>
+    get<{ success: boolean; data: any[] }>(`/users/top?limit=${limit}&timeFilter=${timeFilter}`),
 
   create: (data: {
     email: string;
@@ -203,7 +221,7 @@ export const usersApi = {
     }),
 
   bulkUpdate: (userIds: string[], updates: any) =>
-    post<{ success: boolean; updatedCount: number; message: string }>(
+    post<{ success: boolean; updatedCount: number; message: string; emailStats?: { attempted: number; sent: number; failed: number; emailEnabled: boolean } }>(
       '/users/bulk-update',
       { userIds, updates }
     ),
@@ -420,6 +438,22 @@ export const quizzesApi = {
 
   // Delete a quiz
   delete: (id: string) => del<{ success: boolean }>(`/quizzes/${id}`),
+};
+
+// Main API object with all methods
+export const api = {
+  get,
+  post,
+  put,
+  del,
+  auth: authApi,
+  courses: coursesApi,
+  modules: modulesApi,
+  users: usersApi,
+  instructors: instructorsApi,
+  students: studentsApi,
+  enrollments: enrollmentsApi,
+  quizzes: quizzesApi,
 };
 
 export default {

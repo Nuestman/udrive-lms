@@ -1,7 +1,7 @@
 // Super Admin Dashboard - System-wide overview
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Users, BookOpen, TrendingUp, Award, Plus, BarChart3, Settings as SettingsIcon, Globe } from 'lucide-react';
+import { Building2, Users, BookOpen, TrendingUp, Award, BarChart3, Globe } from 'lucide-react';
 import { useAnalytics, useRecentActivity } from '../../hooks/useAnalytics';
 import { useSchools } from '../../hooks/useSchools';
 import UniversalStudentDashboard from '../common/UniversalStudentDashboard';
@@ -38,7 +38,7 @@ const SuperAdminDashboard: React.FC = () => {
       description: 'Add new driving school',
       icon: <Building2 className="w-6 h-6" />,
       action: () => navigate('/admin/schools'),
-      color: 'bg-purple-500'
+      color: 'bg-primary-500'
     },
     {
       id: 'view-schools',
@@ -46,7 +46,7 @@ const SuperAdminDashboard: React.FC = () => {
       description: 'View all schools',
       icon: <Globe className="w-6 h-6" />,
       action: () => navigate('/admin/schools'),
-      color: 'bg-blue-500'
+      color: 'bg-primary-500'
     },
     {
       id: 'all-courses',
@@ -62,7 +62,7 @@ const SuperAdminDashboard: React.FC = () => {
       description: 'View detailed reports',
       icon: <BarChart3 className="w-6 h-6" />,
       action: () => navigate('/admin/analytics'),
-      color: 'bg-orange-500'
+      color: 'bg-accent-500'
     }
   ];
 
@@ -86,8 +86,8 @@ const SuperAdminDashboard: React.FC = () => {
                 {activeSchools} active
               </p>
             </div>
-            <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <Building2 className="h-6 w-6 text-purple-600" />
+            <div className="h-12 w-12 bg-primary-100 rounded-lg flex items-center justify-center">
+              <Building2 className="h-6 w-6 text-primary-600" />
             </div>
           </div>
         </div>
@@ -102,8 +102,8 @@ const SuperAdminDashboard: React.FC = () => {
                 +{stats?.newStudentsThisMonth || 0} this month
               </p>
             </div>
-            <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Users className="h-6 w-6 text-blue-600" />
+            <div className="h-12 w-12 bg-primary-100 rounded-lg flex items-center justify-center">
+              <Users className="h-6 w-6 text-primary-600" />
             </div>
           </div>
         </div>
@@ -134,8 +134,8 @@ const SuperAdminDashboard: React.FC = () => {
                 {stats?.totalEnrollments || 0} enrollments
               </p>
             </div>
-            <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="h-6 w-6 text-orange-600" />
+            <div className="h-12 w-12 bg-accent-100 rounded-lg flex items-center justify-center">
+              <TrendingUp className="h-6 w-6 text-accent-600" />
             </div>
           </div>
         </div>
@@ -165,8 +165,8 @@ const SuperAdminDashboard: React.FC = () => {
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center">
-                      <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                        <Building2 className="h-5 w-5 text-purple-600" />
+                      <div className="h-10 w-10 bg-primary-100 rounded-lg flex items-center justify-center">
+                        <Building2 className="h-5 w-5 text-primary-600" />
                       </div>
                       <div className="ml-3">
                         <h3 className="font-semibold text-gray-900">{school.name}</h3>
@@ -269,13 +269,13 @@ const SuperAdminDashboard: React.FC = () => {
               <div key={index} className="px-6 py-4 hover:bg-gray-50 transition-colors">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start">
-                    <div className={`mt-0.5 h-8 w-8 rounded-full flex items-center justify-center ${
-                      activity.type === 'enrollment' ? 'bg-blue-100' :
+              <div className={`mt-0.5 h-8 w-8 rounded-full flex items-center justify-center ${
+                      activity.type === 'enrollment' ? 'bg-primary-100' :
                       activity.type === 'certificate' ? 'bg-yellow-100' :
                       activity.type === 'completion' ? 'bg-green-100' :
                       'bg-gray-100'
                     }`}>
-                      {activity.type === 'enrollment' && <BookOpen className="h-4 w-4 text-blue-600" />}
+                      {activity.type === 'enrollment' && <BookOpen className="h-4 w-4 text-primary-600" />}
                       {activity.type === 'certificate' && <Award className="h-4 w-4 text-yellow-600" />}
                       {activity.type === 'completion' && <TrendingUp className="h-4 w-4 text-green-600" />}
                     </div>

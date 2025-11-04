@@ -170,8 +170,8 @@ const CreateInstructorModal: React.FC<CreateInstructorModalProps> = ({ onClose, 
           </div>
 
           {/* Note about profile picture */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-sm text-blue-800">
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-3">
+            <p className="text-sm text-primary-800">
               ℹ️ The instructor can upload their profile picture after logging in via Settings → Profile
             </p>
           </div>

@@ -643,12 +643,12 @@ const StudentLessonViewer: React.FC = () => {
 
         {/* Document Lesson */}
         {currentLesson.lesson_type === 'document' && currentLesson.document_url && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="mb-6 p-4 bg-primary-50 border border-primary-200 rounded-lg">
             <a
               href={currentLesson.document_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 font-medium"
+              className="text-primary-600 hover:text-primary-800 font-medium"
             >
               📄 Download/View Document →
             </a>
@@ -865,7 +865,7 @@ const StudentLessonViewer: React.FC = () => {
                   return (
                     <button
                       onClick={handleRetakeQuiz}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                      className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
                     >
                       Retake Quiz
                     </button>
@@ -1085,7 +1085,7 @@ const StudentLessonViewer: React.FC = () => {
                 <h3 className="font-semibold text-gray-900">Course Progress</h3>
                 <button
                   onClick={refreshAllCompletionData}
-                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  className="text-xs text-primary-600 hover:text-primary-800 underline"
                   title="Refresh completion data"
                 >
                   Refresh
@@ -1163,7 +1163,7 @@ const StudentLessonViewer: React.FC = () => {
                             <Circle size={16} className="text-gray-400 flex-shrink-0" />
                           )}
                           <span className="text-sm truncate flex items-center gap-1">
-                            {isQuiz && <span className="text-xs bg-blue-100 text-blue-600 px-1 rounded">Quiz</span>}
+                            {isQuiz && <span className="text-xs bg-primary-100 text-primary-600 px-1 rounded">Quiz</span>}
                             {content.title}
                           </span>
                         </button>
@@ -1190,7 +1190,7 @@ const StudentLessonViewer: React.FC = () => {
                     {currentLesson?.module_title || currentQuiz?.module_title}
                   </div>
                   <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex flex-col sm:flex-row sm:items-center gap-2">
-                    {currentQuiz && <span className="text-sm bg-blue-100 text-blue-600 px-2 py-1 rounded self-start">Quiz</span>}
+                    {currentQuiz && <span className="text-sm bg-primary-100 text-primary-600 px-2 py-1 rounded self-start">Quiz</span>}
                     <span className="break-words">{currentLesson?.title || currentQuiz?.title}</span>
                   </h1>
                   {(currentLesson?.estimated_duration_minutes || currentQuiz?.time_limit_minutes) && (

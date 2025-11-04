@@ -63,8 +63,8 @@ const PlaceholderPage: React.FC<PlaceholderPageProps> = ({
           <h2 className="text-2xl font-bold text-gray-900 mb-4">What to Expect</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <Book className="w-6 h-6 text-blue-600" />
+              <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <Book className="w-6 h-6 text-primary-600" />
               </div>
               <h3 className="font-semibold text-gray-900 mb-2">Comprehensive Guides</h3>
               <p className="text-gray-600 text-sm">
@@ -81,8 +81,8 @@ const PlaceholderPage: React.FC<PlaceholderPageProps> = ({
               </p>
             </div>
             <div className="text-center">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <MessageCircle className="w-6 h-6 text-purple-600" />
+              <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <MessageCircle className="w-6 h-6 text-primary-600" />
               </div>
               <h3 className="font-semibold text-gray-900 mb-2">Best Practices</h3>
               <p className="text-gray-600 text-sm">

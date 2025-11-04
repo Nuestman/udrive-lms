@@ -1,6 +1,9 @@
 // Student Management Service
 import { query, getClient } from '../lib/db.js';
 import bcrypt from 'bcryptjs';
+import { sendTemplatedEmail, isEmailConfigured } from '../utils/mailer.js';
+import { buildNotification } from '../utils/notificationTemplates.js';
+import notificationsService from './notifications.service.js';
 
 class NotFoundError extends Error {
   constructor(message) {
@@ -109,7 +112,7 @@ export async function getStudentById(studentId, tenantId, isSuperAdmin = false) 
 /**
  * Create new student
  */
-export async function createStudent(studentData, tenantId) {
+export async function createStudent(studentData, tenantId, io = null) {
   const { email, password, first_name, last_name, phone, address } = studentData;
 
   // Check if email already exists
@@ -155,8 +158,36 @@ export async function createStudent(studentData, tenantId) {
       'SELECT * FROM users_with_profiles WHERE id = $1',
       [userId]
     );
+    const created = result.rows[0];
 
-    return result.rows[0];
+    // In-app notification (welcome)
+    try {
+      const notif = buildNotification('welcome_user', { firstName: first_name });
+      await notificationsService.createNotification(userId, {
+        type: 'welcome_user',
+        title: notif.title,
+        message: notif.body
+      }, io);
+    } catch (e) {
+      console.error('Student welcome notification error:', e?.message || e);
+    }
+
+    // Email (welcome)
+    if (isEmailConfigured() && email) {
+      try {
+        await sendTemplatedEmail('welcome_user', {
+          to: email,
+          variables: {
+            firstName: first_name,
+            dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard`
+          }
+        });
+      } catch (e) {
+        console.error('Student welcome email error:', e?.message || e);
+      }
+    }
+
+    return created;
 
   } catch (error) {
     await client.query('ROLLBACK');
@@ -317,6 +348,23 @@ export async function deleteStudent(studentId, tenantId, isSuperAdmin = false) {
     [studentId]
   );
 
+  // Notify student
+  try {
+    const contact = await query('SELECT email FROM users WHERE id = $1', [studentId]);
+    const email = contact.rows[0]?.email;
+    const notif = buildNotification('account_deactivated', {});
+    await notificationsService.createNotification(studentId, {
+      type: 'account_deactivated',
+      title: notif.title,
+      message: notif.body
+    });
+    if (isEmailConfigured() && email) {
+      await sendTemplatedEmail('account_deactivated', { to: email, variables: {} });
+    }
+  } catch (e) {
+    console.error('Student deactivation notifications error:', e?.message || e);
+  }
+
   return { success: true, message: 'Student deactivated' };
 }
 
@@ -359,6 +407,28 @@ export async function adminResetPassword(studentId, tenantId, isSuperAdmin = fal
     'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
     [password_hash, studentId]
   );
+  // Notify student
+  try {
+    const notif = buildNotification('admin_password_reset', { temporaryPassword: newPassword });
+    await notificationsService.createNotification(studentId, {
+      type: 'admin_password_reset',
+      title: notif.title,
+      message: notif.body
+    });
+
+    if (isEmailConfigured() && student.email) {
+      await sendTemplatedEmail('admin_password_reset_notification', {
+        to: student.email,
+        variables: {
+          firstName: student.first_name,
+          loginUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login`,
+          temporaryPassword: newPassword
+        }
+      });
+    }
+  } catch (e) {
+    console.error('Admin reset password notifications error:', e?.message || e);
+  }
 
   return { 
     success: true, 

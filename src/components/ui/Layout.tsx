@@ -1,6 +1,11 @@
 import React, { ReactNode, useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, ChevronDown, LogOut, Menu, X, User, Settings as SettingsIcon } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, X, User, Settings as SettingsIcon } from 'lucide-react';
+import ThemeToggle from '../common/ThemeToggle';
+import NotificationDropdown from '../common/NotificationDropdown';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { Wifi, WifiOff } from 'lucide-react';
+import { useWhiteLabel } from '../../contexts/WhiteLabelContext';
 
 // Layout component
 interface LayoutProps {
@@ -32,12 +37,21 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ title, userProfile, onMenuToggle, onLogout }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { getBrandingConfig } = useWhiteLabel();
+  const branding = getBrandingConfig();
+  const { connectionStatus } = useNotifications();
 
   const roleLabels = {
     super_admin: 'Super Admin',
     school_admin: 'School Admin',
     instructor: 'Instructor',
     student: 'Student'
+  };
+
+  const getRoleLabel = (role: string): string => {
+    return role in roleLabels
+      ? roleLabels[role as keyof typeof roleLabels]
+      : role;
   };
 
   // Close dropdown when clicking outside
@@ -53,37 +67,49 @@ export const Header: React.FC<HeaderProps> = ({ title, userProfile, onMenuToggle
   }, []);
 
   return (
-    <header className="bg-white border-b border-gray-200">
+    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <button
               onClick={onMenuToggle}
               aria-label="Toggle menu"
-              className="md:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
+              className="md:hidden p-2 rounded-md text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
             >
               <Menu size={24} />
             </button>
             <div className="flex-shrink-0 flex items-center ml-2 md:ml-0">
-              <span className="text-primary-600 font-bold text-xl">{title}</span>
+              <img src={branding.logoUrl} alt={branding.companyName || title} className="h-10 w-auto" />
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="p-2 rounded-full text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
-              aria-label="View notifications"
-            >
-              <Bell size={20} />
-            </button>
+        <div className="flex items-center gap-2">
+          {/* Socket connection status */}
+          <div className="hidden sm:flex items-center text-xs mr-2">
+            {connectionStatus === 'connected' && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary-50 text-primary-700 border border-primary-200">
+                <Wifi size={12} className="mr-1" /> Live
+              </span>
+            )}
+            {connectionStatus === 'connecting' && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200">
+                <Wifi size={12} className="mr-1 animate-pulse" /> Connecting
+              </span>
+            )}
+            {connectionStatus === 'disconnected' && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                <WifiOff size={12} className="mr-1" /> Offline
+              </span>
+            )}
+          </div>
+            <NotificationDropdown />
+            <ThemeToggle />
 
             <div className="ml-3 relative" ref={dropdownRef}>
               <button
                 type="button"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center max-w-xs rounded-lg px-2 py-1 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+                className="flex items-center max-w-xs rounded-lg px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
                 id="user-menu-button"
-                aria-expanded={dropdownOpen ? "true" : "false"}
                 aria-haspopup="true"
               >
                 <img
@@ -92,23 +118,23 @@ export const Header: React.FC<HeaderProps> = ({ title, userProfile, onMenuToggle
                   alt={userProfile.name}
                 />
                 <div className="ml-3 hidden md:block text-left">
-                  <div className="text-sm font-medium text-gray-700">{userProfile.name}</div>
-                  <div className="text-xs text-gray-500">{roleLabels[userProfile.role] || userProfile.role}</div>
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300">{userProfile.name}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">{getRoleLabel(userProfile.role)}</div>
                 </div>
                 <ChevronDown size={16} className="ml-2 text-gray-400" />
               </button>
 
               {/* Dropdown Menu */}
               {dropdownOpen && (
-                <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 z-50">
+                <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-lg shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 dark:ring-gray-600 divide-y divide-gray-100 dark:divide-gray-700 z-50">
                   <div className="px-4 py-3">
-                    <p className="text-sm font-medium text-gray-900">{userProfile.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{roleLabels[userProfile.role]}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{userProfile.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{getRoleLabel(userProfile.role)}</p>
                   </div>
                   <div className="py-1">
                     <Link
                       to={`/${userProfile.role === 'school_admin' ? 'school' : userProfile.role === 'super_admin' ? 'admin' : userProfile.role}/profile`}
-                      className="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="group flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       onClick={() => setDropdownOpen(false)}
                     >
                       <User size={16} className="mr-3 text-gray-400 group-hover:text-primary-600" />
@@ -116,7 +142,7 @@ export const Header: React.FC<HeaderProps> = ({ title, userProfile, onMenuToggle
                     </Link>
                     <Link
                       to={`/${userProfile.role === 'school_admin' ? 'school' : userProfile.role === 'super_admin' ? 'admin' : userProfile.role}/settings`}
-                      className="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="group flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       onClick={() => setDropdownOpen(false)}
                     >
                       <SettingsIcon size={16} className="mr-3 text-gray-400 group-hover:text-primary-600" />
@@ -151,6 +177,7 @@ interface NavItem {
   label: string;
   href: string;
   isActive?: boolean;
+  badge?: number;
 }
 
 interface SidebarProps {
@@ -172,18 +199,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ navItems, isOpen = true, onClo
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out
         md:relative md:translate-x-0 md:block
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="h-full flex flex-col">
           {/* Mobile close button */}
           <div className="flex items-center justify-between p-4 md:hidden">
-            <span className="text-primary-600 font-bold text-xl">SunLMS</span>
+            <div className="flex items-center">
+              <img src="/sunlms-logo-wide.png" alt="SunLMS" className="h-10 w-auto" />
+            </div>
             <button
               onClick={onClose}
               aria-label="Close menu"
-              className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+              className="p-2 rounded-md text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <X size={24} />
             </button>
@@ -196,30 +225,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ navItems, isOpen = true, onClo
                 to={item.href}
                 className={`group flex items-center px-2 py-2 text-base font-medium rounded-md transition-colors ${
                   item.isActive
-                    ? 'bg-primary-50 text-primary-600 border-r-2 border-primary-600'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-primary-600'
+                    ? 'bg-primary-600 dark:bg-primary-900/20 text-primary-50 dark:text-primary-400 border-r-2 border-primary-600 dark:border-primary-400'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-primary-100 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400'
                 }`}
                 onClick={onClose}
               >
                 <div className={`mr-3 transition-colors ${
-                  item.isActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-primary-600'
+                  item.isActive ? 'text-primary-50 dark:text-primary-400' : 'text-gray-400 dark:text-gray-500 group-hover:text-primary-600 dark:group-hover:text-primary-400'
                 }`}>
                   {item.icon}
                 </div>
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {item.badge && item.badge > 0 && (
+                  <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
+                    {item.badge > 99 ? '99+' : item.badge}
+                  </span>
+                )}
               </Link>
             ))}
           </nav>
           
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
             <button
               onClick={() => {
                 onClose?.();
                 onLogout?.();
               }}
-              className="group flex items-center w-full px-2 py-2 text-base font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-colors"
+              className="group flex items-center w-full px-2 py-2 text-base font-medium rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-red-600 dark:hover:text-red-400 transition-colors"
             >
-              <LogOut size={20} className="mr-3 text-gray-400 group-hover:text-red-600" />
+              <LogOut size={20} className="mr-3 text-gray-400 dark:text-gray-500 group-hover:text-red-600 dark:group-hover:text-red-400" />
               Sign out
             </button>
           </div>
@@ -240,19 +274,22 @@ interface FooterProps {
   links: FooterLink[];
 }
 
+
 export const Footer: React.FC<FooterProps> = ({ companyName, links }) => {
+  const { getBrandingConfig } = useWhiteLabel();
+  const branding = getBrandingConfig();
   return (
-    <footer className="bg-white border-t border-gray-200">
+    <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
       <div className="px-4 py-3 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center">
-        <div className="text-sm text-gray-500">
-          &copy; {new Date().getFullYear()} {companyName}. All rights reserved.
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          &copy; {new Date().getFullYear()} {branding.companyName || companyName}. All rights reserved.
         </div>
         <div className="flex space-x-4 mt-2 sm:mt-0">
           {links.map((link, index) => (
             <a
               key={index}
               href={link.href}
-              className="text-sm text-gray-500 hover:text-gray-700"
+              className="text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 hover:underline dark:hover:text-primary-400 transition-colors"
             >
               {link.label}
             </a>

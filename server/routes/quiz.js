@@ -15,7 +15,7 @@ router.use(tenantContext);
  * Create new quiz
  */
 router.post('/', asyncHandler(async (req, res) => {
-  const quiz = await quizService.createQuiz(req.body, req.tenantId, req.isSuperAdmin);
+  const quiz = await quizService.createQuiz(req.body, req.tenantId, req.isSuperAdmin, req.app.get('io'));
   
   res.status(201).json({
     success: true,
@@ -122,7 +122,8 @@ router.get('/module/:moduleId', asyncHandler(async (req, res) => {
  * Update a quiz
  */
 router.put('/:id', asyncHandler(async (req, res) => {
-  const quiz = await quizService.updateQuiz(req.params.id, req.body, req.tenantId, req.isSuperAdmin);
+  const io = req.app.get('io');
+  const quiz = await quizService.updateQuiz(req.params.id, req.body, req.tenantId, req.isSuperAdmin, io);
   res.json({ success: true, data: quiz, message: 'Quiz updated successfully' });
 }));
 

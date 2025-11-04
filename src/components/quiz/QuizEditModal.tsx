@@ -247,7 +247,7 @@ const QuizEditModal: React.FC<QuizEditModalProps> = ({ isOpen, quizId, onClose, 
                               <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
                                 {getQuestionTypeDisplay(question.question_type)}
                               </span>
-                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                              <span className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded">
                                 {question.points} {question.points === 1 ? 'point' : 'points'}
                               </span>
                             </div>

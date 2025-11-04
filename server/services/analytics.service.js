@@ -109,9 +109,17 @@ export async function getDashboardStats(tenantId, isSuperAdmin = false) {
 
 /**
  * Get recent activity
+ * - Super Admin: System-wide activity across all tenants
+ * - Others: Their school's activity only
  */
 export async function getRecentActivity(tenantId, limit = 10) {
   const activities = [];
+
+  // Super admin gets system-wide data, others get tenant-specific data
+  const tenantFilterEnrollments = tenantId ? 'WHERE c.tenant_id = $1' : '';
+  const tenantFilterCertificates = tenantId ? 'WHERE u.tenant_id = $1' : '';
+  const enrollmentParams = tenantId ? [tenantId, Math.floor(limit / 2)] : [Math.floor(limit / 2)];
+  const certificateParams = tenantId ? [tenantId, Math.floor(limit / 2)] : [Math.floor(limit / 2)];
 
   // Recent enrollments
   const enrollments = await query(
@@ -122,10 +130,10 @@ export async function getRecentActivity(tenantId, limit = 10) {
      JOIN users u ON e.student_id = u.id
      LEFT JOIN user_profiles p ON p.user_id = u.id
      JOIN courses c ON e.course_id = c.id
-     WHERE c.tenant_id = $1
+     ${tenantFilterEnrollments}
      ORDER BY e.enrolled_at DESC
-     LIMIT $2`,
-    [tenantId, Math.floor(limit / 2)]
+     LIMIT ${tenantId ? '$2' : '$1'}`,
+    enrollmentParams
   );
 
   enrollments.rows.forEach(row => {
@@ -146,10 +154,10 @@ export async function getRecentActivity(tenantId, limit = 10) {
      JOIN users u ON cert.student_id = u.id
      LEFT JOIN user_profiles p ON p.user_id = u.id
      JOIN courses c ON cert.course_id = c.id
-     WHERE u.tenant_id = $1
+     ${tenantFilterCertificates}
      ORDER BY cert.issued_at DESC
-     LIMIT $2`,
-    [tenantId, Math.floor(limit / 2)]
+     LIMIT ${tenantId ? '$2' : '$1'}`,
+    certificateParams
   );
 
   certificates.rows.forEach(row => {
@@ -167,8 +175,160 @@ export async function getRecentActivity(tenantId, limit = 10) {
   return activities.slice(0, limit);
 }
 
+/**
+ * Get enrollment trends aggregated by interval
+ * - Super Admin: System-wide trends across all tenants
+ * - Others: Their school's trends only
+ */
+export async function getEnrollmentTrends(tenantId, options = {}) {
+  const { interval = 'week', periods = 12 } = options;
+  const validIntervals = ['day', 'week', 'month'];
+  const safeInterval = validIntervals.includes(interval) ? interval : 'week';
+  const rangeSql = safeInterval === 'day' ? `INTERVAL '${periods} days'` : safeInterval === 'month' ? `INTERVAL '${periods} months'` : `INTERVAL '${periods} weeks'`;
+
+  // Super admin gets system-wide data, others get tenant-specific data
+  const tenantFilter = tenantId ? 'WHERE c.tenant_id = $1' : '';
+  const params = tenantId ? [tenantId] : [];
+
+  const result = await query(
+    `SELECT 
+      DATE_TRUNC('${safeInterval}', e.enrolled_at) AS period_start,
+      COUNT(*) AS enrollments,
+      COUNT(*) FILTER (WHERE e.status = 'completed') AS completions
+     FROM enrollments e
+     JOIN courses c ON e.course_id = c.id
+     ${tenantFilter}
+       AND e.enrolled_at >= CURRENT_DATE - ${rangeSql}
+     GROUP BY DATE_TRUNC('${safeInterval}', e.enrolled_at)
+     ORDER BY period_start ASC`,
+    params
+  );
+
+  return result.rows.map(row => ({
+    periodStart: row.period_start,
+    enrollments: parseInt(row.enrollments) || 0,
+    completions: parseInt(row.completions) || 0
+  }));
+}
+
+/**
+ * Get course performance summary
+ * - Super Admin: System-wide course performance across all tenants
+ * - Others: Their school's course performance only
+ */
+export async function getCoursePerformance(tenantId, limit = 10) {
+  // Super admin gets system-wide data, others get tenant-specific data
+  const tenantFilter = tenantId ? 'WHERE c.tenant_id = $1' : '';
+  const params = tenantId ? [tenantId, limit] : [limit];
+
+  const result = await query(
+    `SELECT 
+      c.id,
+      c.title,
+      COUNT(e.*) AS enrollments,
+      COUNT(*) FILTER (WHERE e.status = 'completed') AS completions,
+      ROUND(AVG(e.progress_percentage)) AS avg_progress
+     FROM courses c
+     LEFT JOIN enrollments e ON e.course_id = c.id
+     ${tenantFilter}
+     GROUP BY c.id
+     ORDER BY enrollments DESC NULLS LAST
+     LIMIT ${tenantId ? '$2' : '$1'}`,
+    params
+  );
+
+  return result.rows.map(row => {
+    const enrollments = parseInt(row.enrollments) || 0;
+    const completions = parseInt(row.completions) || 0;
+    const completionRate = enrollments > 0 ? Math.round((completions / enrollments) * 100) : 0;
+    return {
+      courseId: row.id,
+      courseTitle: row.title,
+      enrollments,
+      completions,
+      averageProgress: parseInt(row.avg_progress) || 0,
+      completionRate
+    };
+  });
+}
+
+/**
+ * Get school performance metrics for super admin
+ * Returns performance data for all schools
+ */
+export async function getSchoolPerformance(limit = 10) {
+  const result = await query(
+    `SELECT 
+      t.id as school_id,
+      t.name as school_name,
+      t.subdomain,
+      t.is_active,
+      COUNT(DISTINCT u.id) as total_students,
+      COUNT(DISTINCT c.id) as total_courses,
+      COUNT(DISTINCT e.id) as total_enrollments,
+      COUNT(DISTINCT e.id) FILTER (WHERE e.status = 'completed') as completed_enrollments,
+      ROUND(AVG(e.progress_percentage)) as avg_progress,
+      COUNT(DISTINCT cert.id) as certificates_issued
+     FROM tenants t
+     LEFT JOIN users u ON u.tenant_id = t.id AND u.role = 'student'
+     LEFT JOIN courses c ON c.tenant_id = t.id
+     LEFT JOIN enrollments e ON e.course_id = c.id
+     LEFT JOIN certificates cert ON cert.student_id = u.id
+     GROUP BY t.id, t.name, t.subdomain, t.is_active
+     ORDER BY total_enrollments DESC NULLS LAST
+     LIMIT $1`,
+    [limit]
+  );
+
+  return result.rows.map(row => {
+    const totalEnrollments = parseInt(row.total_enrollments) || 0;
+    const completedEnrollments = parseInt(row.completed_enrollments) || 0;
+    const completionRate = totalEnrollments > 0 ? Math.round((completedEnrollments / totalEnrollments) * 100) : 0;
+    
+    return {
+      schoolId: row.school_id,
+      schoolName: row.school_name,
+      subdomain: row.subdomain,
+      isActive: row.is_active,
+      totalStudents: parseInt(row.total_students) || 0,
+      totalCourses: parseInt(row.total_courses) || 0,
+      totalEnrollments,
+      completedEnrollments,
+      avgProgress: parseInt(row.avg_progress) || 0,
+      completionRate,
+      certificatesIssued: parseInt(row.certificates_issued) || 0
+    };
+  });
+}
+
+/**
+ * Get school statistics for super admin dashboard
+ */
+export async function getSchoolStats() {
+  const result = await query(
+    `SELECT 
+      COUNT(*) as total_schools,
+      COUNT(*) FILTER (WHERE is_active = true) as active_schools,
+      COUNT(*) FILTER (WHERE is_active = false) as inactive_schools,
+      COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '30 days') as new_schools_this_month
+     FROM tenants`
+  );
+
+  const row = result.rows[0];
+  return {
+    totalSchools: parseInt(row.total_schools) || 0,
+    activeSchools: parseInt(row.active_schools) || 0,
+    inactiveSchools: parseInt(row.inactive_schools) || 0,
+    newSchoolsThisMonth: parseInt(row.new_schools_this_month) || 0
+  };
+}
+
 export default {
   getDashboardStats,
-  getRecentActivity
+  getRecentActivity,
+  getEnrollmentTrends,
+  getCoursePerformance,
+  getSchoolPerformance,
+  getSchoolStats
 };
 

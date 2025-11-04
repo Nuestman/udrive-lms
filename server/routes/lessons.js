@@ -4,6 +4,7 @@ import lessonsService from '../services/lessons.service.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { tenantContext } from '../middleware/tenant.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import { createNotification } from '../services/notifications.service.js';
 
 const router = express.Router();
 
@@ -47,7 +48,34 @@ router.get('/:id', asyncHandler(async (req, res) => {
  * Create new lesson
  */
 router.post('/', asyncHandler(async (req, res) => {
+  console.log('📚 [LESSON-CREATE] Lesson creation request received:', { 
+    userId: req.user.id, 
+    userEmail: req.user.email,
+    lessonTitle: req.body.title,
+    moduleId: req.body.module_id
+  });
+  
   const lesson = await lessonsService.createLesson(req.body, req.tenantId, req.isSuperAdmin);
+  console.log('📚 [LESSON-CREATE] Lesson created successfully:', { 
+    lessonId: lesson.id, 
+    lessonTitle: lesson.title,
+    courseId: lesson.course_id
+  });
+  
+  // Create notification for lesson creation
+  const io = req.app.get('io');
+  try {
+    await createNotification(req.user.id, {
+      type: 'success',
+      title: 'Lesson Created',
+      message: `Lesson "${lesson.title}" has been created successfully.`,
+      link: `/courses/${lesson.course_id}/lessons/${lesson.id}`,
+      data: { lessonId: lesson.id, lessonTitle: lesson.title, courseId: lesson.course_id }
+    }, io);
+    console.log('📚 [LESSON-CREATE] Notification created successfully');
+  } catch (notificationError) {
+    console.error('📚 [LESSON-CREATE] Failed to create notification:', notificationError);
+  }
   
   res.status(201).json({
     success: true,

@@ -3,12 +3,13 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { query } from '../lib/db.js';
 import { APP_CONFIG } from '../config/app.js';
+import { sendPasswordResetEmail, isEmailConfigured } from '../utils/mailer.js';
 
 /**
  * Login user
  */
 export async function login(credentials) {
-  const { email, password } = credentials;
+  const { email, password, twoFactorToken } = credentials;
   
   // Get user with ALL profile data
   const result = await query(
@@ -38,6 +39,29 @@ export async function login(credentials) {
 
   if (!isValidPassword) {
     throw new Error('Invalid email or password');
+  }
+
+  // Check if 2FA is enabled
+  const settings = user.settings || {};
+  const is2FAEnabled = settings.two_factor_enabled;
+
+  if (is2FAEnabled) {
+    // If 2FA is enabled but no token provided, return 2FA required
+    if (!twoFactorToken) {
+      return { 
+        requires2FA: true, 
+        message: 'Two-factor authentication required',
+        userId: user.id 
+      };
+    }
+
+    // Verify 2FA token
+    const twoFactorAuthService = (await import('./twoFactorAuth.service.js')).default;
+    try {
+      await twoFactorAuthService.verifyToken(user.id, twoFactorToken);
+    } catch (error) {
+      throw new Error('Invalid two-factor authentication code');
+    }
   }
 
   // Update last login
@@ -479,10 +503,24 @@ export async function requestPasswordReset(email) {
     { expiresIn: '1h' }
   );
 
-  // In production: Send email with reset link
-  // For now: Return token for testing
+  // Build reset URL for frontend
+  const resetUrl = `${APP_CONFIG.FRONTEND_URL}/reset-password?token=${encodeURIComponent(resetToken)}`;
 
-  return resetToken;
+  // If SMTP configured, send the email (non-blocking failure)
+  if (isEmailConfigured()) {
+    try {
+      await sendPasswordResetEmail({ to: email, resetUrl, appName: 'SunLMS' });
+    } catch (err) {
+      // Log but do not fail the request to avoid user enumeration signals
+      console.error('Failed to send password reset email:', err?.message || err);
+    }
+  }
+
+  // Return token in dev for convenience; in prod just success
+  if (APP_CONFIG.NODE_ENV === 'development') {
+    return resetToken;
+  }
+  return { success: true };
 }
 
 /**
@@ -511,6 +549,20 @@ export async function resetPassword(resetToken, newPassword) {
   }
 }
 
+/**
+ * Generate temporary token for 2FA verification
+ */
+export async function generateTempToken(userId) {
+  const jwt = (await import('jsonwebtoken')).default;
+  const { APP_CONFIG } = await import('../config/app.js');
+  
+  return jwt.sign(
+    { id: userId, purpose: '2fa_verification' },
+    APP_CONFIG.JWT_SECRET,
+    { expiresIn: '5m' } // Short expiry for security
+  );
+}
+
 export default {
   login,
   signup,
@@ -520,5 +572,6 @@ export default {
   updateProfile,
   changePassword,
   requestPasswordReset,
-  resetPassword
+  resetPassword,
+  generateTempToken
 };

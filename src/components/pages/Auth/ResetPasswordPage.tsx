@@ -19,6 +19,12 @@ const ResetPasswordPage: React.FC = () => {
     const tokenFromUrl = searchParams.get('token');
     if (tokenFromUrl) {
       setToken(tokenFromUrl);
+      // Remove token from URL after reading it to reduce exposure in history/referrers
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('token');
+        window.history.replaceState({}, document.title, url.pathname + (url.search ? url.search : ''));
+      } catch {}
     }
   }, [searchParams]);
 
@@ -93,9 +99,7 @@ const ResetPasswordPage: React.FC = () => {
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-full mb-4">
-            <Lock className="w-8 h-8 text-primary-600" />
-          </div>
+          <img src="/sunlms-logo-wide.png" alt="SunLMS" className="h-12 w-auto mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Reset Password</h1>
           <p className="text-gray-600">
             Enter your new password below

@@ -1,6 +1,16 @@
 // User Activity Chart Component
 import React from 'react';
 import { TrendingUp } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend
+} from 'recharts';
 
 interface UserActivityChartProps {
   activity: any[];
@@ -10,9 +20,14 @@ interface UserActivityChartProps {
 const UserActivityChart: React.FC<UserActivityChartProps> = ({ activity, loading }) => {
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">User Activity (Last 30 Days)</h3>
-        <div className="flex justify-center items-center h-64">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 h-full">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">New User Registrations</h3>
+            <p className="text-sm text-gray-600">Daily breakdown of new users by role</p>
+          </div>
+        </div>
+        <div className="flex justify-center items-center h-full min-h-[400px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
         </div>
       </div>
@@ -21,99 +36,110 @@ const UserActivityChart: React.FC<UserActivityChartProps> = ({ activity, loading
 
   if (!activity || activity.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">User Activity (Last 30 Days)</h3>
-        <div className="flex justify-center items-center h-64 text-gray-500">
-          No activity data available
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 h-full">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">New User Registrations</h3>
+            <p className="text-sm text-gray-600">Daily breakdown of new users by role</p>
+          </div>
+        </div>
+        <div className="flex justify-center items-center h-full min-h-[400px] text-gray-500">
+          <div className="text-center">
+            <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+            <p className="text-gray-500">No user registration data available</p>
+            <p className="text-gray-400 text-sm">Data will appear once users start registering</p>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Calculate max value for scaling
-  const maxValue = Math.max(...activity.map(a => parseInt(a.new_users) || 0));
-  const maxHeight = 200; // pixels
+  // Transform data for Recharts
+  const chartData = activity.map(item => ({
+    date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    students: parseInt(item.new_students) || 0,
+    instructors: parseInt(item.new_instructors) || 0,
+    total: parseInt(item.new_users) || 0
+  }));
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 h-full">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-900">User Activity (Last 30 Days)</h3>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">New User Registrations</h3>
+          <p className="text-sm text-gray-600">Daily breakdown of new users by role</p>
+        </div>
         <div className="flex items-center gap-2 text-sm">
           <TrendingUp className="w-4 h-4 text-green-600" />
           <span className="text-green-600 font-medium">
-            {activity.reduce((sum, a) => sum + (parseInt(a.new_users) || 0), 0)} new users
+            {activity.reduce((sum, a) => sum + (parseInt(a.new_users) || 0), 0)} total new users
           </span>
         </div>
       </div>
 
-      <div className="flex items-end justify-between gap-1 h-64">
-        {activity.map((item, index) => {
-          const height = maxValue > 0 ? (parseInt(item.new_users) / maxValue) * maxHeight : 0;
-          const date = new Date(item.date);
-          const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-          
-          return (
-            <div key={index} className="flex-1 flex flex-col items-center group relative">
-              {/* Bar */}
-              <div className="w-full flex flex-col items-center">
-                {/* Tooltip */}
-                <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap z-10">
-                  <div className="font-medium">{date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                  <div className="text-gray-300">Total: {item.new_users}</div>
-                  <div className="text-gray-300">Students: {item.new_students}</div>
-                  <div className="text-gray-300">Instructors: {item.new_instructors}</div>
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
-                </div>
-
-                {/* Bar segments */}
-                <div className="w-full flex flex-col-reverse" style={{ height: `${maxHeight}px` }}>
-                  {parseInt(item.new_users) > 0 && (
-                    <>
-                      {/* Instructors (top segment - green) */}
-                      {parseInt(item.new_instructors) > 0 && (
-                        <div
-                          className="w-full bg-green-500 rounded-t transition-all duration-300 group-hover:bg-green-600"
-                          style={{
-                            height: `${(parseInt(item.new_instructors) / parseInt(item.new_users)) * height}px`
-                          }}
-                        ></div>
-                      )}
-                      
-                      {/* Students (bottom segment - blue) */}
-                      {parseInt(item.new_students) > 0 && (
-                        <div
-                          className="w-full bg-blue-500 transition-all duration-300 group-hover:bg-blue-600"
-                          style={{
-                            height: `${(parseInt(item.new_students) / parseInt(item.new_users)) * height}px`
-                          }}
-                        ></div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Date label - show every 5th day or weekends */}
-              {(index % 5 === 0 || isWeekend) && (
-                <div className="text-xs text-gray-500 mt-2 transform -rotate-45 origin-top-left whitespace-nowrap">
-                  {date.getDate()}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Legend */}
-      <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t border-gray-200">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-blue-500 rounded"></div>
-          <span className="text-sm text-gray-600">Students</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-green-500 rounded"></div>
-          <span className="text-sm text-gray-600">Instructors</span>
-        </div>
+      <div className="h-full min-h-[400px] min-w-[200px]">
+        <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={400}>
+          <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="colorStudents" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
+                <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.1}/>
+              </linearGradient>
+              <linearGradient id="colorInstructors" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
+                <stop offset="95%" stopColor="#10B981" stopOpacity={0.1}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+            <XAxis 
+              dataKey="date" 
+              stroke="#6B7280"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis 
+              stroke="#6B7280"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+              domain={[0, 'dataMax']}
+              tickCount={6}
+              allowDecimals={false}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#1F2937',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#F9FAFB'
+              }}
+              labelStyle={{ color: '#F9FAFB', fontWeight: 'bold' }}
+              formatter={(value: any, name: string) => [
+                `${value} ${name}`,
+                name === 'students' ? 'Students' : 'Instructors'
+              ]}
+              labelFormatter={(label) => `Date: ${label}`}
+            />
+            <Legend />
+            <Area
+              type="monotone"
+              dataKey="students"
+              stackId="1"
+              stroke="#3B82F6"
+              fill="url(#colorStudents)"
+              name="Students"
+            />
+            <Area
+              type="monotone"
+              dataKey="instructors"
+              stackId="1"
+              stroke="#10B981"
+              fill="url(#colorInstructors)"
+              name="Instructors"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );

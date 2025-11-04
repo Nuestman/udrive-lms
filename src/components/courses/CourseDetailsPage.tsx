@@ -175,7 +175,7 @@ const CourseDetailsPage: React.FC = () => {
         <div className="flex gap-3">
           <button
             onClick={handleStudentView}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Take this course as a student"
             disabled={!course || loading}
           >

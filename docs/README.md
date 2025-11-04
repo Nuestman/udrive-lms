@@ -2,6 +2,13 @@
 
 Welcome to the SunLMS (LMS/CMS-as-a-Service) documentation. This comprehensive guide covers all aspects of the system architecture, features, and implementation. SunLMS is a generic platform that powers specialized solutions for various industries including healthcare, corporate training, driving schools, and education.
 
+## 🏢 System Information
+
+- **System Name**: SunLMS
+- **Version**: 2.2.0
+- **Status**: Active Development
+- **Brand Colors**: Gold/Bronze palette (Primary: #B98C1B)
+
 ## 📚 Documentation Structure
 
 ### Core System Documentation
@@ -41,6 +48,17 @@ Welcome to the SunLMS (LMS/CMS-as-a-Service) documentation. This comprehensive g
 
 ## 📋 Recent Updates
 
+### Version 2.2.0 - Brand System Implementation
+- **SunLMS Brand Colors**: Comprehensive system-wide implementation of SunLMS brand color palette
+  - Primary: `#B98C1B` (Gold/Bronze)
+  - Secondary: `#6A4F10` (Deep Gold)
+  - Accent: `#D4A730` (Lighter Gold)
+  - Brand Text: `#150F00` (Dark Brown)
+- **Complete Color Scale**: Full 50-900 scale for all brand colors
+- **White-Label System**: Enhanced white-label system with SunLMS brand defaults and revert functionality
+- **System-Wide Branding**: All UI components, dashboards, charts, and elements now use brand colors
+- **Avatar Branding**: Default avatars now use brand primary color
+
 ### Version 2.1.0 - Dual-Role Learning System
 - **Dual-Role System**: Instructors, school admins, and super admins can now take courses as students
 - **Universal Enrollment**: Cross-role enrollment system that works for all user types
@@ -56,6 +74,18 @@ Welcome to the SunLMS (LMS/CMS-as-a-Service) documentation. This comprehensive g
 
 See [Changelog](../CHANGELOG.md) for complete version history.
 
+## 🎨 Branding & Theming
+
+SunLMS features a comprehensive brand color system with full white-label support:
+
+- **Brand Colors**: Professional gold/bronze palette throughout the application
+- **Theme System**: Light/dark mode support with automatic system preference detection
+- **White-Label Support**: Custom branding for tenants with logo, colors, and company name
+- **CSS Variables**: Flexible theming system using CSS custom properties
+- **Tailwind Integration**: Brand colors integrated into Tailwind CSS for consistent styling
+
+See [Theme System Documentation](theme-system.md) for detailed information.
+
 ## 🔧 System Status
 
 - ✅ **Authentication System**: Fully implemented with tenant isolation
@@ -66,6 +96,7 @@ See [Changelog](../CHANGELOG.md) for complete version history.
 - ✅ **Dual-Role System**: Instructors and admins can take courses as students
 - ✅ **Universal Enrollment**: Cross-role enrollment system for all user types
 - ✅ **File Storage**: Integrated with Vercel Blob for media management
+- ✅ **Brand System**: System-wide SunLMS brand color implementation
 
 ## 📞 Support
 
@@ -76,4 +107,5 @@ For technical support or questions:
 
 ---
 
-*Last updated: October 2024*
+*Last updated: November 2025*  
+*Current Version: 2.2.0*

@@ -2,11 +2,14 @@
 import { query } from '../lib/db.js';
 import { ValidationError, NotFoundError } from '../middleware/errorHandler.js';
 import progressService from './progress.service.js';
+import { sendTemplatedEmail, isEmailConfigured } from '../utils/mailer.js';
+import { buildNotification } from '../utils/notificationTemplates.js';
+import notificationsService from './notifications.service.js';
 
 /**
  * Create quiz
  */
-export async function createQuiz(quizData, tenantId, isSuperAdmin = false) {
+export async function createQuiz(quizData, tenantId, isSuperAdmin = false, io = null) {
   const {
     module_id,
     title,
@@ -64,8 +67,58 @@ export async function createQuiz(quizData, tenantId, isSuperAdmin = false) {
       status || 'draft',
     ]
   );
+  const quiz = result.rows[0];
 
-  return result.rows[0];
+  // Optionally, notify enrolled students when a quiz is published
+  if (quiz.status === 'published') {
+    try {
+      // Get course and enrolled students
+      const rows = await query(
+        `SELECT e.student_id, u.email, p.first_name, c.title as course_title, m.title as module_title
+         FROM quizzes q
+         JOIN modules m ON q.module_id = m.id
+         JOIN courses c ON m.course_id = c.id
+         JOIN enrollments e ON e.course_id = c.id
+         JOIN users u ON u.id = e.student_id
+         LEFT JOIN user_profiles p ON p.user_id = u.id
+         WHERE q.id = $1`,
+        [quiz.id]
+      );
+
+      for (const row of rows.rows) {
+        const notif = buildNotification('quiz_assigned', {
+          quizName: quiz.title,
+          dueAt: null,
+          link: `/quizzes/${quiz.id}`
+        });
+        await notificationsService.createNotification(row.student_id, {
+          type: 'quiz_assigned',
+          title: notif.title,
+          message: notif.body,
+          link: notif.link
+        }, io);
+
+        if (isEmailConfigured() && row.email) {
+          await sendTemplatedEmail('quiz_assigned', {
+            to: row.email,
+            variables: {
+              firstName: row.first_name,
+              quizName: quiz.title,
+              quizUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/quizzes/${quiz.id}`,
+              courseName: row.course_title,
+              moduleName: row.module_title,
+              timeLimit: quiz.time_limit_minutes,
+              attemptsAllowed: quiz.max_attempts
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Quiz assignment notifications error:', e?.message || e);
+    }
+  }
+
+  return quiz;
 }
 
 /**
@@ -212,6 +265,41 @@ export async function submitQuizAttempt(quizId, studentId, answers, tenantId, is
   // This unifies the lesson and quiz completion experience
   let progressUpdate = null;
 
+  try {
+    // Notify student about result
+    const user = await query(
+      `SELECT u.email, p.first_name FROM users u LEFT JOIN user_profiles p ON p.user_id = u.id WHERE u.id = $1`,
+      [studentId]
+    );
+    const { email, first_name } = user.rows[0] || {};
+
+    const notif = buildNotification('quiz_result', {
+      quizName: quiz.title,
+      score: percentageScore,
+      link: `/quizzes/${quizId}/results`
+    });
+    await notificationsService.createNotification(studentId, {
+      type: 'quiz_result',
+      title: notif.title,
+      message: notif.body,
+      link: notif.link
+    });
+
+    if (isEmailConfigured() && email) {
+      await sendTemplatedEmail('quiz_result', {
+        to: email,
+        variables: {
+          firstName: first_name,
+          quizName: quiz.title,
+          score: percentageScore,
+          resultUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/quizzes/${quizId}/results`
+        }
+      });
+    }
+  } catch (e) {
+    console.error('Quiz result notifications error:', e?.message || e);
+  }
+
   return {
     ...attemptResult.rows[0],
     totalPoints,
@@ -273,20 +361,22 @@ export async function listQuizzesByModule(moduleId, tenantId, isSuperAdmin = fal
 /**
  * Update quiz
  */
-export async function updateQuiz(quizId, updates, tenantId, isSuperAdmin = false) {
-  // Verify access
-  if (!isSuperAdmin) {
-    const quizCheck = await query(
-      `SELECT q.id FROM quizzes q
-       JOIN modules m ON q.module_id = m.id
-       JOIN courses c ON m.course_id = c.id
-       WHERE q.id = $1 AND c.tenant_id = $2`,
-      [quizId, tenantId]
-    );
-    if (quizCheck.rows.length === 0) {
-      throw new Error('Quiz not found or access denied');
-    }
+export async function updateQuiz(quizId, updates, tenantId, isSuperAdmin = false, io = null) {
+  // Get current quiz data for comparison
+  const currentQuizResult = await query(
+    `SELECT q.*, m.title as module_title, c.title as course_title, c.id as course_id
+     FROM quizzes q
+     JOIN modules m ON q.module_id = m.id
+     JOIN courses c ON m.course_id = c.id
+     WHERE q.id = $1 AND c.tenant_id = $2`,
+    [quizId, tenantId]
+  );
+  
+  if (currentQuizResult.rows.length === 0) {
+    throw new Error('Quiz not found or access denied');
   }
+  
+  const currentQuiz = currentQuizResult.rows[0];
 
   const {
     title,
@@ -328,7 +418,94 @@ export async function updateQuiz(quizId, updates, tenantId, isSuperAdmin = false
     ]
   );
 
-  return result.rows[0];
+  const updatedQuiz = result.rows[0];
+
+  // Send notifications for quiz updates
+  if (io) {
+    try {
+      const { notifyQuizStudents } = await import('./notifications.service.js');
+      
+      // Determine notification type and content
+      let notificationType = 'quiz_update';
+      let notificationTitle = 'Quiz Updated';
+      let notificationMessage = `The quiz "${updatedQuiz.title}" in course "${currentQuiz.course_title}" has been updated.`;
+      let updateDetails = '';
+
+      // Check what was updated
+      const changes = [];
+      if (title !== undefined && title !== currentQuiz.title) {
+        changes.push('title');
+      }
+      if (description !== undefined && description !== currentQuiz.description) {
+        changes.push('description');
+      }
+      if (passing_score !== undefined && passing_score !== currentQuiz.passing_score) {
+        changes.push('passing score');
+      }
+      if (time_limit_minutes !== undefined && time_limit_minutes !== currentQuiz.time_limit_minutes) {
+        changes.push('time limit');
+      }
+      if (max_attempts !== undefined && max_attempts !== currentQuiz.max_attempts) {
+        changes.push('max attempts');
+      }
+      if (randomize_questions !== undefined && randomize_questions !== currentQuiz.randomize_questions) {
+        changes.push('question randomization');
+      }
+      if (randomize_answers !== undefined && randomize_answers !== currentQuiz.randomize_answers) {
+        changes.push('answer randomization');
+      }
+      if (show_feedback !== undefined && show_feedback !== currentQuiz.show_feedback) {
+        changes.push('feedback settings');
+      }
+
+      // Handle status changes
+      if (status !== undefined && status !== currentQuiz.status) {
+        if (status === 'published' && currentQuiz.status === 'draft') {
+          notificationType = 'quiz_published';
+          notificationTitle = 'New Quiz Available';
+          notificationMessage = `A new quiz "${updatedQuiz.title}" is now available in course "${currentQuiz.course_title}".`;
+        } else {
+          changes.push(`status (${currentQuiz.status} → ${status})`);
+        }
+      }
+
+      if (changes.length > 0) {
+        updateDetails = `Updated: ${changes.join(', ')}`;
+      }
+
+      // Create notification data
+      const notificationData = {
+        type: notificationType,
+        title: notificationTitle,
+        message: notificationMessage,
+        link: `/courses/${currentQuiz.course_id}/quizzes/${quizId}`,
+        data: {
+          quizId,
+          courseId: currentQuiz.course_id,
+          quizName: updatedQuiz.title,
+          courseName: currentQuiz.course_title,
+          moduleName: currentQuiz.module_title,
+          changes: changes
+        },
+        emailData: {
+          quizName: updatedQuiz.title,
+          courseName: currentQuiz.course_title,
+          quizUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/courses/${currentQuiz.course_id}/quizzes/${quizId}`,
+          updateDetails: updateDetails
+        }
+      };
+
+      // Notify students enrolled in the course
+      await notifyQuizStudents(quizId, notificationData, io);
+      
+      console.log(`Quiz update notifications sent for quiz ${quizId}`);
+    } catch (error) {
+      console.error('Error sending quiz update notifications:', error);
+      // Don't fail the quiz update if notifications fail
+    }
+  }
+
+  return updatedQuiz;
 }
 
 /**

@@ -39,5 +39,75 @@ router.get('/activity', asyncHandler(async (req, res) => {
   });
 }));
 
+/**
+ * GET /api/analytics/enrollment-trends
+ * Get enrollment trends aggregated by interval
+ */
+router.get('/enrollment-trends', asyncHandler(async (req, res) => {
+  const interval = (req.query.interval || 'week').toString();
+  const periods = parseInt(req.query.periods) || 12;
+  const trends = await analyticsService.getEnrollmentTrends(req.tenantId, { interval, periods });
+
+  res.json({
+    success: true,
+    data: trends
+  });
+}));
+
+/**
+ * GET /api/analytics/course-performance
+ * Get course performance summary
+ */
+router.get('/course-performance', asyncHandler(async (req, res) => {
+  const limit = parseInt(req.query.limit) || 10;
+  const data = await analyticsService.getCoursePerformance(req.tenantId, limit);
+
+  res.json({
+    success: true,
+    data
+  });
+}));
+
+/**
+ * GET /api/analytics/school-performance
+ * Get school performance metrics (super admin only)
+ */
+router.get('/school-performance', asyncHandler(async (req, res) => {
+  if (!req.isSuperAdmin) {
+    return res.status(403).json({
+      success: false,
+      error: 'Access denied: Super admin only'
+    });
+  }
+
+  const limit = parseInt(req.query.limit) || 10;
+  const data = await analyticsService.getSchoolPerformance(limit);
+
+  res.json({
+    success: true,
+    data
+  });
+}));
+
+/**
+ * GET /api/analytics/school-stats
+ * Get school statistics (super admin only)
+ */
+router.get('/school-stats', asyncHandler(async (req, res) => {
+  if (!req.isSuperAdmin) {
+    return res.status(403).json({
+      success: false,
+      error: 'Access denied: Super admin only'
+    });
+  }
+
+  const data = await analyticsService.getSchoolStats();
+
+  res.json({
+    success: true,
+    data
+  });
+}));
+
 export default router;
 

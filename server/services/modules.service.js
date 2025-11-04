@@ -121,11 +121,11 @@ export async function createModule(moduleData, tenantId) {
 /**
  * Update module
  */
-export async function updateModule(moduleId, moduleData, tenantId) {
+export async function updateModule(moduleId, moduleData, tenantId, io = null) {
   const { title, description, estimated_duration_minutes, order_index } = moduleData;
 
-  // Verify module belongs to tenant
-  await getModuleById(moduleId, tenantId);
+  // Get current module data for comparison
+  const currentModule = await getModuleById(moduleId, tenantId);
 
   const updates = [];
   const values = [];
@@ -168,7 +168,74 @@ export async function updateModule(moduleId, moduleData, tenantId) {
     values
   );
 
-  return result.rows[0];
+  const updatedModule = result.rows[0];
+
+  // Send notifications for module updates
+  if (io) {
+    try {
+      const { notifyModuleStudents } = await import('./notifications.service.js');
+      
+      // Get course information for the notification
+      const courseResult = await query(
+        `SELECT c.id, c.title as course_title FROM courses c 
+         JOIN modules m ON c.id = m.course_id 
+         WHERE m.id = $1`,
+        [moduleId]
+      );
+      
+      if (courseResult.rows.length > 0) {
+        const course = courseResult.rows[0];
+        
+        // Determine what was updated
+        const changes = [];
+        if (title !== undefined && title !== currentModule.title) {
+          changes.push('title');
+        }
+        if (description !== undefined && description !== currentModule.description) {
+          changes.push('description');
+        }
+        if (estimated_duration_minutes !== undefined && estimated_duration_minutes !== currentModule.estimated_duration_minutes) {
+          changes.push('duration');
+        }
+        if (order_index !== undefined && order_index !== currentModule.order_index) {
+          changes.push('order');
+        }
+
+        const updateDetails = changes.length > 0 ? `Updated: ${changes.join(', ')}` : '';
+
+        // Create notification data
+        const notificationData = {
+          type: 'module_update',
+          title: 'Module Updated',
+          message: `The module "${updatedModule.title}" in course "${course.course_title}" has been updated.`,
+          link: `/courses/${course.id}/modules/${moduleId}`,
+          data: {
+            moduleId,
+            courseId: course.id,
+            moduleName: updatedModule.title,
+            courseName: course.course_title,
+            changes: changes
+          },
+          emailData: {
+            moduleName: updatedModule.title,
+            courseName: course.course_title,
+            moduleUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/courses/${course.id}/modules/${moduleId}`,
+            updateDetails: updateDetails
+          }
+        };
+
+        // Notify students enrolled in the course
+        await notifyModuleStudents(moduleId, notificationData, io);
+        
+        console.log(`Module update notifications sent for module ${moduleId}`);
+      }
+    } catch (error) {
+      console.error('Error sending module update notifications:', error);
+      // Don't fail the module update if notifications fail
+    }
+  }
+
+  return updatedModule;
 }
 
 /**

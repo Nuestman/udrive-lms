@@ -134,7 +134,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ role }) => {
       <div className="flex items-start justify-between">
         <div className="flex items-center">
           <img
-            src={student.avatar || `https://ui-avatars.com/api/?name=${student.firstName}+${student.lastName}&background=0F52BA&color=fff`}
+            src={student.avatar || `https://ui-avatars.com/api/?name=${student.firstName}+${student.lastName}&background=B98C1B&color=fff`}
             alt={`${student.firstName} ${student.lastName}`}
             className="w-12 h-12 rounded-full object-cover"
           />
@@ -246,7 +246,7 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ role }) => {
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center">
                   <img
-                    src={student.avatar || `https://ui-avatars.com/api/?name=${student.firstName}+${student.lastName}&background=0F52BA&color=fff`}
+                    src={student.avatar || `https://ui-avatars.com/api/?name=${student.firstName}+${student.lastName}&background=B98C1B&color=fff`}
                     alt={`${student.firstName} ${student.lastName}`}
                     className="w-10 h-10 rounded-full object-cover"
                   />
@@ -366,8 +366,8 @@ const StudentManagement: React.FC<StudentManagementProps> = ({ role }) => {
         
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <BookOpen className="w-6 h-6 text-blue-600" />
+            <div className="p-2 bg-primary-100 rounded-lg">
+              <BookOpen className="w-6 h-6 text-primary-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Avg. Progress</p>

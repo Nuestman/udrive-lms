@@ -86,9 +86,7 @@ const SignupSchoolPage: React.FC = () => {
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl p-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-full mb-4">
-            <Building2 className="w-8 h-8 text-primary-600" />
-          </div>
+          <img src="/sunlms-logo-wide.png" alt="SunLMS" className="h-12 w-auto mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Your Driving School</h1>
           <p className="text-gray-600">Set up your school and start managing courses</p>
         </div>
@@ -109,10 +107,11 @@ const SignupSchoolPage: React.FC = () => {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="school_name" className="block text-sm font-medium text-gray-700 mb-1">
                   School Name *
                 </label>
                 <input
+                  id="school_name"
                   type="text"
                   name="school_name"
                   value={formData.school_name}
@@ -124,11 +123,12 @@ const SignupSchoolPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="subdomain" className="block text-sm font-medium text-gray-700 mb-1">
                   Subdomain *
                 </label>
                 <div className="flex">
                   <input
+                    id="subdomain"
                     type="text"
                     name="subdomain"
                     value={formData.subdomain}
@@ -147,10 +147,11 @@ const SignupSchoolPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="contact_email" className="block text-sm font-medium text-gray-700 mb-1">
                     Contact Email
                   </label>
                   <input
+                    id="contact_email"
                     type="email"
                     name="contact_email"
                     value={formData.contact_email}
@@ -161,10 +162,11 @@ const SignupSchoolPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="contact_phone" className="block text-sm font-medium text-gray-700 mb-1">
                     Contact Phone
                   </label>
                   <input
+                    id="contact_phone"
                     type="tel"
                     name="contact_phone"
                     value={formData.contact_phone}
@@ -176,10 +178,11 @@ const SignupSchoolPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
                   Address
                 </label>
                 <textarea
+                  id="address"
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
@@ -201,10 +204,11 @@ const SignupSchoolPage: React.FC = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-1">
                     First Name *
                   </label>
                   <input
+                    id="first_name"
                     type="text"
                     name="first_name"
                     value={formData.first_name}
@@ -215,10 +219,11 @@ const SignupSchoolPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="last_name" className="block text-sm font-medium text-gray-700 mb-1">
                     Last Name *
                   </label>
                   <input
+                    id="last_name"
                     type="text"
                     name="last_name"
                     value={formData.last_name}
@@ -230,10 +235,11 @@ const SignupSchoolPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                   Email Address *
                 </label>
                 <input
+                  id="email"
                   type="email"
                   name="email"
                   value={formData.email}
@@ -244,10 +250,11 @@ const SignupSchoolPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
                   Phone (Optional)
                 </label>
                 <input
+                  id="phone"
                   type="tel"
                   name="phone"
                   value={formData.phone}
@@ -258,10 +265,11 @@ const SignupSchoolPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                     Password *
                   </label>
                   <input
+                    id="password"
                     type="password"
                     name="password"
                     value={formData.password}
@@ -273,10 +281,11 @@ const SignupSchoolPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700 mb-1">
                     Confirm Password *
                   </label>
                   <input
+                    id="confirm_password"
                     type="password"
                     name="confirm_password"
                     value={formData.confirm_password}

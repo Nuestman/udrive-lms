@@ -79,7 +79,7 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
   const getGoalStatusColor = (status: string) => {
     switch (status) {
       case 'active':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-primary-100 text-primary-800';
       case 'completed':
         return 'bg-green-100 text-green-800';
       case 'overdue':
@@ -175,7 +175,7 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
                 <p className="text-2xl font-bold text-gray-900">{totalLessonsCompleted}</p>
                 <p className="text-sm text-gray-500">of {totalLessons} total</p>
                 {totalLessons === 0 && (
-                  <p className="text-xs text-orange-600 mt-1">No lessons available in enrolled courses</p>
+                  <p className="text-xs text-accent-600 mt-1">No lessons available in enrolled courses</p>
                 )}
               </div>
           </div>
@@ -196,8 +196,8 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Clock className="w-6 h-6 text-purple-600" />
+            <div className="p-2 bg-accent-100 rounded-lg">
+              <Clock className="w-6 h-6 text-accent-600" />
             </div>
             <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Study Streak</p>
@@ -209,8 +209,8 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
 
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Star className="w-6 h-6 text-blue-600" />
+              <div className="p-2 bg-primary-100 rounded-lg">
+                <Star className="w-6 h-6 text-primary-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Average Score</p>
@@ -265,7 +265,7 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
             <p className="text-gray-600">Keep up the great work!</p>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-orange-600 flex items-center">
+            <div className="text-3xl font-bold text-accent-600 flex items-center">
               <Zap className="w-8 h-8 mr-2" />
                 {currentStreak}
             </div>
@@ -274,7 +274,7 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
         </div>
         <div className="mt-4 flex space-x-2">
             {[...Array(Math.min(currentStreak, 10))].map((_, i) => (
-            <div key={i} className="flex-1 h-2 bg-orange-500 rounded"></div>
+            <div key={i} className="flex-1 h-2 bg-accent-500 rounded"></div>
           ))}
             {[...Array(Math.max(0, 10 - currentStreak))].map((_, i) => (
               <div key={i + currentStreak} className="flex-1 h-2 bg-gray-200 rounded"></div>
@@ -349,14 +349,14 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
         {enrollments.length > 0 && enrollments.every(e => 
           parseInt(e.total_lessons || '0') === 0 && parseInt(e.total_quizzes || '0') === 0
         ) && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
             <div className="flex items-start">
               <div className="flex-shrink-0">
-                <BookOpen className="w-5 h-5 text-blue-600 mt-0.5" />
+                <BookOpen className="w-5 h-5 text-primary-600 mt-0.5" />
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800">Course Content Coming Soon</h3>
-                <div className="mt-2 text-sm text-blue-700">
+                <h3 className="text-sm font-medium text-primary-800">Course Content Coming Soon</h3>
+                <div className="mt-2 text-sm text-primary-700">
                   <p>Your enrolled courses don't have lessons or quizzes yet. Instructors are working on adding content.</p>
                   <p className="mt-1">Course progress is calculated based on available content, so you'll see detailed metrics once lessons and quizzes are added.</p>
                 </div>
@@ -374,7 +374,7 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
                   enrollment.status === 'completed' 
                     ? 'bg-green-100 text-green-800' 
                     : enrollment.status === 'active'
-                    ? 'bg-blue-100 text-blue-800'
+                    ? 'bg-primary-100 text-primary-800'
                     : 'bg-gray-100 text-gray-800'
                 }`}>
                   {enrollment.status}
@@ -390,7 +390,7 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
                 </div>
                 <div className="text-sm text-gray-500">Lessons</div>
                 {parseInt(enrollment.total_lessons || '0') === 0 && (
-                  <div className="text-xs text-orange-600 mt-1">No lessons available</div>
+                  <div className="text-xs text-accent-600 mt-1">No lessons available</div>
                 )}
               </div>
               <div className="text-center">
@@ -399,7 +399,7 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
                 </div>
                 <div className="text-sm text-gray-500">Quizzes</div>
                 {parseInt(enrollment.total_quizzes || '0') === 0 && (
-                  <div className="text-xs text-orange-600 mt-1">No quizzes available</div>
+                  <div className="text-xs text-accent-600 mt-1">No quizzes available</div>
                 )}
               </div>
               <div className="text-center">
@@ -408,7 +408,7 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
                 </div>
                 <div className="text-sm text-gray-500">Avg Score</div>
                 {!enrollment.average_score && (
-                  <div className="text-xs text-orange-600 mt-1">No quiz attempts</div>
+                  <div className="text-xs text-accent-600 mt-1">No quiz attempts</div>
                 )}
               </div>
               <div className="text-center">
@@ -417,7 +417,7 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
                 </div>
                 <div className="text-sm text-gray-500">Time Spent</div>
                 {!enrollment.time_spent_minutes && (
-                  <div className="text-xs text-orange-600 mt-1">No time recorded</div>
+                  <div className="text-xs text-accent-600 mt-1">No time recorded</div>
                 )}
               </div>
             </div>
@@ -458,8 +458,8 @@ const ProgressTracking: React.FC<ProgressTrackingProps> = ({ studentId }) => {
           We're working on an exciting achievement system to reward your learning progress. 
           Stay tuned for badges, milestones, and special recognition!
         </p>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
-          <p className="text-sm text-blue-800">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 max-w-md mx-auto">
+          <p className="text-sm text-primary-800">
             <strong>Planned Features:</strong><br />
             • Course completion badges<br />
             • Perfect quiz scores<br />

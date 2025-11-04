@@ -4,22 +4,33 @@ import {
   Users, 
   UserPlus, 
   Search, 
-  Filter, 
   Download,
   TrendingUp,
   UserCheck,
-  UserX,
   Shield,
   GraduationCap,
   BookOpen,
   MoreVertical,
   Edit,
   Trash2,
-  Key,
-  CheckSquare
+  Key
 } from 'lucide-react';
 import { useUsers, useUserStatistics, useUserActivity, useTopUsers } from '../../hooks/useUsers';
-import { useAuth } from '../../contexts/AuthContext';
+
+interface TopUser {
+  id: string;
+  email: string;
+  role: string;
+  last_login?: string;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
+  total_enrollments?: number;
+  completed_lessons?: number;
+  courses_created?: number;
+  quiz_attempts?: number;
+  recent_login_score?: number;
+}
 import { useToast } from '../../contexts/ToastContext';
 import CreateUserModal from './CreateUserModal';
 import EditUserModal from './EditUserModal';
@@ -29,25 +40,26 @@ import UserActivityChart from './UserActivityChart';
 import UserRoleDistribution from './UserRoleDistribution';
 
 const UsersPage: React.FC = () => {
-  const { profile } = useAuth();
   const { success, error: showError } = useToast();
-  const { users, loading, pagination, filters, updateFilters, goToPage, deleteUser, bulkUpdate, refresh } = useUsers();
+  const { users, loading, pagination, filters, updateFilters, goToPage, bulkUpdate, refresh } = useUsers();
+  const [bulkLoading, setBulkLoading] = useState(false);
   const { statistics, loading: statsLoading } = useUserStatistics();
   const { activity, loading: activityLoading } = useUserActivity(30);
-  const { topUsers, loading: topUsersLoading } = useTopUsers(5);
+  const [topUsersTimeFilter, setTopUsersTimeFilter] = useState<string>('all');
+  const { topUsers, loading: topUsersLoading } = useTopUsers(5, topUsersTimeFilter);
 
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingUser, setEditingUser] = useState<any>(null);
-  const [deletingUser, setDeletingUser] = useState<any>(null);
-  const [resettingPasswordUser, setResettingPasswordUser] = useState<any>(null);
+  const [editingUser, setEditingUser] = useState<{ id: string; email: string; first_name?: string; last_name?: string; role: string; is_active: boolean; tenant_id?: string } | null>(null);
+  const [deletingUser, setDeletingUser] = useState<{ id: string; email: string; first_name?: string; last_name?: string } | null>(null);
+  const [resettingPasswordUser, setResettingPasswordUser] = useState<{ id: string; email: string; first_name?: string; last_name?: string } | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   const roleColors = {
     super_admin: 'bg-purple-100 text-purple-800',
-    school_admin: 'bg-blue-100 text-blue-800',
+    school_admin: 'bg-primary-100 text-primary-800',
     instructor: 'bg-green-100 text-green-800',
-    student: 'bg-orange-100 text-orange-800'
+    student: 'bg-accent-100 text-accent-800'
   };
 
   const roleIcons = {
@@ -89,17 +101,38 @@ const UsersPage: React.FC = () => {
     if (selectedUsers.length === 0) return;
 
     try {
+      setBulkLoading(true);
       if (action === 'activate') {
-        await bulkUpdate(selectedUsers, { is_active: true });
+        const res = await bulkUpdate(selectedUsers, { is_active: true });
         success(`${selectedUsers.length} users activated successfully`);
+        if (res?.emailStats) {
+          const { attempted, sent, failed, emailEnabled } = res.emailStats;
+          if (!emailEnabled) {
+            showError('SMTP not configured. Emails were not sent.');
+          } else {
+            if (sent > 0) success(`Activation emails sent: ${sent}/${attempted}`);
+            if (failed > 0) showError(`Failed to send ${failed} activation email(s)`);
+          }
+        }
       } else if (action === 'deactivate') {
-        await bulkUpdate(selectedUsers, { is_active: false });
+        const res = await bulkUpdate(selectedUsers, { is_active: false });
         success(`${selectedUsers.length} users deactivated successfully`);
+        if (res?.emailStats) {
+          const { attempted, sent, failed, emailEnabled } = res.emailStats;
+          if (!emailEnabled) {
+            showError('SMTP not configured. Emails were not sent.');
+          } else {
+            if (sent > 0) success(`Deactivation emails sent: ${sent}/${attempted}`);
+            if (failed > 0) showError(`Failed to send ${failed} deactivation email(s)`);
+          }
+        }
       }
       setSelectedUsers([]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Bulk action error:', error);
-      showError(error.message || 'Failed to perform bulk action');
+      showError((error as Error).message || 'Failed to perform bulk action');
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -162,8 +195,8 @@ const UsersPage: React.FC = () => {
                 +{statistics?.new_users_month || 0} this month
               </p>
             </div>
-            <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Users className="h-6 w-6 text-blue-600" />
+            <div className="h-12 w-12 bg-primary-100 rounded-lg flex items-center justify-center">
+              <Users className="h-6 w-6 text-primary-600" />
             </div>
           </div>
         </div>
@@ -196,8 +229,8 @@ const UsersPage: React.FC = () => {
                 {statistics?.instructors || 0} instructors
               </p>
             </div>
-            <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
-              <GraduationCap className="h-6 w-6 text-orange-600" />
+            <div className="h-12 w-12 bg-accent-100 rounded-lg flex items-center justify-center">
+              <GraduationCap className="h-6 w-6 text-accent-600" />
             </div>
           </div>
         </div>
@@ -213,8 +246,8 @@ const UsersPage: React.FC = () => {
                 Last 7 days
               </p>
             </div>
-            <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="h-6 w-6 text-purple-600" />
+            <div className="h-12 w-12 bg-primary-100 rounded-lg flex items-center justify-center">
+              <TrendingUp className="h-6 w-6 text-primary-600" />
             </div>
           </div>
         </div>
@@ -233,11 +266,42 @@ const UsersPage: React.FC = () => {
       {/* Top Users */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Top Active Users</h2>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Top Active Users</h2>
+              <p className="text-sm text-gray-600 mt-1">Ranked by actual platform activity and engagement</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="timeFilter" className="text-sm font-medium text-gray-700">Period:</label>
+              <select
+                id="timeFilter"
+                value={topUsersTimeFilter}
+                onChange={(e) => setTopUsersTimeFilter(e.target.value)}
+                className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                aria-label="Select time period for top users"
+              >
+                <option value="all">All Time</option>
+                <option value="month">This Month</option>
+                <option value="week">This Week</option>
+                <option value="today">Today</option>
+              </select>
+            </div>
+          </div>
         </div>
         <div className="p-6">
           {topUsersLoading ? (
             <div className="text-center py-4 text-gray-500">Loading...</div>
+          ) : topUsers.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <Users className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+              <p className="text-gray-500">No active users found</p>
+              <p className="text-gray-400 text-sm">
+                {topUsersTimeFilter === 'all' 
+                  ? 'Users will appear here based on their platform activity (enrollments, lessons, courses)'
+                  : `No users found with activity in the selected ${topUsersTimeFilter === 'today' ? 'today' : topUsersTimeFilter} period`
+                }
+              </p>
+            </div>
           ) : (
             <div className="space-y-3">
               {topUsers.map((user) => (
@@ -263,11 +327,26 @@ const UsersPage: React.FC = () => {
                     <span className={`px-2 py-1 text-xs rounded-full ${roleColors[user.role]}`}>
                       {user.role.replace('_', ' ')}
                     </span>
-                    {user.role === 'student' && (
-                      <span className="text-sm text-gray-600">
-                        {user.enrollment_count || 0} enrollments
-                      </span>
-                    )}
+                    <div className="text-sm text-gray-600">
+                      {user.role === 'student' && (
+                        <>
+                          {(user as TopUser).total_enrollments || 0} enrollments
+                          {((user as TopUser).completed_lessons || 0) > 0 && (
+                            <span className="ml-2">• {(user as TopUser).completed_lessons} lessons completed</span>
+                          )}
+                        </>
+                      )}
+                      {user.role === 'instructor' && (
+                        <>
+                          {(user as TopUser).courses_created || 0} courses created
+                        </>
+                      )}
+                      {user.last_login && (
+                        <span className="ml-2 text-xs text-gray-500">
+                          • Last login: {new Date(user.last_login).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -348,26 +427,29 @@ const UsersPage: React.FC = () => {
       {/* Bulk Actions */}
       {selectedUsers.length > 0 && (
         <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
             <p className="text-sm text-primary-700">
               {selectedUsers.length} user{selectedUsers.length !== 1 ? 's' : ''} selected
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => handleBulkAction('activate')}
-                className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                  disabled={bulkLoading}
+                  className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Activate
+                  {bulkLoading ? 'Processing…' : 'Activate'}
               </button>
               <button
                 onClick={() => handleBulkAction('deactivate')}
-                className="px-3 py-1.5 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors"
+                  disabled={bulkLoading}
+                  className="px-3 py-1.5 bg-accent-600 text-white text-sm rounded-lg hover:bg-accent-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Deactivate
+                  {bulkLoading ? 'Processing…' : 'Deactivate'}
               </button>
               <button
                 onClick={() => setSelectedUsers([])}
-                className="px-3 py-1.5 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors"
+                  disabled={bulkLoading}
+                  className="px-3 py-1.5 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Clear
               </button>
@@ -396,6 +478,9 @@ const UsersPage: React.FC = () => {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Role
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  School/Tenant
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
@@ -447,6 +532,16 @@ const UsersPage: React.FC = () => {
                       {roleIcons[user.role]}
                       {user.role.replace('_', ' ')}
                     </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-900">
+                      {user.tenant_name || 'System Admin'}
+                    </div>
+                    {user.tenant_subdomain && (
+                      <div className="text-xs text-gray-500">
+                        {user.tenant_subdomain}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${

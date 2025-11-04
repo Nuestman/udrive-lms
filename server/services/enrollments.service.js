@@ -1,5 +1,8 @@
 // Enrollments Service - Business logic for course enrollments
 import { query } from '../lib/db.js';
+import { sendTemplatedEmail, isEmailConfigured } from '../utils/mailer.js';
+import { buildNotification } from '../utils/notificationTemplates.js';
+import notificationsService from './notifications.service.js';
 import { ValidationError, NotFoundError } from '../middleware/errorHandler.js';
 
 /**
@@ -96,7 +99,7 @@ export async function getStudentEnrollments(studentId, tenantId) {
 /**
  * Enroll student in course
  */
-export async function enrollStudent(enrollmentData, tenantId) {
+export async function enrollStudent(enrollmentData, tenantId, io = null) {
   const { student_id, course_id } = enrollmentData;
 
   // Validation
@@ -141,8 +144,52 @@ export async function enrollStudent(enrollmentData, tenantId) {
      RETURNING *`,
     [student_id, course_id]
   );
+  const enrollment = result.rows[0];
 
-  return result.rows[0];
+  // Fetch student email and name + course title for notifications
+  const details = await query(
+    `SELECT u.email, p.first_name, c.title as course_title
+     FROM users u
+     LEFT JOIN user_profiles p ON p.user_id = u.id
+     JOIN courses c ON c.id = $1
+     WHERE u.id = $2`,
+    [course_id, student_id]
+  );
+  const info = details.rows[0] || {};
+
+  // In-app notification
+  try {
+    const notif = buildNotification('enrollment_created', {
+      courseName: info.course_title,
+      link: `/courses/${course_id}`
+    });
+    await notificationsService.createNotification(student_id, {
+      type: 'enrollment_created',
+      title: notif.title,
+      message: notif.body,
+      link: notif.link
+    }, io);
+  } catch (e) {
+    console.error('Enrollment notification error:', e?.message || e);
+  }
+
+  // Email notification
+  if (isEmailConfigured() && info.email) {
+    try {
+      await sendTemplatedEmail('enrollment_created', {
+        to: info.email,
+        variables: {
+          firstName: info.first_name,
+          courseName: info.course_title,
+          courseUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/courses/${course_id}`
+        }
+      });
+    } catch (e) {
+      console.error('Enrollment email error:', e?.message || e);
+    }
+  }
+
+  return enrollment;
 }
 
 /**

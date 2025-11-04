@@ -120,7 +120,7 @@ export const UniversalStudentDashboard: React.FC<UniversalStudentDashboardProps>
       case 'completed':
         return 'bg-green-100 text-green-800';
       case 'active':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-primary-100 text-primary-800';
       case 'suspended':
         return 'bg-yellow-100 text-yellow-800';
       default:
@@ -230,7 +230,7 @@ export const UniversalStudentDashboard: React.FC<UniversalStudentDashboardProps>
                   </div>
                   <div className="w-24 bg-gray-200 rounded-full h-2">
                     <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      className="bg-primary-600 h-2 rounded-full transition-all duration-300"
                       style={{ width: `${Math.min(100, Math.max(0, enrollment.progress_percentage))}%` }}
                     ></div>
                   </div>
@@ -265,7 +265,7 @@ export const UniversalStudentDashboard: React.FC<UniversalStudentDashboardProps>
                   ) : (
                     <button
                       onClick={() => handleStartCourse(enrollment.course_id)}
-                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-primary-700 bg-primary-100 hover:bg-primary-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                     >
                       <Play className="w-3 h-3 mr-1" />
                       {enrollment.progress_percentage > 0 ? 'Continue Learning' : 'Start Course'}

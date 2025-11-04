@@ -6,11 +6,14 @@ import { AlertCircle, Eye, EyeOff, BookOpen, ArrowLeft, Loader2 } from 'lucide-r
 const LoginPage: React.FC = () => {
   const [credential, setCredential] = useState('');
   const [password, setPassword] = useState('');
+  const [twoFactorToken, setTwoFactorToken] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const { signIn } = useAuth();
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  const { signIn, verify2FA } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,13 +33,34 @@ const LoginPage: React.FC = () => {
       setError('Password must be at least 6 characters long');
       return;
     }
+
+    // 2FA validation
+    if (requires2FA && !twoFactorToken.trim()) {
+      setError('Please enter your 2FA code');
+      return;
+    }
     
     setLoading(true);
     setError(null);
     
     try {
-      await signIn(credential, password);
-      console.log('Login successful - redirect will be handled by App.tsx');
+      if (requires2FA && pendingUserId) {
+        // Verify 2FA token
+        await verify2FA(pendingUserId, twoFactorToken);
+        console.log('2FA verification successful - redirect will be handled by App.tsx');
+      } else {
+        // Initial login attempt
+        const result = await signIn(credential, password);
+        
+        if (result && result.requires2FA) {
+          setRequires2FA(true);
+          setPendingUserId(result.userId);
+          setError(null);
+          console.log('2FA required for login');
+        } else {
+          console.log('Login successful - redirect will be handled by App.tsx');
+        }
+      }
     } catch (err: any) {
       console.error('Login error:', err);
       
@@ -49,6 +73,8 @@ const LoginPage: React.FC = () => {
         errorMessage = 'Please check your email and click the confirmation link before signing in.';
       } else if (err.message?.includes('Too many requests')) {
         errorMessage = 'Too many login attempts. Please wait a few minutes before trying again.';
+      } else if (err.message?.includes('Invalid two-factor authentication code')) {
+        errorMessage = 'Invalid 2FA code. Please check your authenticator app and try again.';
       } else if (err.message) {
         errorMessage = err.message;
       }
@@ -77,9 +103,7 @@ const LoginPage: React.FC = () => {
         <div className="max-w-md w-full">
           {/* Logo and Title */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary-600 to-primary-700 rounded-2xl mb-6 shadow-lg">
-              <BookOpen className="w-8 h-8 text-white" />
-            </div>
+            <img src="/sunlms-logo-wide.png" alt="SunLMS" className="h-12 w-auto mx-auto mb-6" />
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
               Welcome back
             </h2>
@@ -96,17 +120,18 @@ const LoginPage: React.FC = () => {
                 <label htmlFor="credential" className="block text-sm font-semibold text-gray-700 mb-2">
                   Email or Phone Number
                 </label>
-                <input
-                  id="credential"
-                  name="credential"
-                  type="text"
-                  autoComplete="username"
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder-gray-400"
-                  placeholder="Enter your email or phone number"
-                  value={credential}
-                  onChange={(e) => setCredential(e.target.value)}
-                />
+                  <input
+                    id="credential"
+                    name="credential"
+                    type="text"
+                    autoComplete="username"
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder-gray-400"
+                    placeholder="Enter your email or phone number"
+                    value={credential}
+                    onChange={(e) => setCredential(e.target.value)}
+                    disabled={requires2FA}
+                  />
               </div>
 
               {/* Password Input */}
@@ -125,11 +150,13 @@ const LoginPage: React.FC = () => {
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    disabled={requires2FA}
                   />
                   <button
                     type="button"
                     className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
                     onClick={() => setShowPassword(!showPassword)}
+                    disabled={requires2FA}
                   >
                     {showPassword ? (
                       <EyeOff className="h-5 w-5" />
@@ -139,6 +166,30 @@ const LoginPage: React.FC = () => {
                   </button>
                 </div>
               </div>
+
+              {/* 2FA Input */}
+              {requires2FA && (
+                <div>
+                  <label htmlFor="twoFactorToken" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Two-Factor Authentication Code
+                  </label>
+                  <input
+                    id="twoFactorToken"
+                    name="twoFactorToken"
+                    type="text"
+                    autoComplete="one-time-code"
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder-gray-400"
+                    placeholder="Enter 6-digit code from your authenticator app"
+                    value={twoFactorToken}
+                    onChange={(e) => setTwoFactorToken(e.target.value)}
+                    maxLength={6}
+                  />
+                  <p className="mt-2 text-sm text-gray-600">
+                    Enter the 6-digit code from your authenticator app
+                  </p>
+                </div>
+              )}
 
               {/* Remember Me & Forgot Password */}
               <div className="flex items-center justify-between">
@@ -152,7 +203,7 @@ const LoginPage: React.FC = () => {
                   <span className="ml-2 text-sm text-gray-600">Remember me</span>
                 </label>
                 <Link 
-                  to="/reset-password" 
+                  to="/forgot-password" 
                   className="text-sm font-medium text-primary-600 hover:text-primary-500 transition-colors"
                 >
                   Forgot password?

@@ -1,6 +1,9 @@
 // User Management Service
 import db from '../lib/db.js';
 import bcrypt from 'bcryptjs';
+import { sendTemplatedEmail, isEmailConfigured } from '../utils/mailer.js';
+import { buildNotification } from '../utils/notificationTemplates.js';
+import notificationsService from './notifications.service.js';
 
 /**
  * Get all users with optional filtering and pagination
@@ -294,6 +297,10 @@ export async function updateUser(userId, updates) {
 
     await client.query('BEGIN');
 
+    // Fetch current user state to detect status transitions
+    const beforeRes = await db.query('SELECT email, is_active FROM users WHERE id = $1', [userId]);
+    const before = beforeRes.rows[0] || {};
+
     // Update user table if needed
     if (userUpdateFields.length > 0) {
       userValues.push(userId);
@@ -336,6 +343,33 @@ export async function updateUser(userId, updates) {
     }
 
     const { password_hash, ...user } = result.rows[0];
+
+    // Post-update notifications for activation/deactivation
+    try {
+      if (updates.is_active !== undefined && updates.is_active !== before.is_active) {
+        const newlyActive = updates.is_active === true;
+        const notifId = newlyActive ? 'account_activated' : 'account_deactivated';
+        const notif = buildNotification(notifId, {});
+        await notificationsService.createNotification(userId, {
+          type: notifId,
+          title: notif.title,
+          message: notif.body
+        });
+        if (isEmailConfigured() && before.email) {
+          const templateId = newlyActive ? 'account_activated' : 'account_deactivated';
+          await sendTemplatedEmail(templateId, {
+            to: before.email,
+            variables: {
+              firstName: user.first_name,
+              dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard`
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.error('User activation/deactivation notification error:', e?.message || e);
+    }
+
     return user;
   } catch (error) {
     await client.query('ROLLBACK');
@@ -351,13 +385,28 @@ export async function updateUser(userId, updates) {
  */
 export async function deleteUser(userId) {
   try {
-    const result = await db.query(
-      'UPDATE users SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id',
-      [userId]
-    );
+    // capture email for notification before change
+    const before = await db.query('SELECT email FROM users WHERE id = $1', [userId]);
+    const email = before.rows[0]?.email;
+    const result = await db.query('UPDATE users SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id', [userId]);
 
     if (result.rows.length === 0) {
       throw new Error('User not found');
+    }
+
+    // notify user of deactivation
+    try {
+      const notif = buildNotification('account_deactivated', {});
+      await notificationsService.createNotification(userId, {
+        type: 'account_deactivated',
+        title: notif.title,
+        message: notif.body
+      });
+      if (isEmailConfigured() && email) {
+        await sendTemplatedEmail('account_deactivated', { to: email, variables: {} });
+      }
+    } catch (e) {
+      console.error('User deactivation notification error:', e?.message || e);
     }
 
     return { success: true, message: 'User deactivated successfully' };
@@ -372,13 +421,21 @@ export async function deleteUser(userId) {
  */
 export async function permanentlyDeleteUser(userId) {
   try {
-    const result = await db.query(
-      'DELETE FROM users WHERE id = $1 RETURNING id',
-      [userId]
-    );
+    const before = await db.query('SELECT email FROM users WHERE id = $1', [userId]);
+    const email = before.rows[0]?.email;
+    const result = await db.query('DELETE FROM users WHERE id = $1 RETURNING id', [userId]);
 
     if (result.rows.length === 0) {
       throw new Error('User not found');
+    }
+
+    // can't create in-app notification post-delete; send email if possible
+    try {
+      if (isEmailConfigured() && email) {
+        await sendTemplatedEmail('account_deleted', { to: email, variables: {} });
+      }
+    } catch (e) {
+      console.error('User deletion email error:', e?.message || e);
     }
 
     return { success: true, message: 'User permanently deleted' };
@@ -402,6 +459,23 @@ export async function resetUserPassword(userId, newPassword) {
 
     if (result.rows.length === 0) {
       throw new Error('User not found');
+    }
+
+    // notify user
+    try {
+      const contact = await db.query('SELECT email FROM users WHERE id = $1', [userId]);
+      const email = contact.rows[0]?.email;
+      const notif = buildNotification('admin_password_reset', {});
+      await notificationsService.createNotification(userId, {
+        type: 'admin_password_reset',
+        title: notif.title,
+        message: notif.body
+      });
+      if (isEmailConfigured() && email) {
+        await sendTemplatedEmail('admin_password_reset_notification', { to: email, variables: {} });
+      }
+    } catch (e) {
+      console.error('Admin reset notifications error:', e?.message || e);
     }
 
     return { success: true, message: 'Password reset successfully' };
@@ -473,10 +547,40 @@ export async function getUserActivityOverTime(tenantId = null, days = 30) {
 /**
  * Get top users by activity
  */
-export async function getTopUsers(tenantId = null, limit = 10) {
+export async function getTopUsers(tenantId = null, limit = 10, timeFilter = 'all') {
   try {
     const tenantFilter = tenantId ? 'AND u.tenant_id = $2' : '';
     const params = tenantId ? [limit, tenantId] : [limit];
+    
+    // Build time filter for activity
+    let timeFilterCondition = '';
+    let timeFilterParams = [];
+    
+    switch (timeFilter) {
+      case 'today':
+        timeFilterCondition = `AND (
+          e.enrolled_at >= CURRENT_DATE OR 
+          lp.updated_at >= CURRENT_DATE OR 
+          c.created_at >= CURRENT_DATE
+        )`;
+        break;
+      case 'week':
+        timeFilterCondition = `AND (
+          e.enrolled_at >= CURRENT_DATE - INTERVAL '7 days' OR 
+          lp.updated_at >= CURRENT_DATE - INTERVAL '7 days' OR 
+          c.created_at >= CURRENT_DATE - INTERVAL '7 days'
+        )`;
+        break;
+      case 'month':
+        timeFilterCondition = `AND (
+          e.enrolled_at >= CURRENT_DATE - INTERVAL '30 days' OR 
+          lp.updated_at >= CURRENT_DATE - INTERVAL '30 days' OR 
+          c.created_at >= CURRENT_DATE - INTERVAL '30 days'
+        )`;
+        break;
+      default:
+        timeFilterCondition = ''; // All time
+    }
 
     const result = await db.query(`
       SELECT
@@ -484,25 +588,36 @@ export async function getTopUsers(tenantId = null, limit = 10) {
         u.email,
         u.role,
         u.last_login,
+        u.created_at,
         p.first_name,
         p.last_name,
         p.avatar_url,
         COUNT(DISTINCT e.id) as total_enrollments,
+        COUNT(DISTINCT e.id) FILTER (WHERE e.enrolled_at >= CURRENT_DATE - INTERVAL '7 days') as recent_enrollments,
         COUNT(DISTINCT lp.id) FILTER (WHERE lp.status = 'completed') as completed_lessons,
-        COUNT(DISTINCT c.id) as courses_created
+        COUNT(DISTINCT lp.id) FILTER (WHERE lp.status = 'completed' AND lp.updated_at >= CURRENT_DATE - INTERVAL '7 days') as recent_lessons,
+        COUNT(DISTINCT c.id) as courses_created,
+        COUNT(DISTINCT c.id) FILTER (WHERE c.created_at >= CURRENT_DATE - INTERVAL '7 days') as recent_courses,
+        COUNT(DISTINCT qa.id) as quiz_attempts,
+        COUNT(DISTINCT qa.id) FILTER (WHERE qa.created_at >= CURRENT_DATE - INTERVAL '7 days') as recent_quiz_attempts
       FROM users u
       LEFT JOIN user_profiles p ON p.user_id = u.id
-      LEFT JOIN enrollments e ON u.id = e.student_id
-      LEFT JOIN lesson_progress lp ON u.id = lp.student_id
-      LEFT JOIN courses c ON u.id = c.created_by
+      LEFT JOIN enrollments e ON u.id = e.student_id ${timeFilterCondition.includes('e.enrolled_at') ? timeFilterCondition : ''}
+      LEFT JOIN lesson_progress lp ON u.id = lp.student_id ${timeFilterCondition.includes('lp.updated_at') ? timeFilterCondition : ''}
+      LEFT JOIN courses c ON u.id = c.created_by ${timeFilterCondition.includes('c.created_at') ? timeFilterCondition : ''}
+      LEFT JOIN quiz_attempts qa ON u.id = qa.student_id ${timeFilterCondition.includes('qa.created_at') ? timeFilterCondition : ''}
       WHERE u.is_active = true ${tenantFilter}
-      GROUP BY u.id, u.email, u.role, u.last_login, p.first_name, p.last_name, p.avatar_url
+      GROUP BY u.id, u.email, u.role, u.last_login, u.created_at, p.first_name, p.last_name, p.avatar_url
       ORDER BY 
         CASE 
-          WHEN u.role = 'student' THEN total_enrollments + completed_lessons
-          WHEN u.role = 'instructor' THEN courses_created * 10
+          WHEN u.role = 'student' THEN 
+            COUNT(DISTINCT e.id) + COUNT(DISTINCT lp.id) FILTER (WHERE lp.status = 'completed')
+          WHEN u.role = 'instructor' THEN 
+            COUNT(DISTINCT c.id) * 10
           ELSE 0
-        END DESC
+        END DESC,
+        u.last_login DESC NULLS LAST,
+        u.created_at DESC
       LIMIT $1
     `, params);
 
@@ -535,6 +650,16 @@ export async function bulkUpdateUsers(userIds, updates) {
       throw new Error('No valid fields to update');
     }
 
+    // For account status changes, capture before state and emails
+    let before = [];
+    if (Object.prototype.hasOwnProperty.call(updates, 'is_active')) {
+      const beforeRes = await db.query(
+        'SELECT id, email, is_active FROM users WHERE id = ANY($1::uuid[])',
+        [userIds]
+      );
+      before = beforeRes.rows;
+    }
+
     values.push(userIds);
     const query = `
       UPDATE users
@@ -545,10 +670,45 @@ export async function bulkUpdateUsers(userIds, updates) {
 
     const result = await db.query(query, values);
 
+    // Post-update notifications/emails for account activation/deactivation
+    let emailStats = { attempted: 0, sent: 0, failed: 0, emailEnabled: false };
+    if (Object.prototype.hasOwnProperty.call(updates, 'is_active') && before.length > 0) {
+      const newlyActive = updates.is_active === true;
+      const notifId = newlyActive ? 'account_activated' : 'account_deactivated';
+      const templateId = newlyActive ? 'account_activated' : 'account_deactivated';
+      emailStats.emailEnabled = isEmailConfigured();
+      for (const u of before) {
+        if (u.is_active !== updates.is_active) {
+          emailStats.attempted++;
+          try {
+            const notif = buildNotification(notifId, {});
+            await notificationsService.createNotification(u.id, {
+              type: notifId,
+              title: notif.title,
+              message: notif.body
+            });
+            if (emailStats.emailEnabled && u.email) {
+              await sendTemplatedEmail(templateId, {
+                to: u.email,
+                variables: {
+                  dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard`
+                }
+              });
+              emailStats.sent++;
+            }
+          } catch (e) {
+            emailStats.failed++;
+            console.error('Bulk activation/deactivation notification error:', e?.message || e);
+          }
+        }
+      }
+    }
+
     return {
       success: true,
       updatedCount: result.rows.length,
-      message: `${result.rows.length} users updated successfully`
+      message: `${result.rows.length} users updated successfully`,
+      emailStats
     };
   } catch (error) {
     console.error('Bulk update users error:', error);

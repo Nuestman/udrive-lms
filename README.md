@@ -19,6 +19,7 @@ A modern, feature-rich Learning Management System and Content Management System 
 - [Running the Application](#-running-the-application)
 - [User Roles](#-user-roles)
 - [API Documentation](#-api-documentation)
+- [Documentation](#-documentation)
 - [Project Structure](#-project-structure)
 - [Testing](#-testing)
 - [Contributing](#-contributing)
@@ -41,6 +42,9 @@ A modern, feature-rich Learning Management System and Content Management System 
 - ✅ Secure password reset flow
 - ✅ Protected API endpoints
 - ✅ Tenant isolation middleware
+- ✅ **Two-Factor Authentication (2FA)** - TOTP-based 2FA with QR codes
+- ✅ **Advanced Security Settings** - Password policies, session management
+- ✅ **Security Audit Logging** - Comprehensive security event tracking
 
 ### Content Management
 - ✅ **Rich Text Editor** - TinyMCE integration for lesson content
@@ -65,17 +69,29 @@ A modern, feature-rich Learning Management System and Content Management System 
 - ✅ **System Overview** - Super admin dashboard
 - ✅ **Bulk Operations** - Efficient data management
 
+### Settings & Configuration System
+- ✅ **Comprehensive Settings Management** - Role-based settings access
+- ✅ **Real-time Notifications** - WebSocket-based notification system
+- ✅ **Advanced Theme System** - Light/Dark/Auto mode with CSS variables
+- ✅ **White Label System** - Complete branding customization
+- ✅ **Two-Factor Authentication** - TOTP-based 2FA with QR codes
+- ✅ **Notification Preferences** - Multi-channel notification management
+- ✅ **Security Settings** - Password policies, session management
+- ✅ **Appearance Customization** - Theme, layout, and UI preferences
+
 ## 🛠 Tech Stack
 
 ### Frontend
 - **React 18** - UI framework
 - **TypeScript** - Type safety
 - **Vite** - Build tool and dev server
-- **Tailwind CSS** - Utility-first styling
+- **Tailwind CSS** - Utility-first styling with dark mode support
 - **React Router** - Client-side routing
 - **Lucide Icons** - Beautiful icon set
 - **Canvas Confetti** - Celebration animations
 - **TinyMCE** - Rich text editor
+- **Socket.IO Client** - Real-time communication
+- **QRCode.js** - QR code generation for 2FA
 
 ### Backend
 - **Node.js 18+** - Runtime environment
@@ -85,6 +101,9 @@ A modern, feature-rich Learning Management System and Content Management System 
 - **bcrypt** - Password hashing
 - **CORS** - Cross-origin resource sharing
 - **dotenv** - Environment configuration
+- **Socket.IO** - Real-time WebSocket communication
+- **Speakeasy** - TOTP-based two-factor authentication
+- **QRCode** - QR code generation for 2FA setup
 
 ### Development Tools
 - **ESLint** - Code linting
@@ -265,6 +284,41 @@ npm run dev:all
 - Track personal progress
 - Complete courses
 - Earn certificates
+
+## 📚 Documentation
+
+### Comprehensive Documentation
+The SunLMS platform includes extensive documentation covering all aspects of the system:
+
+#### Core System Documentation
+- **[Settings System Overview](docs/settings-overview.md)** - Complete guide to the settings and configuration system
+- **[Settings System Documentation](docs/settings-system.md)** - Detailed technical documentation for the settings system
+- **[White Label System](docs/white-label-system.md)** - Complete white-label branding and customization guide
+- **[Theme System](docs/theme-system.md)** - Advanced theming and appearance customization
+- **[Notification System](docs/notification-system.md)** - Real-time notification system documentation
+- **[Two-Factor Authentication](docs/two-factor-authentication.md)** - 2FA implementation and security guide
+
+#### System Architecture
+- **[System Architecture](docs/system-architecture.md)** - Overall system design and architecture
+- **[Database Schema](docs/database-schema.md)** - Complete database structure and relationships
+- **[API Reference](docs/api-reference.md)** - Comprehensive API documentation
+- **[Authentication System](docs/authentication-system.md)** - Security and authentication implementation
+
+#### User Guides
+- **[Student User Guide](docs/student-user-guide.md)** - Complete guide for students
+- **[Instructor Guide](docs/instructor-guide.md)** - Instructor functionality and features
+- **[Admin Guide](docs/admin-guide.md)** - Administrative features and management
+- **[Development Setup](docs/development-setup.md)** - Development environment setup
+
+#### Deployment & Operations
+- **[Deployment Guide](docs/deployment-guide.md)** - Production deployment instructions
+- **[Migration Guide](docs/migration-guide.md)** - Database and system migration procedures
+- **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
+
+### Quick Start Guides
+- **[Getting Started](docs/development-setup.md)** - Quick setup for development
+- **[First Steps](docs/student-user-guide.md)** - Getting started as a student
+- **[Admin Setup](docs/admin-guide.md)** - Initial administrative configuration
 
 ## 📡 API Documentation
 

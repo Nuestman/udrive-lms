@@ -1,6 +1,7 @@
 // Courses Service - Business logic for course management
 import { query } from '../lib/db.js';
 import { ValidationError, NotFoundError } from '../middleware/errorHandler.js';
+import { isEmailConfigured, sendTemplatedEmail } from '../utils/mailer.js';
 
 /**
  * Get all courses
@@ -196,11 +197,12 @@ export async function createCourse(courseData, user) {
 /**
  * Update course
  */
-export async function updateCourse(courseId, courseData, user) {
+export async function updateCourse(courseId, courseData, user, io = null) {
   const { title, description, thumbnail_url, duration_weeks, price, status } = courseData;
 
-  // Verify course exists and belongs to tenant
-  await getCourseById(courseId, user.tenant_id);
+  // Get current course data for comparison
+  const currentCourse = await getCourseById(courseId, user.tenant_id);
+  const previousStatus = currentCourse.status;
 
   // Build dynamic update query
   const updates = [];
@@ -263,7 +265,81 @@ export async function updateCourse(courseId, courseData, user) {
     throw new NotFoundError('Course not found');
   }
 
-  return result.rows[0];
+  const updatedCourse = result.rows[0];
+
+  // Send notifications for course updates
+  if (io) {
+    try {
+      const { notifyEnrolledStudents } = await import('./notifications.service.js');
+      
+      // Determine notification type and content
+      let notificationType = 'course_update';
+      let notificationTitle = 'Course Updated';
+      let notificationMessage = `The course "${updatedCourse.title}" has been updated.`;
+      let updateDetails = '';
+
+      // Check what was updated
+      const changes = [];
+      if (title !== undefined && title !== currentCourse.title) {
+        changes.push('title');
+      }
+      if (description !== undefined && description !== currentCourse.description) {
+        changes.push('description');
+      }
+      if (thumbnail_url !== undefined && thumbnail_url !== currentCourse.thumbnail_url) {
+        changes.push('thumbnail');
+      }
+      if (duration_weeks !== undefined && duration_weeks !== currentCourse.duration_weeks) {
+        changes.push('duration');
+      }
+      if (price !== undefined && price !== currentCourse.price) {
+        changes.push('price');
+      }
+
+      // Handle status changes
+      if (status !== undefined && status !== previousStatus) {
+        if (status === 'published' && previousStatus === 'draft') {
+          notificationType = 'course_published';
+          notificationTitle = 'New Course Available';
+          notificationMessage = `The course "${updatedCourse.title}" is now available for you to start.`;
+        } else {
+          changes.push(`status (${previousStatus} → ${status})`);
+        }
+      }
+
+      if (changes.length > 0) {
+        updateDetails = `Updated: ${changes.join(', ')}`;
+      }
+
+      // Create notification data
+      const notificationData = {
+        type: notificationType,
+        title: notificationTitle,
+        message: notificationMessage,
+        link: `/courses/${courseId}`,
+        data: {
+          courseId,
+          courseName: updatedCourse.title,
+          changes: changes
+        },
+        emailData: {
+          courseName: updatedCourse.title,
+          courseUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/courses/${courseId}`,
+          updateDetails: updateDetails
+        }
+      };
+
+      // Notify enrolled students
+      await notifyEnrolledStudents(courseId, notificationData, io);
+      
+      console.log(`Course update notifications sent for course ${courseId}`);
+    } catch (error) {
+      console.error('Error sending course update notifications:', error);
+      // Don't fail the course update if notifications fail
+    }
+  }
+
+  return updatedCourse;
 }
 
 /**
@@ -306,7 +382,38 @@ export async function publishCourse(courseId, user) {
     throw new ValidationError('Cannot publish course without modules');
   }
 
-  return await updateCourse(courseId, { status: 'published' }, user);
+  const updatedCourse = await updateCourse(courseId, { status: 'published' }, user);
+
+  // Email all active students in tenant that a new course is available
+  try {
+    const students = await query(
+      `SELECT u.email, p.first_name
+       FROM users u
+       LEFT JOIN user_profiles p ON p.user_id = u.id
+       WHERE u.tenant_id = $1 AND u.role = 'student' AND u.is_active = true`,
+      [user.tenant_id]
+    );
+
+    const emailEnabled = isEmailConfigured();
+    const courseUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/courses/${updatedCourse.id}`;
+    if (emailEnabled) {
+      for (const s of students.rows) {
+        if (!s.email) continue;
+        await sendTemplatedEmail('course_added_school', {
+          to: s.email,
+          variables: {
+            firstName: s.first_name,
+            courseName: updatedCourse.title,
+            courseUrl
+          }
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Course publish tenant-wide email error:', e?.message || e);
+  }
+
+  return updatedCourse;
 }
 
 /**

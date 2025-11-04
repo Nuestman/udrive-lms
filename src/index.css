@@ -2,6 +2,145 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CSS Variables for Theme System */
+:root {
+  /* Light theme colors */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f9fafb;
+  --color-bg-tertiary: #f3f4f6;
+  --color-text-primary: #171717; /* brand foreground */
+  --color-text-secondary: #6b7280;
+  --color-text-tertiary: #9ca3af;
+  --color-border-primary: #e5e7eb;
+  --color-border-secondary: #d1d5db;
+  --color-accent-primary: #B98C1B; /* brand primary */
+  --color-accent-secondary: #d4a730;
+  --color-accent-light: #fbf6ea;
+  --color-success: #16a34a;
+  --color-warning: #f59e0b;
+  --color-error: #dc2626;
+  --color-info: #06b6d4;
+
+  /* SunLMS brand defaults (feed Tailwind tokens via CSS vars) */
+  /* Primary maps to brand accent */
+  --brand-primary: #B98C1B;
+  --brand-primary-50: 251 246 234;
+  --brand-primary-100: 246 235 207;
+  --brand-primary-200: 235 212 154;
+  --brand-primary-300: 223 189 101;
+  --brand-primary-400: 212 167 48;
+  --brand-primary-500: 185 140 27;
+  --brand-primary-600: 145 109 21;
+  --brand-primary-700: 106 79 16;
+  --brand-primary-800: 68 50 10;
+  --brand-primary-900: 43 31 6;
+
+  /* Secondary uses a deeper tone from the same palette */
+  --brand-secondary: #6a4f10; /* 700 */
+  --brand-secondary-50: 251 246 234;
+  --brand-secondary-100: 246 235 207;
+  --brand-secondary-200: 235 212 154;
+  --brand-secondary-300: 223 189 101;
+  --brand-secondary-400: 212 167 48;
+  --brand-secondary-500: 185 140 27;
+  --brand-secondary-600: 145 109 21;
+  --brand-secondary-700: 106 79 16;
+  --brand-secondary-800: 68 50 10;
+  --brand-secondary-900: 43 31 6;
+
+  /* Accent mirrors primary for consistency */
+  --brand-accent: #B98C1B;
+  --brand-accent-50: 251 246 234;
+  --brand-accent-100: 246 235 207;
+  --brand-accent-200: 235 212 154;
+  --brand-accent-300: 223 189 101;
+  --brand-accent-400: 212 167 48;
+  --brand-accent-500: 185 140 27;
+  --brand-accent-600: 145 109 21;
+  --brand-accent-700: 106 79 16;
+  --brand-accent-800: 68 50 10;
+  --brand-accent-900: 43 31 6;
+
+  /* Brand text/neutral */
+  --brand-text: #150F00;
+  --brand-neutral-950: 21 15 0;
+}
+
+/* Dark theme colors */
+.dark {
+  --color-bg-primary: #0a0a0a;
+  --color-bg-secondary: #111827;
+  --color-bg-tertiary: #1f2937;
+  --color-text-primary: #ededed;
+  --color-text-secondary: #d1d5db;
+  --color-text-tertiary: #9ca3af;
+  --color-border-primary: #374151;
+  --color-border-secondary: #4b5563;
+  --color-accent-primary: #B98C1B;
+  --color-accent-secondary: #d4a730;
+  --color-accent-light: #44320a;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+  --color-info: #22d3ee;
+}
+
+/* Apply theme colors to common elements */
+.light {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.dark {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+/* Theme-aware utility classes */
+.bg-theme-primary {
+  background-color: var(--color-bg-primary);
+}
+
+.bg-theme-secondary {
+  background-color: var(--color-bg-secondary);
+}
+
+.bg-theme-tertiary {
+  background-color: var(--color-bg-tertiary);
+}
+
+.text-theme-primary {
+  color: var(--color-text-primary);
+}
+
+.text-theme-secondary {
+  color: var(--color-text-secondary);
+}
+
+.text-theme-tertiary {
+  color: var(--color-text-tertiary);
+}
+
+.border-theme-primary {
+  border-color: var(--color-border-primary);
+}
+
+.border-theme-secondary {
+  border-color: var(--color-border-secondary);
+}
+
+.bg-accent-primary {
+  background-color: var(--color-accent-primary);
+}
+
+.bg-accent-light {
+  background-color: var(--color-accent-light);
+}
+
+.text-accent-primary {
+  color: var(--color-accent-primary);
+}
+
 /* Toast animation */
 @keyframes slide-in-right {
   from {

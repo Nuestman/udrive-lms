@@ -126,9 +126,9 @@ const RoadSignBlock: React.FC<RoadSignBlockProps> = ({
       case 'regulatory':
         return 'bg-red-100 text-red-800';
       case 'guide':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-primary-100 text-primary-800';
       case 'construction':
-        return 'bg-orange-100 text-orange-800';
+        return 'bg-accent-100 text-accent-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -232,12 +232,12 @@ const RoadSignBlock: React.FC<RoadSignBlockProps> = ({
               <p className="text-gray-700">{selectedSign.description}</p>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
               <div className="flex items-start">
-                <Info className="w-5 h-5 text-blue-500 mr-2 mt-0.5" />
+                <Info className="w-5 h-5 text-primary-500 mr-2 mt-0.5" />
                 <div>
-                  <h5 className="font-medium text-blue-900">Meaning</h5>
-                  <p className="text-blue-800">{selectedSign.meaning}</p>
+                  <h5 className="font-medium text-primary-900">Meaning</h5>
+                  <p className="text-primary-800">{selectedSign.meaning}</p>
                 </div>
               </div>
             </div>

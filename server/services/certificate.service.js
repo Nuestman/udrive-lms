@@ -1,11 +1,14 @@
 // Certificate Service - Certificate generation and management with tenant isolation
 import { query } from '../lib/db.js';
 import { NotFoundError, ValidationError, ForbiddenError } from '../middleware/errorHandler.js';
+import { sendTemplatedEmail, isEmailConfigured } from '../utils/mailer.js';
+import { buildNotification } from '../utils/notificationTemplates.js';
+import notificationsService from './notifications.service.js';
 
 /**
  * Generate certificate for completed course
  */
-export async function generateCertificate(enrollmentId, tenantId, isSuperAdmin = false, userId = null) {
+export async function generateCertificate(enrollmentId, tenantId, isSuperAdmin = false, userId = null, io = null) {
   // Get enrollment details with instructor information
   let enrollmentQuery;
   
@@ -101,8 +104,46 @@ export async function generateCertificate(enrollmentId, tenantId, isSuperAdmin =
       `${enrollment.instructor_first_name || ''} ${enrollment.instructor_last_name || ''}`.trim() || 'Instructor'
     ]
   );
+  const certificate = result.rows[0];
 
-  return result.rows[0];
+  // Notify student (email + in-app)
+  try {
+    // fetch student contact and course title
+    const contact = await query(
+      `SELECT u.email, p.first_name
+       FROM users u
+       LEFT JOIN user_profiles p ON p.user_id = u.id
+       WHERE u.id = $1`,
+      [enrollment.student_id]
+    );
+    const { email, first_name } = contact.rows[0] || {};
+
+    const notif = buildNotification('course_completed', {
+      courseName: enrollment.course_title,
+      certificateLink: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/certificates/${certificate.id}`
+    });
+    await notificationsService.createNotification(enrollment.student_id, {
+      type: 'course_completed',
+      title: notif.title,
+      message: notif.body,
+      link: notif.link
+    }, io);
+
+    if (isEmailConfigured() && email) {
+      await sendTemplatedEmail('course_completed_certificate', {
+        to: email,
+        variables: {
+          firstName: first_name,
+          courseName: enrollment.course_title,
+          certificateUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/certificates/${certificate.id}`
+        }
+      });
+    }
+  } catch (e) {
+    console.error('Certificate notification/email error:', e?.message || e);
+  }
+
+  return certificate;
 }
 
 /**

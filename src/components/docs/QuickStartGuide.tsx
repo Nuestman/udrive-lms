@@ -20,7 +20,7 @@ const QuickStartGuide: React.FC = () => {
       title: 'Students',
       description: 'Get started with learning on SunLMS',
       icon: <GraduationCap className="w-6 h-6" />,
-      color: 'bg-blue-100 text-blue-600',
+      color: 'bg-primary-100 text-primary-600',
       steps: [
         {
           title: 'Create Your Account',
@@ -116,7 +116,7 @@ const QuickStartGuide: React.FC = () => {
       title: 'Administrators',
       description: 'Manage your organization and users',
       icon: <Shield className="w-6 h-6" />,
-      color: 'bg-purple-100 text-purple-600',
+      color: 'bg-primary-100 text-primary-600',
       steps: [
         {
           title: 'User Management',
@@ -164,7 +164,7 @@ const QuickStartGuide: React.FC = () => {
       title: 'Developers',
       description: 'Set up development environment and integrate',
       icon: <Code className="w-6 h-6" />,
-      color: 'bg-orange-100 text-orange-600',
+      color: 'bg-accent-100 text-accent-600',
       steps: [
         {
           title: 'Environment Setup',

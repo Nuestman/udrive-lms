@@ -72,8 +72,8 @@ const StudentDashboardPage: React.FC = () => {
               <p className="text-sm font-medium text-gray-600">Active Courses</p>
               <p className="text-3xl font-bold text-gray-900 mt-2">{enrolledCourses.length}</p>
             </div>
-            <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <BookOpen className="h-6 w-6 text-blue-600" />
+            <div className="h-12 w-12 bg-primary-100 rounded-lg flex items-center justify-center">
+              <BookOpen className="h-6 w-6 text-primary-600" />
             </div>
           </div>
         </div>
@@ -84,8 +84,8 @@ const StudentDashboardPage: React.FC = () => {
               <p className="text-sm font-medium text-gray-600">Overall Progress</p>
               <p className="text-3xl font-bold text-gray-900 mt-2">{totalProgress}%</p>
             </div>
-            <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="h-6 w-6 text-purple-600" />
+            <div className="h-12 w-12 bg-primary-100 rounded-lg flex items-center justify-center">
+              <TrendingUp className="h-6 w-6 text-primary-600" />
             </div>
           </div>
         </div>

@@ -262,9 +262,9 @@ const CertificateViewPage: React.FC = () => {
             </div>
 
             {/* Verification Link */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-blue-900 mb-2">Verify Certificate</h3>
-              <p className="text-blue-800 mb-3">
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-primary-900 mb-2">Verify Certificate</h3>
+              <p className="text-primary-800 mb-3">
                 Share this verification link to allow others to verify the authenticity of this certificate:
               </p>
               <div className="bg-white rounded border p-3">

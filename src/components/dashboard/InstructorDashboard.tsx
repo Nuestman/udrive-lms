@@ -43,7 +43,7 @@ const InstructorDashboard: React.FC = () => {
       description: 'See your students',
       icon: <Users className="w-6 h-6" />,
       action: () => navigate('/school/students'),
-      color: 'bg-blue-500'
+      color: 'bg-primary-500'
     },
     {
       id: 'track-progress',
@@ -51,7 +51,7 @@ const InstructorDashboard: React.FC = () => {
       description: 'Monitor student progress',
       icon: <BarChart3 className="w-6 h-6" />,
       action: () => navigate('/school/analytics'),
-      color: 'bg-purple-500'
+      color: 'bg-primary-500'
     }
   ];
 
@@ -101,8 +101,8 @@ const InstructorDashboard: React.FC = () => {
                 {activeEnrollments} active enrollments
               </p>
             </div>
-            <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Users className="h-6 w-6 text-blue-600" />
+            <div className="h-12 w-12 bg-primary-100 rounded-lg flex items-center justify-center">
+              <Users className="h-6 w-6 text-primary-600" />
             </div>
           </div>
         </div>
@@ -121,8 +121,8 @@ const InstructorDashboard: React.FC = () => {
                 Your courses
               </p>
             </div>
-            <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="h-6 w-6 text-purple-600" />
+            <div className="h-12 w-12 bg-primary-100 rounded-lg flex items-center justify-center">
+              <TrendingUp className="h-6 w-6 text-primary-600" />
             </div>
           </div>
         </div>

@@ -48,7 +48,8 @@ router.post('/generate', asyncHandler(async (req, res) => {
     enrollment_id,
     req.tenantId,
     req.isSuperAdmin,
-    req.user.role === 'student' ? req.user.id : null
+    req.user.role === 'student' ? req.user.id : null,
+    req.app.get('io')
   );
   
   res.status(201).json({

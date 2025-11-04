@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 
 const LandingPage: React.FC = () => {
+  // Use default branding on marketing site
+  const branding = { logoUrl: '/sunlms-logo-wide.png', companyName: 'SunLMS' } as const;
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const features = [
@@ -27,7 +29,7 @@ const LandingPage: React.FC = () => {
       icon: <BookOpen className="w-8 h-8" />,
       title: "Course Management",
       description: "Create and manage comprehensive driving courses with our intuitive block editor.",
-      color: "bg-blue-500"
+      color: "bg-primary-500"
     },
     {
       icon: <Users className="w-8 h-8" />,
@@ -45,7 +47,7 @@ const LandingPage: React.FC = () => {
       icon: <TrendingUp className="w-8 h-8" />,
       title: "Advanced Analytics",
       description: "Comprehensive analytics and reporting for data-driven decisions.",
-      color: "bg-purple-500"
+      color: "bg-primary-500"
     },
     {
       icon: <Shield className="w-8 h-8" />,
@@ -57,7 +59,7 @@ const LandingPage: React.FC = () => {
       icon: <Zap className="w-8 h-8" />,
       title: "Fast & Reliable",
       description: "Lightning-fast performance with 99.9% uptime guarantee.",
-      color: "bg-orange-500"
+      color: "bg-accent-500"
     }
   ];
 
@@ -126,12 +128,7 @@ const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg flex items-center justify-center mr-3">
-                <BookOpen className="w-6 h-6 text-white" />
-              </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-transparent">
-                SunLMS
-              </h1>
+              <img src={branding.logoUrl} alt={branding.companyName} className="h-12 w-auto mr-3" />
             </div>
             <nav className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-gray-700 hover:text-primary-600 transition-colors">Features</a>
@@ -223,13 +220,13 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Development Status */}
-      <section className="py-16 bg-gradient-to-r from-blue-50 to-indigo-50">
+      <section className="py-16 bg-gradient-to-r from-primary-50 to-secondary-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-2xl shadow-xl p-8 border border-blue-100">
+          <div className="bg-white rounded-2xl shadow-xl p-8 border border-primary-100">
             <div className="flex items-start">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <CheckCircle className="w-6 h-6 text-blue-600" />
+                <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6 text-primary-600" />
                 </div>
               </div>
               <div className="ml-6">
@@ -267,7 +264,7 @@ const LandingPage: React.FC = () => {
                 <div className="mt-6">
                   <Link
                     to="/docs/implementation-progress"
-                    className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                    className="inline-flex items-center px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
                   >
                     View Detailed Progress
                     <ArrowRight className="w-4 h-4 ml-2" />
@@ -442,10 +439,7 @@ const LandingPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center mb-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg flex items-center justify-center mr-3">
-                  <BookOpen className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold">SunLMS</h3>
+                <img src={branding.logoUrl} alt={branding.companyName} className="h-12 w-auto mr-3" />
               </div>
               <p className="text-gray-400 mb-4 max-w-md">
                 Empowering organizations across industries with modern technology to deliver exceptional learning experiences.

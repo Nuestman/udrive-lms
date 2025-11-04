@@ -45,13 +45,13 @@ const InstructorDetailsModal: React.FC<InstructorDetailsModalProps> = ({ instruc
 
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-blue-50 rounded-lg p-4">
+            <div className="bg-primary-50 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
-                <BookOpen className="w-5 h-5 text-blue-600" />
-                <span className="text-sm font-medium text-blue-900">Courses</span>
+                <BookOpen className="w-5 h-5 text-primary-600" />
+                <span className="text-sm font-medium text-primary-900">Courses</span>
               </div>
-              <p className="text-2xl font-bold text-blue-900">{instructor.courses_count || 0}</p>
-              <p className="text-xs text-blue-700">{instructor.published_courses || 0} published</p>
+              <p className="text-2xl font-bold text-primary-900">{instructor.courses_count || 0}</p>
+              <p className="text-xs text-primary-700">{instructor.published_courses || 0} published</p>
             </div>
 
             <div className="bg-green-50 rounded-lg p-4">
@@ -63,22 +63,22 @@ const InstructorDetailsModal: React.FC<InstructorDetailsModalProps> = ({ instruc
               <p className="text-xs text-green-700">{instructor.active_enrollments || 0} active</p>
             </div>
 
-            <div className="bg-purple-50 rounded-lg p-4">
+            <div className="bg-primary-50 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="w-5 h-5 text-purple-600" />
-                <span className="text-sm font-medium text-purple-900">Avg Progress</span>
+                <TrendingUp className="w-5 h-5 text-primary-600" />
+                <span className="text-sm font-medium text-primary-900">Avg Progress</span>
               </div>
-              <p className="text-2xl font-bold text-purple-900">{instructor.avg_student_progress || 0}%</p>
-              <p className="text-xs text-purple-700">Student progress</p>
+              <p className="text-2xl font-bold text-primary-900">{instructor.avg_student_progress || 0}%</p>
+              <p className="text-xs text-primary-700">Student progress</p>
             </div>
 
-            <div className="bg-orange-50 rounded-lg p-4">
+            <div className="bg-accent-50 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Award className="w-5 h-5 text-orange-600" />
-                <span className="text-sm font-medium text-orange-900">Completed</span>
+                <Award className="w-5 h-5 text-accent-600" />
+                <span className="text-sm font-medium text-accent-900">Completed</span>
               </div>
-              <p className="text-2xl font-bold text-orange-900">{instructor.completed_enrollments || 0}</p>
-              <p className="text-xs text-orange-700">Enrollments</p>
+              <p className="text-2xl font-bold text-accent-900">{instructor.completed_enrollments || 0}</p>
+              <p className="text-xs text-accent-700">Enrollments</p>
             </div>
           </div>
 

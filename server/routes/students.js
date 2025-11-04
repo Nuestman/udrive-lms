@@ -65,7 +65,7 @@ router.get('/:id/progress', asyncHandler(async (req, res) => {
  * Create new student (Admin only)
  */
 router.post('/', asyncHandler(async (req, res) => {
-  const student = await studentsService.createStudent(req.body, req.tenantId);
+  const student = await studentsService.createStudent(req.body, req.tenantId, req.app.get('io'));
   
   res.status(201).json({
     success: true,

@@ -318,12 +318,12 @@ const ScenarioBlock: React.FC<ScenarioBlockProps> = ({
 
             {/* Consequence */}
             {selectedOptionData?.consequence && (
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="p-4 bg-primary-50 border border-primary-200 rounded-lg">
                 <div className="flex items-start">
-                  <AlertCircle className="w-5 h-5 text-blue-500 mr-2 mt-0.5" />
+                  <AlertCircle className="w-5 h-5 text-primary-500 mr-2 mt-0.5" />
                   <div>
-                    <h5 className="font-medium text-blue-800">Consequence</h5>
-                    <p className="text-blue-700 mt-1">{selectedOptionData.consequence}</p>
+                    <h5 className="font-medium text-primary-800">Consequence</h5>
+                    <p className="text-primary-700 mt-1">{selectedOptionData.consequence}</p>
                   </div>
                 </div>
               </div>

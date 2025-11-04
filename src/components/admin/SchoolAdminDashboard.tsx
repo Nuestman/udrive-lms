@@ -90,7 +90,7 @@ const SchoolAdminDashboard: React.FC = () => {
       description: 'Enroll a new student',
       icon: <UserPlus className="w-6 h-6" />,
       action: () => console.log('Add student'),
-      color: 'bg-blue-500'
+      color: 'bg-primary-500'
     },
     {
       id: 'create-course',
@@ -106,7 +106,7 @@ const SchoolAdminDashboard: React.FC = () => {
       description: 'Create analytics report',
       icon: <FileText className="w-6 h-6" />,
       action: () => console.log('Generate report'),
-      color: 'bg-purple-500'
+      color: 'bg-primary-500'
     },
     {
       id: 'view-analytics',
@@ -114,20 +114,20 @@ const SchoolAdminDashboard: React.FC = () => {
       description: 'Check performance metrics',
       icon: <BarChart3 className="w-6 h-6" />,
       action: () => console.log('View analytics'),
-      color: 'bg-orange-500'
+      color: 'bg-accent-500'
     }
   ];
 
   const getActivityIcon = (type: string) => {
     switch (type) {
       case 'enrollment':
-        return <UserPlus className="w-4 h-4 text-blue-500" />;
+        return <UserPlus className="w-4 h-4 text-primary-500" />;
       case 'completion':
         return <Award className="w-4 h-4 text-green-500" />;
       case 'certificate':
         return <Award className="w-4 h-4 text-yellow-500" />;
       case 'course_created':
-        return <BookOpen className="w-4 h-4 text-purple-500" />;
+        return <BookOpen className="w-4 h-4 text-primary-500" />;
       default:
         return <Bell className="w-4 h-4 text-gray-500" />;
     }
@@ -155,8 +155,8 @@ const SchoolAdminDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Users className="w-6 h-6 text-blue-600" />
+            <div className="p-2 bg-primary-100 rounded-lg">
+              <Users className="w-6 h-6 text-primary-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Students</p>
@@ -179,8 +179,8 @@ const SchoolAdminDashboard: React.FC = () => {
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <BookOpen className="w-6 h-6 text-purple-600" />
+            <div className="p-2 bg-primary-100 rounded-lg">
+              <BookOpen className="w-6 h-6 text-primary-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Active Courses</p>
@@ -203,8 +203,8 @@ const SchoolAdminDashboard: React.FC = () => {
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-indigo-100 rounded-lg">
-              <UserPlus className="w-6 h-6 text-indigo-600" />
+            <div className="p-2 bg-primary-100 rounded-lg">
+              <UserPlus className="w-6 h-6 text-primary-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">This Month</p>
@@ -215,8 +215,8 @@ const SchoolAdminDashboard: React.FC = () => {
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <Award className="w-6 h-6 text-orange-600" />
+            <div className="p-2 bg-accent-100 rounded-lg">
+              <Award className="w-6 h-6 text-accent-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Certificates</p>
@@ -298,7 +298,7 @@ const SchoolAdminDashboard: React.FC = () => {
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
-                  className="bg-blue-500 h-2 rounded-full"
+                  className="bg-primary-500 h-2 rounded-full"
                   style={{ width: '92%' }}
                 />
               </div>
@@ -311,7 +311,7 @@ const SchoolAdminDashboard: React.FC = () => {
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
-                  className="bg-purple-500 h-2 rounded-full"
+                  className="bg-primary-500 h-2 rounded-full"
                   style={{ width: '85%' }}
                 />
               </div>
@@ -324,7 +324,7 @@ const SchoolAdminDashboard: React.FC = () => {
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
-                  className="bg-orange-500 h-2 rounded-full"
+                  className="bg-accent-500 h-2 rounded-full"
                   style={{ width: '73%' }}
                 />
               </div>
@@ -337,13 +337,13 @@ const SchoolAdminDashboard: React.FC = () => {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Upcoming Events</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="p-4 bg-primary-50 border border-primary-200 rounded-lg">
             <div className="flex items-center mb-2">
-              <Calendar className="w-5 h-5 text-blue-500 mr-2" />
-              <span className="text-sm font-medium text-blue-900">Instructor Meeting</span>
+              <Calendar className="w-5 h-5 text-primary-500 mr-2" />
+              <span className="text-sm font-medium text-primary-900">Instructor Meeting</span>
             </div>
-            <p className="text-sm text-blue-700">Tomorrow, 2:00 PM</p>
-            <p className="text-xs text-blue-600 mt-1">Monthly review and planning</p>
+            <p className="text-sm text-primary-700">Tomorrow, 2:00 PM</p>
+            <p className="text-xs text-primary-600 mt-1">Monthly review and planning</p>
           </div>
 
           <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -355,13 +355,13 @@ const SchoolAdminDashboard: React.FC = () => {
             <p className="text-xs text-green-600 mt-1">15 students graduating</p>
           </div>
 
-          <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+          <div className="p-4 bg-primary-50 border border-primary-200 rounded-lg">
             <div className="flex items-center mb-2">
-              <Settings className="w-5 h-5 text-purple-500 mr-2" />
-              <span className="text-sm font-medium text-purple-900">System Maintenance</span>
+              <Settings className="w-5 h-5 text-primary-500 mr-2" />
+              <span className="text-sm font-medium text-primary-900">System Maintenance</span>
             </div>
-            <p className="text-sm text-purple-700">March 30, 12:00 AM</p>
-            <p className="text-xs text-purple-600 mt-1">Scheduled downtime: 2 hours</p>
+            <p className="text-sm text-primary-700">March 30, 12:00 AM</p>
+            <p className="text-xs text-primary-600 mt-1">Scheduled downtime: 2 hours</p>
           </div>
         </div>
       </div>

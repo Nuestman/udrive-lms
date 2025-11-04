@@ -54,7 +54,7 @@ const DocumentationOverview: React.FC = () => {
       title: 'Getting Started',
       description: 'Everything you need to know to get up and running',
       icon: <Book className="w-5 h-5" />,
-      color: 'bg-blue-100 text-blue-600',
+      color: 'bg-primary-100 text-primary-600',
       items: [
         { title: 'Overview', path: '/docs', description: 'Introduction to SunLMS' },
         { title: 'Quick Start', path: '/docs/quick-start', description: 'Get started in minutes' },
@@ -78,7 +78,7 @@ const DocumentationOverview: React.FC = () => {
       title: 'API Documentation',
       description: 'Complete API reference and integration guides',
       icon: <FileText className="w-5 h-5" />,
-      color: 'bg-purple-100 text-purple-600',
+      color: 'bg-primary-100 text-primary-600',
       items: [
         { title: 'API Reference', path: '/docs/api-reference', description: 'Complete API documentation' },
         { title: 'Authentication', path: '/docs/authentication', description: 'Authentication system' },
@@ -90,7 +90,7 @@ const DocumentationOverview: React.FC = () => {
       title: 'User Guides',
       description: 'Comprehensive guides for all user roles',
       icon: <Users className="w-5 h-5" />,
-      color: 'bg-orange-100 text-orange-600',
+      color: 'bg-accent-100 text-accent-600',
       items: [
         { title: 'Student Guide', path: '/docs/student-guide', description: 'Student user guide' },
         { title: 'Instructor Guide', path: '/docs/instructor-guide', description: 'Course creation guide' },
@@ -284,8 +284,8 @@ const DocumentationOverview: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Recent Updates</h2>
         <div className="space-y-4">
           <div className="flex items-start">
-            <div className="p-1 bg-blue-100 rounded">
-              <Clock className="w-4 h-4 text-blue-600" />
+            <div className="p-1 bg-primary-100 rounded">
+              <Clock className="w-4 h-4 text-primary-600" />
             </div>
             <div className="ml-3">
               <h3 className="font-medium text-gray-900">Version 2.0.0 - Unified Learning System</h3>
