@@ -455,6 +455,7 @@ This major release introduces a unified approach to learning content, treating l
 | Version | Release Date | Major Features |
 |---------|--------------|----------------|
 | 2.3.0   | 2025-11-05   | Active role switcher, certificates UX (modals/notes), verification fixes, RBAC/tenant hardening |
+| 2.2.0   | 2025-11-04   | SunLMS brand color system, white-label enhancements, system-wide styling updates |
 | 2.1.0   | 2025-10-21   | Dual-Role Learning System, Universal Enrollment, Cross-Role Student Experience |
 | 2.0.0   | 2025-10-18   | Unified Learning System, Enhanced Quiz Experience, Comprehensive Documentation |
 | 1.5.0   | 2025-09-15   | User Profile Separation, Avatar Upload |
