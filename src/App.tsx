@@ -359,14 +359,14 @@ function App() {
               </div>
             </div>
           }>
-          <DashboardLayout role={profile.role} currentPath={window.location.pathname}>
+          <DashboardLayout role={profile.active_role || profile.role} currentPath={window.location.pathname}>
         <Routes>
           {/* Default route for logged-in users - redirect based on role */}
           <Route path="/" element={
-            profile.role === 'student' ? <Navigate to="/student/dashboard" replace /> :
-            profile.role === 'instructor' ? <Navigate to="/instructor/dashboard" replace /> :
-            profile.role === 'school_admin' ? <Navigate to="/school/dashboard" replace /> :
-            profile.role === 'super_admin' ? <Navigate to="/admin/dashboard" replace /> :
+            (profile.active_role || profile.role) === 'student' ? <Navigate to="/student/dashboard" replace /> :
+            (profile.active_role || profile.role) === 'instructor' ? <Navigate to="/instructor/dashboard" replace /> :
+            (profile.active_role || profile.role) === 'school_admin' ? <Navigate to="/school/dashboard" replace /> :
+            (profile.active_role || profile.role) === 'super_admin' ? <Navigate to="/admin/dashboard" replace /> :
             <Navigate to="/school/dashboard" replace />
           } />
 
@@ -374,7 +374,7 @@ function App() {
           <Route path="/school/dashboard" element={<SchoolAdminDashboard />} />
           <Route path="/school/courses" element={<CoursesPage role="school_admin" />} />
           <Route path="/school/courses/:id" element={<CourseDetailsPage />} />
-          <Route path="/school/courses/:courseId/lessons/:lessonId" element={<StudentLessonViewer />} />
+          {/* Student lesson viewer restricted to students only */}
           <Route path="/school/students" element={<StudentsPage />} />
           <Route path="/school/instructors" element={<InstructorsPage />} />
           <Route path="/school/enrollments" element={<EnrollmentsPage />} />
@@ -392,14 +392,14 @@ function App() {
           <Route path="/admin/analytics" element={<AnalyticsPage role="super_admin" />} />
           <Route path="/admin/settings" element={<SettingsPage role="super_admin" />} />
           <Route path="/admin/certificates" element={<CertificateManagementPage />} />
-          <Route path="/admin/courses/:courseId/lessons/:lessonId" element={<StudentLessonViewer />} />
+          {/* Removed dual-role lesson route for super admins */}
           <Route path="/admin/profile" element={<UserProfilePage />} />
           
           {/* Instructor Routes */}
           <Route path="/instructor/dashboard" element={<InstructorDashboard />} />
           <Route path="/instructor/courses" element={<CoursesPage role="instructor" />} />
           <Route path="/instructor/certificates" element={<CertificateManagementPage />} />
-          <Route path="/instructor/courses/:courseId/lessons/:lessonId" element={<StudentLessonViewer />} />
+          {/* Removed dual-role lesson route for instructors */}
           <Route path="/instructor/profile" element={<UserProfilePage />} />
 
           {/* Student Routes */}
@@ -433,10 +433,10 @@ function App() {
 
           {/* Fallback for unknown routes - redirect based on role */}
           <Route path="*" element={
-            profile.role === 'student' ? <Navigate to="/student/dashboard" replace /> :
-            profile.role === 'instructor' ? <Navigate to="/instructor/dashboard" replace /> :
-            profile.role === 'school_admin' ? <Navigate to="/school/dashboard" replace /> :
-            profile.role === 'super_admin' ? <Navigate to="/admin/dashboard" replace /> :
+            (profile.active_role || profile.role) === 'student' ? <Navigate to="/student/dashboard" replace /> :
+            (profile.active_role || profile.role) === 'instructor' ? <Navigate to="/instructor/dashboard" replace /> :
+            (profile.active_role || profile.role) === 'school_admin' ? <Navigate to="/school/dashboard" replace /> :
+            (profile.active_role || profile.role) === 'super_admin' ? <Navigate to="/admin/dashboard" replace /> :
             <Navigate to="/student/dashboard" replace />
           } />
         </Routes>

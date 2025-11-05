@@ -9,9 +9,11 @@ const router = express.Router();
 
 // Public routes (no auth required)
 router.get('/verify/:verificationCode', asyncHandler(async (req, res) => {
-  const certificate = await certificateService.verifyCertificateByCode(
-    req.params.verificationCode
-  );
+  // Decode the verification code from URL parameter
+  const verificationCode = decodeURIComponent(req.params.verificationCode);
+  console.log('Certificate verification request for code:', verificationCode);
+  
+  const certificate = await certificateService.verifyCertificateByCode(verificationCode);
   
   res.json({
     success: true,
@@ -129,8 +131,10 @@ router.get('/:id', asyncHandler(async (req, res) => {
     req.isSuperAdmin
   );
 
-  // Students can only view their own certificates
-  if (req.user.role === 'student' && certificate.student_id !== req.user.id) {
+  // Students can only view their own certificates (unless they're admins in student mode)
+  // Check activeRole for student restriction, but allow access via primaryRole for admin checks
+  const hasAdminAccess = ['super_admin', 'school_admin', 'instructor'].includes(req.user.primaryRole || req.user.role);
+  if (req.user.activeRole === 'student' && certificate.student_id !== req.user.id && !hasAdminAccess) {
     return res.status(403).json({
       success: false,
       error: 'Access denied: Can only view your own certificates'
@@ -149,8 +153,10 @@ router.get('/:id', asyncHandler(async (req, res) => {
  * Access: Students (own certificates), Instructors, Admins, Super Admin
  */
 router.get('/student/:studentId', asyncHandler(async (req, res) => {
-  // Students can only view their own certificates
-  if (req.user.role === 'student' && req.params.studentId !== req.user.id) {
+  // Students can only view their own certificates (unless they're admins in student mode)
+  // Check activeRole for student restriction, but allow access via primaryRole for admin checks
+  const hasAdminAccess = ['super_admin', 'school_admin', 'instructor'].includes(req.user.primaryRole || req.user.role);
+  if (req.user.activeRole === 'student' && req.params.studentId !== req.user.id && !hasAdminAccess) {
     return res.status(403).json({
       success: false,
       error: 'Access denied: Can only view your own certificates'

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronDown, LogOut, Menu, X, User, Settings as SettingsIcon } from 'lucide-react';
 import ThemeToggle from '../common/ThemeToggle';
 import NotificationDropdown from '../common/NotificationDropdown';
+import RoleSwitcher from '../common/RoleSwitcher';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { Wifi, WifiOff } from 'lucide-react';
 import { useWhiteLabel } from '../../contexts/WhiteLabelContext';
@@ -25,6 +26,8 @@ interface UserProfile {
   name: string;
   avatar: string;
   role: string;
+  active_role?: string;
+  primary_role?: string;
 }
 
 interface HeaderProps {
@@ -101,6 +104,7 @@ export const Header: React.FC<HeaderProps> = ({ title, userProfile, onMenuToggle
               </span>
             )}
           </div>
+            <RoleSwitcher />
             <NotificationDropdown />
             <ThemeToggle />
 
@@ -129,7 +133,12 @@ export const Header: React.FC<HeaderProps> = ({ title, userProfile, onMenuToggle
                 <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-lg shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 dark:ring-gray-600 divide-y divide-gray-100 dark:divide-gray-700 z-50">
                   <div className="px-4 py-3">
                     <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{userProfile.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{getRoleLabel(userProfile.role)}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      {getRoleLabel(userProfile.role)}
+                      {userProfile.active_role && userProfile.active_role !== userProfile.role && (
+                        <span className="ml-1 text-blue-600 dark:text-blue-400">(Student Mode)</span>
+                      )}
+                    </p>
                   </div>
                   <div className="py-1">
                     <Link

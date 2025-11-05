@@ -30,10 +30,12 @@ router.get('/', asyncHandler(async (req, res) => {
 
 /**
  * GET /api/courses/slug/:slug
- * Get single course by slug (tenant scoped)
+ * Get single course by slug
+ * - Super Admin: Any course by slug
+ * - Others: Only if course belongs to their tenant
  */
 router.get('/slug/:slug', asyncHandler(async (req, res) => {
-  const course = await coursesService.getCourseBySlug(req.params.slug, req.tenantId);
+  const course = await coursesService.getCourseBySlug(req.params.slug, req.tenantId, req.isSuperAdmin);
   res.json({ success: true, data: course });
 }));
 

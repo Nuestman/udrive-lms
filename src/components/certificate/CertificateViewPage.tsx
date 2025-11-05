@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { ArrowLeft, AlertCircle, CheckCircle, Clock, Download } from 'lucide-react';
 import CertificateGenerator from './CertificateGenerator';
 import api from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -36,13 +36,13 @@ const CertificateViewPage: React.FC = () => {
       setLoading(true);
       
       // First, check if the enrollment is completed
-      const enrollmentResponse: any = await api.get(`/enrollments/${enrollmentId}`);
+      const enrollmentResponse: any = await api.get(`/api/enrollments/${enrollmentId}`);
       const enrollmentData = enrollmentResponse?.data || enrollmentResponse?.data?.data || enrollmentResponse;
       
       setEnrollment(enrollmentData);
 
       // Check if certificate exists
-      const certResponse: any = await api.get(`/certificates/enrollment/${enrollmentId}`);
+      const certResponse: any = await api.get(`/api/certificates/enrollment/${enrollmentId}`);
       const certificates = certResponse?.data || certResponse?.data?.data || [];
       
       if (certificates.length === 0) {
@@ -76,7 +76,7 @@ const CertificateViewPage: React.FC = () => {
   const generateCertificate = async () => {
     try {
       setLoading(true);
-      const response = await api.post('/certificates/generate', {
+      const response = await api.post('/api/certificates/generate', {
         enrollment_id: enrollmentId
       });
       
@@ -145,17 +145,49 @@ const CertificateViewPage: React.FC = () => {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate('/student/dashboard')}
+            onClick={() => {
+              // Navigate back based on user active role
+              const userRole = (user as any)?.active_role || (user as any)?.role || 'student';
+              if (userRole === 'student') {
+                navigate('/student/dashboard');
+              } else if (userRole === 'super_admin') {
+                navigate('/admin/certificates');
+              } else if (userRole === 'school_admin') {
+                navigate('/school/certificates');
+              } else if (userRole === 'instructor') {
+                navigate('/instructor/certificates');
+              } else {
+                navigate('/student/dashboard');
+              }
+            }}
             className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
           >
             <ArrowLeft className="h-5 w-5 mr-2" />
-            Back to Dashboard
+            Back
           </button>
           
-          <h1 className="text-3xl font-bold text-gray-900">Certificate</h1>
-          <p className="text-gray-600 mt-2">
-            {enrollment?.course_title} - {enrollment?.status === 'completed' ? 'Completed' : 'In Progress'}
-          </p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Certificate</h1>
+              <p className="text-gray-600 mt-2">
+                {enrollment?.course_title} - {enrollment?.status === 'completed' ? 'Completed' : 'In Progress'}
+              </p>
+            </div>
+            {certificate && (
+              <button
+                onClick={() => {
+                  // Open verification page for download/printing
+                  if (certificate.verificationCode) {
+                    window.open(`/verify/${encodeURIComponent(certificate.verificationCode)}`, '_blank');
+                  }
+                }}
+                className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download/Print
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Error/Info State */}

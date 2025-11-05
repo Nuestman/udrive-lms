@@ -269,6 +269,20 @@ router.post('/verify-2fa', async (req, res) => {
       [userId]
     );
     
+    // Normalize user data with active_role
+    const settings = user.settings || {};
+    const primaryRole = user.role;
+    const activeRole = settings.active_role || primaryRole;
+    const normalizedUser = {
+      ...user,
+      primary_role: primaryRole,
+      active_role: activeRole,
+      settings: {
+        ...settings,
+        active_role: activeRole
+      }
+    };
+    
     // Generate JWT token
     const jwt = (await import('jsonwebtoken')).default;
     const { APP_CONFIG } = await import('../config/app.js');
@@ -294,7 +308,7 @@ router.post('/verify-2fa', async (req, res) => {
 
     res.json({
       success: true,
-      user: user,
+      user: normalizedUser,
       token: token
     });
   } catch (error) {
@@ -357,6 +371,70 @@ router.post('/signup/super-admin', async (req, res) => {
   } catch (error) {
     console.error('Super admin signup error:', error);
     res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * PUT /api/auth/switch-role
+ * Switch active role between primary role and student
+ */
+router.put('/switch-role', async (req, res) => {
+  try {
+    const token = req.cookies.auth_token || req.headers.authorization?.replace('Bearer ', '');
+
+    if (!token) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+
+    const currentUser = await authService.verifyToken(token);
+    const { active_role } = req.body;
+
+    if (!active_role) {
+      return res.status(400).json({ success: false, error: 'active_role is required' });
+    }
+
+    // Validate requested role
+    const primaryRole = currentUser.role;
+    const allowedRoles = [primaryRole];
+    
+    // Allow switching to student if primary role is elevated
+    if (primaryRole !== 'student' && active_role === 'student') {
+      allowedRoles.push('student');
+    }
+
+    if (!allowedRoles.includes(active_role)) {
+      return res.status(403).json({ 
+        success: false, 
+        error: `You can only switch to your primary role (${primaryRole}) or student role` 
+      });
+    }
+
+    // Update active_role in settings
+    const { query } = await import('../lib/db.js');
+    const currentSettings = currentUser.settings || {};
+    const updatedSettings = {
+      ...currentSettings,
+      active_role: active_role
+    };
+
+    await query(
+      `UPDATE users 
+       SET settings = $1, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $2`,
+      [JSON.stringify(updatedSettings), currentUser.id]
+    );
+
+    // Get updated user with normalized active_role
+    const updatedUser = await authService.verifyToken(token);
+
+    res.json({
+      success: true,
+      user: updatedUser,
+      message: `Role switched to ${active_role}`
+    });
+  } catch (error) {
+    console.error('Switch role error:', error);
+    res.status(400).json({ success: false, error: error.message });
   }
 });
 

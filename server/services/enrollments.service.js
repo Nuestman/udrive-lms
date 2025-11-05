@@ -70,9 +70,9 @@ export async function getEnrollments(tenantId, filters = {}, isSuperAdmin = fals
 /**
  * Get enrollments for a student
  */
-export async function getStudentEnrollments(studentId, tenantId) {
-  const result = await query(
-    `SELECT e.*,
+export async function getStudentEnrollments(studentId, tenantId, isSuperAdmin = false) {
+  let queryText = `
+    SELECT e.*,
       c.title as course_title,
       c.description as course_description,
       c.thumbnail_url,
@@ -88,10 +88,19 @@ export async function getStudentEnrollments(studentId, tenantId) {
      FROM enrollments e
      JOIN courses c ON e.course_id = c.id
      JOIN users u ON e.student_id = u.id
-     WHERE e.student_id = $1 AND u.tenant_id = $2
-     ORDER BY e.enrolled_at DESC`,
-    [studentId, tenantId]
-  );
+     WHERE e.student_id = $1
+  `;
+
+  // Super admin: No tenant filter, others: Must match tenant
+  const params = [studentId];
+  if (!isSuperAdmin || tenantId !== null) {
+    queryText += ` AND u.tenant_id = $2`;
+    params.push(tenantId);
+  }
+
+  queryText += ` ORDER BY e.enrolled_at DESC`;
+
+  const result = await query(queryText, params);
 
   return result.rows;
 }
@@ -99,7 +108,7 @@ export async function getStudentEnrollments(studentId, tenantId) {
 /**
  * Enroll student in course
  */
-export async function enrollStudent(enrollmentData, tenantId, io = null) {
+export async function enrollStudent(enrollmentData, tenantId, io = null, roleSwitchedUserId = null, isSuperAdmin = false) {
   const { student_id, course_id } = enrollmentData;
 
   // Validation
@@ -107,21 +116,50 @@ export async function enrollStudent(enrollmentData, tenantId, io = null) {
     throw new ValidationError('Student ID and Course ID are required');
   }
 
-  // Verify user exists and belongs to tenant (any role can enroll as student)
-  const studentCheck = await query(
-    'SELECT id, role FROM users WHERE id = $1 AND tenant_id = $2',
+  // Verify user exists
+  // Super admin: Allow null tenant_id, others: Must match tenant
+  let studentCheck;
+  if (isSuperAdmin && tenantId === null) {
+    // Super admin enrolling themselves - allow null tenant_id
+    studentCheck = await query(
+      'SELECT id, role, tenant_id FROM users WHERE id = $1',
+      [student_id]
+    );
+  } else {
+    // Regular tenant-scoped check
+    studentCheck = await query(
+      'SELECT id, role, tenant_id FROM users WHERE id = $1 AND tenant_id = $2',
     [student_id, tenantId]
   );
+  }
 
   if (studentCheck.rows.length === 0) {
     throw new NotFoundError('Student not found');
   }
 
-  // Verify course exists and belongs to tenant
-  const courseCheck = await query(
-    'SELECT id, status FROM courses WHERE id = $1 AND tenant_id = $2',
+  // Enforce that only student users can be enrolled
+  // Exception: Allow if user is role-switched to student mode (roleSwitchedUserId matches)
+  const userRole = studentCheck.rows[0].role;
+  if (userRole !== 'student' && roleSwitchedUserId !== student_id) {
+    throw new ValidationError('Only student users can be enrolled in courses');
+  }
+
+  // Verify course exists
+  // Super admin: Can enroll in any course (any tenant), others: Must match tenant
+  let courseCheck;
+  if (isSuperAdmin && tenantId === null) {
+    // Super admin can enroll in courses from any tenant
+    courseCheck = await query(
+      'SELECT id, status, tenant_id FROM courses WHERE id = $1',
+      [course_id]
+    );
+  } else {
+    // Regular tenant-scoped check
+    courseCheck = await query(
+      'SELECT id, status, tenant_id FROM courses WHERE id = $1 AND tenant_id = $2',
     [course_id, tenantId]
   );
+  }
 
   if (courseCheck.rows.length === 0) {
     throw new NotFoundError('Course not found');

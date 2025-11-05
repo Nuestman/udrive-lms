@@ -299,7 +299,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         userProfile={{
           name: getUserName(),
           avatar: profile?.avatar_url || "https://ui-avatars.com/api/?name=" + encodeURIComponent(getUserName()) + "&background=B98C1B&color=fff",
-          role: profile?.role || role
+          role: profile?.active_role || profile?.role || role,
+          active_role: profile?.active_role,
+          primary_role: profile?.primary_role || profile?.role
         }}
         onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
         onLogout={handleLogout}

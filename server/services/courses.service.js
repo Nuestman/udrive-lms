@@ -94,10 +94,32 @@ export async function getCourseById(courseId, tenantId, isSuperAdmin = false) {
 }
 
 /**
- * Get single course by slug (tenant-scoped)
+ * Get single course by slug
+ * - Super Admin: Any course by slug
+ * - Others: Only if course belongs to their tenant
  */
-export async function getCourseBySlug(slug, tenantId) {
-  const result = await query(
+export async function getCourseBySlug(slug, tenantId, isSuperAdmin = false) {
+  let result;
+  
+  if (isSuperAdmin && tenantId === null) {
+    // Super admin: Access any course by slug
+    result = await query(
+      `SELECT c.*, 
+        p.first_name || ' ' || p.last_name as instructor_name,
+        u.email as instructor_email,
+        t.name as school_name,
+        (SELECT COUNT(*) FROM modules WHERE course_id = c.id) as module_count,
+        (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as student_count
+       FROM courses c
+       LEFT JOIN users u ON c.created_by = u.id
+       LEFT JOIN user_profiles p ON p.user_id = u.id
+       LEFT JOIN tenants t ON c.tenant_id = t.id
+       WHERE c.slug = $1`,
+      [slug]
+    );
+  } else {
+    // Tenant-scoped: Only their course
+    result = await query(
     `SELECT c.*, 
       p.first_name || ' ' || p.last_name as instructor_name,
       u.email as instructor_email,
@@ -109,6 +131,7 @@ export async function getCourseBySlug(slug, tenantId) {
      WHERE c.slug = $1 AND c.tenant_id = $2`,
     [slug, tenantId]
   );
+  }
 
   if (result.rows.length === 0) {
     throw new NotFoundError('Course not found');

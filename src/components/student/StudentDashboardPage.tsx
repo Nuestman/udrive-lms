@@ -1,15 +1,20 @@
 // Student Dashboard - View enrolled courses and progress
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Clock, TrendingUp, Award, Play, CheckCircle } from 'lucide-react';
+import { BookOpen, Clock, TrendingUp, Award, Play, CheckCircle, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEnrollments } from '../../hooks/useEnrollments';
+import { useToast } from '../../contexts/ToastContext';
 import api from '../../lib/api';
+import ConfirmationModal from '../ui/ConfirmationModal';
 
 const StudentDashboardPage: React.FC = () => {
   const { profile } = useAuth();
-  const { enrollments, loading } = useEnrollments();
+  const { enrollments, loading, refreshEnrollments } = useEnrollments(profile?.id ? { student_id: profile.id } : undefined as any);
+  const { success, error: showError } = useToast();
   const navigate = useNavigate();
+  const [unenrollingCourseId, setUnenrollingCourseId] = useState<string | null>(null);
+  const [confirmUnenroll, setConfirmUnenroll] = useState<{ enrollmentId: string; courseId: string; courseTitle: string } | null>(null);
 
   // Get enrolled courses (active enrollments only)
   const enrolledCourses = enrollments.filter(e => e.status === 'active');
@@ -25,25 +30,79 @@ const StudentDashboardPage: React.FC = () => {
     try {
       // Get slug for nicer URL
       const courseRes = await api.get(`/courses/${courseId}`);
-      const slugOrId = courseRes?.success && courseRes.data?.slug ? courseRes.data.slug : courseId;
-      const modulesRes = await api.get(`/modules/course/${courseId}`);
-      if (modulesRes.success && modulesRes.data.length > 0) {
-        const firstModule = modulesRes.data[0];
-        const lessonsRes = await api.get(`/lessons/module/${firstModule.id}`);
-        
-        if (lessonsRes.success && lessonsRes.data.length > 0) {
-          const firstLesson = lessonsRes.data[0];
-          const slug = (firstLesson.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
-          navigate(`/student/courses/${slugOrId}/lessons/${slug}-${firstLesson.id}`);
-          return;
-        }
+      if (!courseRes.success) {
+        showError(courseRes.error || 'Failed to load course');
+        return;
       }
-    } catch (err) {
+      
+      const slugOrId = courseRes.data?.slug ? courseRes.data.slug : courseId;
+      const modulesRes = await api.get(`/modules/course/${courseId}`);
+      
+      if (!modulesRes.success) {
+        showError(modulesRes.error || 'Failed to load course modules');
+        return;
+      }
+      
+      if (modulesRes.data.length === 0) {
+        showError('Course has no modules available yet');
+        return;
+      }
+      
+      const firstModule = modulesRes.data[0];
+      const lessonsRes = await api.get(`/lessons/module/${firstModule.id}`);
+      
+      if (!lessonsRes.success) {
+        showError(lessonsRes.error || 'Failed to load course lessons');
+        return;
+      }
+      
+      if (lessonsRes.data.length === 0) {
+        showError('Course has no lessons available yet');
+        return;
+      }
+      
+      const firstLesson = lessonsRes.data[0];
+      const slug = (firstLesson.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+      navigate(`/student/courses/${slugOrId}/lessons/${slug}-${firstLesson.id}`);
+    } catch (err: any) {
       console.error('Error navigating to course:', err);
+      const errorMessage = err?.message || err?.error || 'Failed to access course. Please try again.';
+      showError(errorMessage);
     }
-    
-    // Fallback: go to course page
-    navigate(`/student/courses/${courseId}`);
+  };
+
+  const handleUnenrollClick = (enrollmentId: string, courseId: string) => {
+    const enrollment = enrollments.find(e => e.id === enrollmentId);
+    if (!enrollment) {
+      showError('Enrollment not found');
+      return;
+    }
+
+    const courseTitle = enrollment.course_title || 'this course';
+    setConfirmUnenroll({ enrollmentId, courseId, courseTitle });
+  };
+
+  const handleUnenrollConfirm = async () => {
+    if (!confirmUnenroll) return;
+
+    try {
+      setUnenrollingCourseId(confirmUnenroll.courseId);
+      const response = await api.del(`/enrollments/${confirmUnenroll.enrollmentId}`);
+      
+      if (response.success) {
+        success('Successfully unenrolled from course');
+        await refreshEnrollments();
+        setConfirmUnenroll(null);
+      } else {
+        showError(response.error || 'Failed to unenroll');
+      }
+    } catch (error: unknown) {
+      console.error('Error unenrolling:', error);
+      const message = (error as any)?.message || 'Failed to unenroll from course';
+      showError(message);
+    } finally {
+      setUnenrollingCourseId(null);
+    }
   };
 
   if (loading) {
@@ -130,8 +189,19 @@ const StudentDashboardPage: React.FC = () => {
                   onClick={() => handleStartCourse(enrollment.course_id)}
                 >
                   {/* Course Thumbnail */}
-                  <div className="h-32 bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center">
-                    <BookOpen className="h-12 w-12 text-white" />
+                  <div className="h-32 bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center relative overflow-hidden">
+                    <BookOpen className="h-12 w-12 text-white absolute z-0" />
+                    {enrollment.thumbnail_url && (
+                      <img
+                        src={enrollment.thumbnail_url}
+                        alt={enrollment.course_title || 'Course'}
+                        className="w-full h-full object-cover relative z-10"
+                        onError={(e) => {
+                          // Hide image on error - fallback icon will show
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    )}
                   </div>
 
                   {/* Course Info */}
@@ -154,17 +224,52 @@ const StudentDashboardPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Action Button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStartCourse(enrollment.course_id);
-                      }}
-                      className="w-full flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-                    >
-                      <Play size={16} className="mr-2" />
-                      {(enrollment.progress_percentage || 0) > 0 ? 'Continue' : 'Start Course'}
-                    </button>
+                    {/* Action Buttons - Only show unenroll for non-completed courses */}
+                    {enrollment.progress_percentage && enrollment.progress_percentage >= 100 ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/student/certificates/${enrollment.id}`);
+                        }}
+                        className="w-full flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                      >
+                        <Award size={16} className="mr-2" />
+                        View Certificate
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartCourse(enrollment.course_id);
+                          }}
+                          className="w-full flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors mb-2"
+                        >
+                          <Play size={16} className="mr-2" />
+                          {(enrollment.progress_percentage || 0) > 0 ? 'Continue' : 'Start Course'}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUnenrollClick(enrollment.id, enrollment.course_id);
+                          }}
+                          disabled={unenrollingCourseId === enrollment.course_id}
+                          className="w-full flex items-center justify-center px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {unenrollingCourseId === enrollment.course_id ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-2"></div>
+                              Unenrolling...
+                            </>
+                          ) : (
+                            <>
+                              <X size={16} className="mr-2" />
+                              Unenroll
+                            </>
+                          )}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -224,6 +329,19 @@ const StudentDashboardPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Unenroll Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={!!confirmUnenroll}
+        onClose={() => setConfirmUnenroll(null)}
+        onConfirm={handleUnenrollConfirm}
+        title="Unenroll from Course"
+        message={`Are you sure you want to unenroll from "${confirmUnenroll?.courseTitle}"?\n\nYour progress will be lost and you will need to re-enroll to access this course again.`}
+        confirmText="Unenroll"
+        cancelText="Cancel"
+        variant="warning"
+        isLoading={!!confirmUnenroll && unenrollingCourseId === confirmUnenroll.courseId}
+      />
     </div>
   );
 };

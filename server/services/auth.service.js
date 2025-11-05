@@ -6,6 +6,27 @@ import { APP_CONFIG } from '../config/app.js';
 import { sendPasswordResetEmail, isEmailConfigured } from '../utils/mailer.js';
 
 /**
+ * Normalize user data with active_role from settings
+ * Sets active_role = role if not set in settings
+ */
+function normalizeUserData(user) {
+  const settings = user.settings || {};
+  const primaryRole = user.role;
+  // Default active_role to primary role if not set
+  const activeRole = settings.active_role || primaryRole;
+  
+  return {
+    ...user,
+    primary_role: primaryRole,
+    active_role: activeRole,
+    settings: {
+      ...settings,
+      active_role: activeRole
+    }
+  };
+}
+
+/**
  * Login user
  */
 export async function login(credentials) {
@@ -82,10 +103,11 @@ export async function login(credentials) {
     { expiresIn: APP_CONFIG.JWT_EXPIRES_IN }
   );
 
-  // Remove password from response
+  // Remove password from response and normalize with active_role
   const { password_hash, ...userWithoutPassword } = user;
+  const normalizedUser = normalizeUserData(userWithoutPassword);
 
-  return { user: userWithoutPassword, token };
+  return { user: normalizedUser, token };
 }
 
 /**
@@ -173,15 +195,16 @@ export async function signup(userData) {
   );
 
   const { password_hash: _, ...userWithoutPassword } = user;
-
-  // Add profile fields to response
-  return { 
-    user: {
+  const userWithProfile = {
       ...userWithoutPassword,
       first_name,
       last_name,
       phone
-    }, 
+  };
+  const normalizedUser = normalizeUserData(userWithProfile);
+
+  return { 
+    user: normalizedUser,
     token 
   };
 }
@@ -261,14 +284,16 @@ export async function signupWithSchool(userData, schoolData) {
   );
 
   const { password_hash: _, ...userWithoutPassword } = user;
-
-  return { 
-    user: {
+  const userWithProfile = {
       ...userWithoutPassword,
       first_name,
       last_name,
       phone
-    }, 
+  };
+  const normalizedUser = normalizeUserData(userWithProfile);
+
+  return { 
+    user: normalizedUser,
     token,
     school: tenant
   };
@@ -332,13 +357,15 @@ export async function signupSuperAdmin(userData) {
   );
 
   const { password_hash: _, ...userWithoutPassword } = user;
-
-  return { 
-    user: {
+  const userWithProfile = {
       ...userWithoutPassword,
       first_name,
       last_name
-    }, 
+  };
+  const normalizedUser = normalizeUserData(userWithProfile);
+
+  return { 
+    user: normalizedUser,
     token 
   };
 }
@@ -372,7 +399,7 @@ export async function verifyToken(token) {
     }
 
     const { password_hash, ...userWithoutPassword } = result.rows[0];
-    return userWithoutPassword;
+    return normalizeUserData(userWithoutPassword);
   } catch (error) {
     throw new Error('Invalid or expired token');
   }
@@ -445,7 +472,7 @@ export async function updateProfile(userId, updates) {
   userWithProfile.created_at = user_created_at;
   userWithProfile.updated_at = profile_updated_at || userWithProfile.user_updated_at;
   
-  return userWithProfile;
+  return normalizeUserData(userWithProfile);
 }
 
 /**

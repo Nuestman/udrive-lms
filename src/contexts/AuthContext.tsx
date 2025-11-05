@@ -1,6 +1,6 @@
 // Updated AuthContext for Local PostgreSQL Database
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { authApi } from '../lib/api';
+import { authApi, setActiveRole } from '../lib/api';
 
 // Enhanced logging utility
 const logAuthEvent = (event: string, data?: any, isError = false) => {
@@ -21,6 +21,8 @@ interface UserProfile {
   last_name?: string;
   phone?: string;
   role: 'super_admin' | 'school_admin' | 'instructor' | 'student';
+  primary_role?: 'super_admin' | 'school_admin' | 'instructor' | 'student';
+  active_role?: 'super_admin' | 'school_admin' | 'instructor' | 'student';
   department?: string;
   position?: string;
   avatar_url?: string;
@@ -39,6 +41,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  switchRole: (activeRole: 'super_admin' | 'school_admin' | 'instructor' | 'student') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -76,8 +79,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               logAuthEvent('No existing token found');
             }
           }
-          setUser(response.user);
-          setProfile(response.user);
+          const user = response.user;
+          // Set active role in API client for header inclusion
+          if (user.active_role) {
+            setActiveRole(user.active_role);
+          }
+          setUser(user);
+          setProfile(user);
         } else {
           logAuthEvent('No active session');
         }
@@ -109,8 +117,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           logAuthEvent('No token in sign in response');
         }
-        setUser(response.user);
-        setProfile(response.user);
+        const user = response.user;
+        // Set active role in API client for header inclusion
+        if (user.active_role) {
+          setActiveRole(user.active_role);
+        }
+        setUser(user);
+        setProfile(user);
       } else if (response.requires2FA) {
         // Return 2FA requirement instead of throwing error
         return { requires2FA: true, userId: response.userId, message: response.message };
@@ -140,8 +153,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           logAuthEvent('No token in 2FA verification response');
         }
-        setUser(response.user);
-        setProfile(response.user);
+        const user = response.user;
+        // Set active role in API client for header inclusion
+        if (user.active_role) {
+          setActiveRole(user.active_role);
+        }
+        setUser(user);
+        setProfile(user);
       } else {
         throw new Error('2FA verification failed');
       }
@@ -172,8 +190,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (response.token) {
           localStorage.setItem('token', response.token);
         }
-        setUser(response.user);
-        setProfile(response.user);
+        const user = response.user;
+        // Set active role in API client for header inclusion
+        if (user.active_role) {
+          setActiveRole(user.active_role);
+        }
+        setUser(user);
+        setProfile(user);
       } else {
         throw new Error('Signup failed');
       }
@@ -189,6 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await authApi.logout();
       localStorage.removeItem('token');
+      setActiveRole(null); // Clear active role on sign out
       setUser(null);
       setProfile(null);
       logAuthEvent('Sign out successful');
@@ -224,12 +248,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await authApi.updateProfile(updates);
       
       if (response.success && response.user) {
-        setUser(response.user);
-        setProfile(response.user);
+        const user = response.user;
+        // Update active role in API client if changed
+        if (user.active_role) {
+          setActiveRole(user.active_role);
+        }
+        setUser(user);
+        setProfile(user);
         logAuthEvent('Profile updated successfully');
       }
     } catch (error: any) {
       logAuthEvent('Profile update failed', error, true);
+      throw error;
+    }
+  };
+
+  const switchRole = async (activeRole: 'super_admin' | 'school_admin' | 'instructor' | 'student') => {
+    logAuthEvent('Role switch attempt', { activeRole });
+    
+    try {
+      if (!user) {
+        throw new Error('No user logged in');
+      }
+      
+      const response = await authApi.switchRole(activeRole);
+      
+      if (response.success && response.user) {
+        const updatedUser = response.user;
+        // Update active role in API client
+        setActiveRole(updatedUser.active_role || activeRole);
+        setUser(updatedUser);
+        setProfile(updatedUser);
+        logAuthEvent('Role switched successfully', { activeRole });
+      } else {
+        throw new Error('Failed to switch role');
+      }
+    } catch (error: any) {
+      logAuthEvent('Role switch failed', error, true);
       throw error;
     }
   };
@@ -244,6 +299,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signOut,
     resetPassword,
     updateProfile,
+    switchRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

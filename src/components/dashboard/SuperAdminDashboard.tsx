@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, Users, BookOpen, TrendingUp, Award, BarChart3, Globe } from 'lucide-react';
 import { useAnalytics, useRecentActivity } from '../../hooks/useAnalytics';
 import { useSchools } from '../../hooks/useSchools';
-import UniversalStudentDashboard from '../common/UniversalStudentDashboard';
+// UniversalStudentDashboard removed: only students take courses
 
 const SuperAdminDashboard: React.FC = () => {
   const { stats, loading: statsLoading } = useAnalytics();
@@ -293,8 +293,7 @@ const SuperAdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* My Learning - Courses I'm Taking */}
-      <UniversalStudentDashboard className="mt-6" />
+      {/* My Learning widget removed for non-student roles */}
     </div>
   );
 };

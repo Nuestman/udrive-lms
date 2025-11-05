@@ -152,7 +152,7 @@ export async function generateCertificate(enrollmentId, tenantId, isSuperAdmin =
 export async function getCertificateById(certificateId, tenantId, isSuperAdmin = false) {
   let result;
 
-  if (isSuperAdmin) {
+  if (isSuperAdmin && tenantId === null) {
     result = await query(
       `SELECT cert.*,
         p.first_name, p.last_name, u.email,
@@ -195,7 +195,7 @@ export async function getCertificateById(certificateId, tenantId, isSuperAdmin =
 export async function getStudentCertificates(studentId, tenantId, isSuperAdmin = false) {
   let result;
 
-  if (isSuperAdmin) {
+  if (isSuperAdmin && tenantId === null) {
     result = await query(
       `SELECT cert.*,
         c.title as course_title,
@@ -316,7 +316,7 @@ export async function updateCertificateStatus(certificateId, status, userId, ten
   const result = await query(
     `UPDATE certificates 
      SET status = $1,
-         ${status === 'revoked' ? 'revoked_by = $2, revoked_at = CURRENT_TIMESTAMP, revocation_reason = $5' : 'approved_by = $2, approved_at = CURRENT_TIMESTAMP, approval_notes = $5'},
+         ${status === 'revoked' ? 'revoked_by = $2, revoked_at = CURRENT_TIMESTAMP, revocation_reason = $4' : 'approved_by = $2, approved_at = CURRENT_TIMESTAMP, approval_notes = $4'},
          updated_at = CURRENT_TIMESTAMP
      WHERE id = $3
      RETURNING *`,
@@ -364,23 +364,46 @@ export async function getCertificateStats(tenantId, isSuperAdmin = false) {
  * Verify certificate by verification code (public access)
  */
 export async function verifyCertificateByCode(verificationCode) {
+  if (!verificationCode || verificationCode.trim() === '') {
+    throw new NotFoundError('Verification code is required');
+  }
+
+  // Trim and clean the verification code
+  const cleanCode = verificationCode.trim();
+  
+  console.log('Verifying certificate with code:', cleanCode);
+  
   const result = await query(
     `SELECT cert.*,
-      t.name as school_name
+      t.name as school_name,
+      p.first_name, p.last_name, u.email as student_email,
+      c.title as course_title
      FROM certificates cert
      LEFT JOIN tenants t ON cert.tenant_id = t.id
+     LEFT JOIN users u ON cert.student_id = u.id
+     LEFT JOIN user_profiles p ON p.user_id = u.id
+     LEFT JOIN courses c ON cert.course_id = c.id
      WHERE cert.verification_code = $1`,
-    [verificationCode]
+    [cleanCode]
   );
 
   if (result.rows.length === 0) {
+    console.log('No certificate found for verification code:', cleanCode);
     throw new NotFoundError('Certificate not found');
   }
 
   const certificate = result.rows[0];
   
+  // Return formatted certificate data
   return {
-    ...certificate,
+    id: certificate.id,
+    certificate_number: certificate.certificate_number,
+    verification_code: certificate.verification_code,
+    student_name: certificate.student_name || `${certificate.first_name || ''} ${certificate.last_name || ''}`.trim(),
+    course_name: certificate.course_name || certificate.course_title,
+    school_name: certificate.school_name || certificate.tenant_name,
+    issued_at: certificate.issued_at,
+    status: certificate.status,
     is_valid: certificate.status === 'active'
   };
 }
@@ -391,7 +414,7 @@ export async function verifyCertificateByCode(verificationCode) {
 export async function getCertificatesForEnrollment(enrollmentId, tenantId, isSuperAdmin = false) {
   let result;
 
-  if (isSuperAdmin) {
+  if (isSuperAdmin && tenantId === null) {
     result = await query(
       `SELECT cert.*
        FROM certificates cert

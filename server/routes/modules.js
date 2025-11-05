@@ -18,7 +18,7 @@ router.use(tenantContext);
  * Get all modules for a course
  */
 router.get('/course/:courseId', asyncHandler(async (req, res) => {
-  const modules = await modulesService.getModulesByCourse(req.params.courseId, req.tenantId);
+  const modules = await modulesService.getModulesByCourse(req.params.courseId, req.tenantId, req.isSuperAdmin);
   
   res.json({
     success: true,

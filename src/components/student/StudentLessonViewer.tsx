@@ -27,6 +27,7 @@ const StudentLessonViewer: React.FC = () => {
   const [allContent, setAllContent] = useState<any[]>([]);
   const [quizCompletionStatus, setQuizCompletionStatus] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
+  const [courseError, setCourseError] = useState<string | null>(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const [isNavigatingNext, setIsNavigatingNext] = useState(false);
   const [resolvedCourseId, setResolvedCourseId] = useState<string | null>(null);
@@ -54,7 +55,12 @@ const StudentLessonViewer: React.FC = () => {
   });
   
   const { progress, markLessonComplete, markLessonIncomplete, refresh: refreshProgress } = useProgress(profile?.id, resolvedCourseId || undefined);
-  const enrollmentFilters = useMemo(() => (resolvedCourseId ? { course_id: resolvedCourseId } : undefined), [resolvedCourseId]);
+  const enrollmentFilters = useMemo(() => {
+    const base: any = {};
+    if (profile?.id) base.student_id = profile.id;
+    if (resolvedCourseId) base.course_id = resolvedCourseId;
+    return Object.keys(base).length ? base : undefined;
+  }, [profile?.id, resolvedCourseId]);
   const { enrollments, refreshEnrollments } = useEnrollments(enrollmentFilters as any);
   const { info, success, error } = useToast();
 
@@ -169,6 +175,7 @@ const StudentLessonViewer: React.FC = () => {
   const fetchCourseData = async () => {
     try {
       setLoading(true);
+      setCourseError(null);
       
       // Fetch course details
       // Resolve course by slug or id
@@ -178,9 +185,18 @@ const StudentLessonViewer: React.FC = () => {
         const bySlug = await api.get(`/courses/slug/${courseSlugOrId}`);
         if (bySlug.success && bySlug.data?.id) {
           resolvedId = bySlug.data.id;
+        } else {
+          // If slug lookup fails, try as UUID anyway
+          console.warn('Course slug lookup failed, trying as UUID:', courseSlugOrId);
         }
       }
       const courseRes = await api.get(`/courses/${resolvedId}`);
+      if (!courseRes.success) {
+        setCourseError(courseRes.error || 'Course not found or access denied');
+        setLoading(false);
+        return;
+      }
+      
       if (courseRes.success) {
         setCourse(courseRes.data);
         setResolvedCourseId(resolvedId);
@@ -292,9 +308,17 @@ const StudentLessonViewer: React.FC = () => {
           const courseSlug = courseRes.data?.slug || courseSlugOrId;
           navigate(`/student/courses/${courseSlug}/lessons/${slug}-${first.id}`, { replace: true });
         }
+      } else {
+        // Modules fetch failed
+        if (!modulesRes.success) {
+          setCourseError(modulesRes.error || 'Failed to load course modules. Please try again.');
+          setLoading(false);
+          return;
+        }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching course data:', err);
+      setCourseError(err?.message || err?.error || 'Failed to load course. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -410,12 +434,7 @@ const StudentLessonViewer: React.FC = () => {
     }
   };
 
-  const navigateToManagement = () => {
-    const basePath = user?.role === 'student' ? '/student' : 
-                    user?.role === 'instructor' ? '/instructor' :
-                    user?.role === 'school_admin' ? '/school' : '/admin';
-    navigate(`${basePath}/courses/${resolvedCourseId}`);
-  };
+  // Management navigation removed: only students access lesson viewer
 
   const isCourseFullyCompleted = () => {
     if (!allContent || allContent.length === 0) return false;
@@ -976,10 +995,38 @@ const StudentLessonViewer: React.FC = () => {
     );
   }
 
+  if (courseError) {
+    return (
+      <div className="p-6 text-center">
+        <div className="max-w-md mx-auto bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">Error Loading Course</h3>
+          <p className="text-red-600 dark:text-red-300">{courseError}</p>
+          <button
+            onClick={() => navigate('/student/dashboard')}
+            className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!course || (!currentLesson && !currentQuiz)) {
     return (
-      <div className="p-6 text-center text-gray-600">
-        Content not found or you don't have access to this course.
+      <div className="p-6 text-center">
+        <div className="max-w-md mx-auto bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Content Not Available</h3>
+          <p className="text-yellow-600 dark:text-yellow-300">
+            Content not found or you don't have access to this course. Please ensure you are enrolled in this course.
+          </p>
+          <button
+            onClick={() => navigate('/student/dashboard')}
+            className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            Go to Dashboard
+          </button>
+        </div>
       </div>
     );
   }
@@ -1004,28 +1051,13 @@ const StudentLessonViewer: React.FC = () => {
       <PageLayout
         title={course.title}
         breadcrumbs={[
-          { 
-            label: 'My Courses', 
-            href: user?.role === 'student' ? '/student/courses' : 
-                  user?.role === 'instructor' ? '/instructor/courses' :
-                  user?.role === 'school_admin' ? '/school/courses' : '/school/courses'
-          },
+          { label: 'My Courses', href: '/student/courses' },
           { label: course.title },
           { label: currentLesson?.title || currentQuiz?.title || 'Content' }
         ]}
         actions={
           <div className="flex items-center gap-2">
-            {/* Back to Management button for elevated roles */}
-            {user?.role !== 'student' && (
-              <button
-                onClick={navigateToManagement}
-                className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                title="Back to course management"
-              >
-                <Settings size={18} className="mr-2" />
-                Back to Management
-              </button>
-            )}
+            {/* Management button removed */}
             {/* Mobile sidebar toggle button */}
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -1037,12 +1069,7 @@ const StudentLessonViewer: React.FC = () => {
             </button>
             
             <button
-              onClick={() => {
-                const backPath = user?.role === 'student' ? '/student/courses' : 
-                                user?.role === 'instructor' ? '/instructor/courses' :
-                                user?.role === 'school_admin' ? '/school/courses' : '/school/courses';
-                navigate(backPath);
-              }}
+              onClick={() => navigate('/student/courses')}
               className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
             >
               <ArrowLeft size={18} className="mr-2" />

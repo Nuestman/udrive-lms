@@ -1,6 +1,15 @@
 // API Client for Frontend
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+// Store active role for API requests
+let activeRole: string | null = null;
+
+export const setActiveRole = (role: string | null) => {
+  activeRole = role;
+};
+
+export const getActiveRole = () => activeRole;
+
 interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -25,6 +34,7 @@ async function request<T = any>(
     ...options,
     headers: {
       ...(bearer ? { 'Authorization': `Bearer ${bearer}` } : {}),
+      ...(activeRole ? { 'X-Active-Role': activeRole } : {}),
       ...options.headers,
     },
     credentials: 'include', // Include cookies
@@ -127,6 +137,9 @@ export const authApi = {
 
   resetPassword: (token: string, newPassword: string) =>
     post('/auth/reset-password', { token, newPassword }),
+
+  switchRole: (activeRole: string) =>
+    put<{ success: boolean; user: any; message: string }>('/auth/switch-role', { active_role: activeRole }),
 };
 
 /**
@@ -339,7 +352,9 @@ export const studentsApi = {
 };
 
 /**
- * Enrollments API - Universal enrollment for all user roles
+ * Enrollments API - Student enrollments
+ * - Students can enroll themselves (server enforces role)
+ * - Admins/Instructors enroll students by passing a student_id
  */
 export const enrollmentsApi = {
   getAll: (params?: {
@@ -368,7 +383,7 @@ export const enrollmentsApi = {
     get<{ success: boolean; data: any[] }>(`/enrollments/student/${studentId}`),
 
   create: (data: {
-    student_id?: string; // Optional - defaults to current user if not provided
+    student_id?: string; // Optional for student self-enrollment only; server enforces role
     course_id: string;
   }) => post<{ success: boolean; data: any; message: string }>('/enrollments', data),
 

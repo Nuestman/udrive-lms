@@ -4,7 +4,7 @@ import { useWhiteLabel } from '../../contexts/WhiteLabelContext';
 import { Users, BookOpen, TrendingUp, Award, UserPlus, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAnalytics, useRecentActivity } from '../../hooks/useAnalytics';
-import UniversalStudentDashboard from '../common/UniversalStudentDashboard';
+// UniversalStudentDashboard removed: only students take courses
 
 const SchoolDashboard: React.FC = () => {
   const { stats, loading: statsLoading } = useAnalytics();
@@ -223,8 +223,7 @@ const SchoolDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* My Learning - Courses I'm Taking */}
-      <UniversalStudentDashboard className="mt-6" />
+      {/* My Learning widget removed for non-student roles */}
     </div>
   );
 };

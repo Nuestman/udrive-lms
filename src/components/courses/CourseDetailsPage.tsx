@@ -1,7 +1,7 @@
 // Course Details Page - View course structure with modules and lessons
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, BookOpen, Clock, Users, Edit, Trash2, GripVertical, ChevronDown, ChevronRight, FileText, Play, Eye } from 'lucide-react';
+import { ArrowLeft, Plus, BookOpen, Clock, Users, Edit, Trash2, GripVertical, ChevronDown, ChevronRight, FileText, Eye } from 'lucide-react';
 import { useModules } from '../../hooks/useModules';
 import { useLessons } from '../../hooks/useLessons';
 import api, { quizzesApi } from '../../lib/api';
@@ -106,46 +106,7 @@ const CourseDetailsPage: React.FC = () => {
     }
   };
 
-  const handleStudentView = async () => {
-    try {
-      // Get course modules and navigate to first lesson
-      if (modules && modules.length > 0) {
-        const firstModule = modules[0];
-        
-        // Fetch lessons for the first module
-        try {
-          const lessonsResponse = await api.get(`/lessons/module/${firstModule.id}`);
-          if (lessonsResponse.success && lessonsResponse.data.length > 0) {
-            const firstLesson = lessonsResponse.data[0];
-            const slug = (firstLesson.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
-            
-            // Navigate based on user role
-            const basePath = user?.role === 'student' ? '/student' : 
-                            user?.role === 'school_admin' ? '/school' : 
-                            user?.role === 'super_admin' ? '/admin' : 
-                            user?.role === 'instructor' ? '/instructor' : '/school';
-            
-            const lessonPath = `${basePath}/courses/${id}/lessons/${slug}-${firstLesson.id}`;
-            navigate(lessonPath);
-            return;
-          }
-        } catch (lessonError) {
-          console.error('Error fetching lessons for module:', lessonError);
-        }
-      }
-      
-      // Fallback to course overview or show message
-      if (!modules || modules.length === 0) {
-        showToast('This course has no modules yet. Please add modules and lessons first.', 'error');
-        return;
-      }
-      
-      showToast('This course has no lessons yet. Please add lessons to the modules first.', 'error');
-    } catch (error: any) {
-      console.error('Error navigating to student view:', error);
-      showToast('Failed to navigate to student view', 'error');
-    }
-  };
+  // Student view functionality removed: only students can take courses
 
   if (loading) {
     return (
@@ -173,15 +134,6 @@ const CourseDetailsPage: React.FC = () => {
       ]}
       actions={
         <div className="flex gap-3">
-          <button
-            onClick={handleStudentView}
-            className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Take this course as a student"
-            disabled={!course || loading}
-          >
-            <Play size={18} className="mr-2" />
-            {loading ? 'Loading...' : 'Student View'}
-          </button>
           <button
             onClick={() => {
               const backPath = user?.role === 'student' ? '/student/courses' : 

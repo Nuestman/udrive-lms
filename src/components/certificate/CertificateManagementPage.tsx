@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Download, Eye, MoreVertical, CheckCircle, XCircle, AlertTriangle, AlertCircle } from 'lucide-react';
 import api from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
+import ConfirmationModal from '../ui/ConfirmationModal';
 
 interface Certificate {
   id: string;
   student_name: string;
   course_name: string;
-  school_name: string;
+  school_name?: string;
   certificate_number: string;
   status: 'active' | 'revoked' | 'expired';
   issued_at: string;
-  verification_code: string;
+  verification_code?: string;
+  enrollment_id?: string;
 }
 
 interface CertificateStats {
@@ -24,6 +28,8 @@ interface CertificateStats {
 
 const CertificateManagementPage: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { success, error: showError } = useToast();
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [stats, setStats] = useState<CertificateStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,6 +38,31 @@ const CertificateManagementPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedCertificates, setSelectedCertificates] = useState<string[]>([]);
+  const [statusModal, setStatusModal] = useState<{
+    isOpen: boolean;
+    certificateId: string | null;
+    action: 'revoke' | 'activate' | null;
+    notes: string;
+    submitting: boolean;
+  }>({ isOpen: false, certificateId: null, action: null, notes: '', submitting: false });
+
+  const commonRevokeReasons = [
+    'Academic integrity violation',
+    'Identity mismatch',
+    'Fraudulent activity detected',
+    'Administrative error',
+    'Course completion invalidated',
+  ];
+
+  const commonActivateNotes = [
+    'Manual approval by admin',
+    'Verified by instructor',
+    'Documentation verified',
+  ];
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; certificateId: string | null }>({
+    isOpen: false,
+    certificateId: null
+  });
 
   useEffect(() => {
     fetchCertificates();
@@ -99,19 +130,103 @@ const CertificateManagementPage: React.FC = () => {
     fetchCertificates();
   };
 
-  const handleStatusChange = async (certificateId: string, newStatus: string) => {
+  const submitStatusChange = async () => {
+    if (!statusModal.certificateId || !statusModal.action) return;
     try {
-      await api.put(`/api/certificates/${certificateId}/status`, {
-        status: newStatus,
-        notes: `Status changed to ${newStatus}`
+      setStatusModal((s) => ({ ...s, submitting: true }));
+      await api.put(`/api/certificates/${statusModal.certificateId}/status`, {
+        status: statusModal.action === 'revoke' ? 'revoked' : 'active',
+        notes: statusModal.notes?.trim() || (statusModal.action === 'revoke' ? 'Certificate revoked' : 'Certificate activated')
       });
-      
-      // Refresh certificates and stats
+      success(`Certificate ${statusModal.action === 'revoke' ? 'revoked' : 'activated'} successfully`);
+      setStatusModal({ isOpen: false, certificateId: null, action: null, notes: '', submitting: false });
       fetchCertificates();
       fetchStats();
     } catch (err: any) {
       console.error('Error updating certificate status:', err);
-      setError(err.response?.data?.error || err.message || 'Failed to update certificate status');
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to update certificate status';
+      setError(errorMessage);
+      showError(errorMessage);
+      setStatusModal((s) => ({ ...s, submitting: false }));
+    }
+  };
+
+  const handleViewCertificate = async (certificate: Certificate) => {
+    try {
+      // Fetch full certificate details to get enrollment_id
+      const response = await api.get(`/api/certificates/${certificate.id}`);
+      
+      if (response.success && response.data) {
+        const certData = response.data;
+        
+        // Navigate to certificate view page using enrollment_id (works for all roles)
+        if (certData.enrollment_id) {
+          // Use the student route - CertificateViewPage works for all roles
+          navigate(`/student/certificates/${certData.enrollment_id}`);
+        } else {
+          showError('Certificate enrollment information not available');
+        }
+      } else {
+        showError('Failed to load certificate details');
+      }
+    } catch (err: any) {
+      console.error('Error viewing certificate:', err);
+      showError(err.response?.data?.error || err.message || 'Failed to load certificate');
+    }
+  };
+
+  const handleDownloadCertificate = async (certificate: Certificate) => {
+    try {
+      // Fetch full certificate details to get the correct verification code
+      const response = await api.get(`/api/certificates/${certificate.id}`);
+      
+      if (response.success && response.data) {
+        const certData = response.data;
+        
+        // Use the verification code from the full certificate data
+        if (certData.verification_code) {
+          // Open certificate verification page in new tab for download/printing
+          // The verification page can be printed or saved as PDF
+          // URL encode the verification code to handle special characters
+          const encodedCode = encodeURIComponent(certData.verification_code);
+          window.open(`/verify/${encodedCode}`, '_blank');
+        } else if (certData.enrollment_id) {
+          // Fallback: navigate to certificate view page which has download functionality
+          navigate(`/student/certificates/${certData.enrollment_id}`);
+        } else {
+          showError('Certificate verification information not available');
+        }
+      } else {
+        showError('Failed to load certificate details');
+      }
+    } catch (err: any) {
+      console.error('Error downloading certificate:', err);
+      showError(err.response?.data?.error || err.message || 'Failed to download certificate');
+    }
+  };
+
+  const handleDeleteCertificate = (certificateId: string) => {
+    setDeleteModal({ isOpen: true, certificateId });
+  };
+
+  const confirmDeleteCertificate = async () => {
+    if (!deleteModal.certificateId) return;
+
+    try {
+      await api.delete(`/api/certificates/${deleteModal.certificateId}`);
+      
+      success('Certificate deleted successfully');
+      
+      // Refresh certificates and stats
+      fetchCertificates();
+      fetchStats();
+      setDeleteModal({ isOpen: false, certificateId: null });
+    } catch (err: any) {
+      console.error('Error deleting certificate:', err);
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to delete certificate';
+      setError(errorMessage);
+      showError(errorMessage);
+      setDeleteModal({ isOpen: false, certificateId: null });
     }
   };
 
@@ -119,13 +234,30 @@ const CertificateManagementPage: React.FC = () => {
     if (selectedCertificates.length === 0) return;
 
     try {
+      let successCount = 0;
+      let errorCount = 0;
+
       for (const certificateId of selectedCertificates) {
-        if (action === 'revoke') {
-          await api.put(`/api/certificates/${certificateId}/status`, {
-            status: 'revoked',
-            notes: 'Bulk action: Certificate revoked'
-          });
+        try {
+          if (action === 'revoke') {
+            await api.put(`/api/certificates/${certificateId}/status`, {
+              status: 'revoked',
+              notes: 'Bulk action: Certificate revoked'
+            });
+            successCount++;
+          }
+        } catch (err: any) {
+          console.error(`Error processing certificate ${certificateId}:`, err);
+          errorCount++;
         }
+      }
+      
+      if (successCount > 0) {
+        success(`Successfully ${action === 'revoke' ? 'revoked' : 'updated'} ${successCount} certificate(s)`);
+      }
+      
+      if (errorCount > 0) {
+        showError(`Failed to ${action === 'revoke' ? 'revoke' : 'update'} ${errorCount} certificate(s)`);
       }
       
       setSelectedCertificates([]);
@@ -133,7 +265,9 @@ const CertificateManagementPage: React.FC = () => {
       fetchStats();
     } catch (err: any) {
       console.error('Error performing bulk action:', err);
-      setError(err.response?.data?.error || err.message || 'Failed to perform bulk action');
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to perform bulk action';
+      setError(errorMessage);
+      showError(errorMessage);
     }
   };
 
@@ -166,6 +300,91 @@ const CertificateManagementPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Status (Revoke/Activate) Modal */}
+      {statusModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white w-full max-w-lg rounded-lg shadow-lg">
+            <div className="px-6 py-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {statusModal.action === 'revoke' ? 'Revoke Certificate' : 'Activate Certificate'}
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                {statusModal.action === 'revoke'
+                  ? 'Please provide a reason for revoking this certificate.'
+                  : 'Optionally provide approval notes for activation.'}
+              </p>
+            </div>
+            <div className="px-6 py-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {statusModal.action === 'revoke' ? 'Revocation Reason' : 'Activation Notes'}
+              </label>
+              {statusModal.action === 'revoke' ? (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {commonRevokeReasons.map((reason) => (
+                    <button
+                      key={reason}
+                      type="button"
+                      onClick={() => setStatusModal((s) => ({ ...s, notes: reason }))}
+                      className="px-2.5 py-1 text-xs rounded-full border border-red-200 text-red-700 hover:bg-red-50"
+                      title={reason}
+                    >
+                      {reason}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {commonActivateNotes.map((note) => (
+                    <button
+                      key={note}
+                      type="button"
+                      onClick={() => setStatusModal((s) => ({ ...s, notes: note }))}
+                      className="px-2.5 py-1 text-xs rounded-full border border-green-200 text-green-700 hover:bg-green-50"
+                      title={note}
+                    >
+                      {note}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <textarea
+                value={statusModal.notes}
+                onChange={(e) => setStatusModal((s) => ({ ...s, notes: e.target.value }))}
+                placeholder={statusModal.action === 'revoke' ? 'e.g., Academic integrity concerns' : 'e.g., Manual approval by admin'}
+                className="w-full min-h-[100px] border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+            </div>
+            <div className="px-6 py-4 border-t flex items-center justify-end gap-2">
+              <button
+                onClick={() => setStatusModal({ isOpen: false, certificateId: null, action: null, notes: '', submitting: false })}
+                disabled={statusModal.submitting}
+                className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitStatusChange}
+                disabled={statusModal.submitting || (statusModal.action === 'revoke' && !statusModal.notes.trim())}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+              >
+                {statusModal.submitting ? 'Saving...' : (statusModal.action === 'revoke' ? 'Revoke' : 'Activate')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, certificateId: null })}
+        onConfirm={confirmDeleteCertificate}
+        title="Delete Certificate"
+        message="Are you sure you want to delete this certificate? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -450,14 +669,16 @@ const CertificateManagementPage: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
                         <button 
-                          className="text-primary-600 hover:text-primary-900"
+                          onClick={() => handleViewCertificate(certificate)}
+                          className="text-primary-600 hover:text-primary-900 transition-colors"
                           title="View Certificate"
                           aria-label="View Certificate"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
                         <button 
-                          className="text-green-600 hover:text-green-900"
+                          onClick={() => handleDownloadCertificate(certificate)}
+                          className="text-green-600 hover:text-green-900 transition-colors"
                           title="Download Certificate"
                           aria-label="Download Certificate"
                         >
@@ -465,21 +686,29 @@ const CertificateManagementPage: React.FC = () => {
                         </button>
                         {certificate.status === 'active' ? (
                           <button
-                            onClick={() => handleStatusChange(certificate.id, 'revoked')}
-                            className="text-red-600 hover:text-red-900"
+                            onClick={() => setStatusModal({ isOpen: true, certificateId: certificate.id, action: 'revoke', notes: '', submitting: false })}
+                            className="text-red-600 hover:text-red-900 transition-colors"
                             title="Revoke Certificate"
                           >
                             <XCircle className="h-4 w-4" />
                           </button>
                         ) : (
                           <button
-                            onClick={() => handleStatusChange(certificate.id, 'active')}
-                            className="text-green-600 hover:text-green-900"
+                            onClick={() => setStatusModal({ isOpen: true, certificateId: certificate.id, action: 'activate', notes: '', submitting: false })}
+                            className="text-green-600 hover:text-green-900 transition-colors"
                             title="Activate Certificate"
                           >
                             <CheckCircle className="h-4 w-4" />
                           </button>
                         )}
+                        <button
+                          onClick={() => handleDeleteCertificate(certificate.id)}
+                          className="text-red-600 hover:text-red-900 transition-colors"
+                          title="Delete Certificate"
+                          aria-label="Delete Certificate"
+                        >
+                          <AlertTriangle className="h-4 w-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>

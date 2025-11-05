@@ -43,16 +43,19 @@ export async function tenantContext(req, res, next) {
   // Store user's actual tenant_id
   req.userTenantId = userProfile.tenant_id;
 
-  // SUPER ADMIN: Bypass all tenant restrictions
-  if (userProfile.role === 'super_admin') {
+  // SUPER ADMIN: Bypass all tenant restrictions (check primary role, not active role)
+  // Even if switched to student mode, super admin retains tenant bypass
+  const primaryRole = req.user.primaryRole || userProfile.role;
+  if (primaryRole === 'super_admin') {
     req.tenantId = null; // null = no filtering, see all tenants
     req.isSuperAdmin = true;
-    console.log(`🔓 Super Admin Access: ${userProfile.email} - No tenant restrictions`);
+    console.log(`🔓 Super Admin Access: ${userProfile.email} - No tenant restrictions (Active Role: ${req.user.activeRole || userProfile.role})`);
     next();
     return;
   }
 
   // ALL OTHER ROLES: Strict tenant isolation
+  // When in student mode, still use their actual tenant_id for isolation
   if (!userProfile.tenant_id) {
     return res.status(403).json({
       success: false,
@@ -62,7 +65,8 @@ export async function tenantContext(req, res, next) {
 
   req.tenantId = userProfile.tenant_id;
   req.isSuperAdmin = false;
-  console.log(`🔒 Tenant Isolation: ${req.tenantId} (User: ${userProfile.email}, Role: ${userProfile.role})`);
+  const activeRole = req.user.activeRole || userProfile.role;
+  console.log(`🔒 Tenant Isolation: ${req.tenantId} (User: ${userProfile.email}, Primary Role: ${primaryRole}, Active Role: ${activeRole})`);
 
   next();
 }

@@ -5,11 +5,11 @@ import { Plus, Search, BookOpen, Users, Clock, Edit, Trash2, Eye, MoreVertical }
 import { useAuth } from '../../contexts/AuthContext';
 import { useCourses } from '../../hooks/useCourses';
 import { useToast } from '../../contexts/ToastContext';
-import { enrollmentsApi } from '../../lib/api';
+
 import PageLayout from '../ui/PageLayout';
 import CreateCourseModal from './CreateCourseModal';
 import EditCourseModal from './EditCourseModal';
-import UniversalEnrollmentButton from '../common/UniversalEnrollmentButton';
+// Dual-role enrollment removed
 import type { Course } from '../../types/database.types';
 
 interface CoursesPageProps {
@@ -27,8 +27,7 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ role }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const [userEnrollments, setUserEnrollments] = useState<Set<string>>(new Set());
-  const [enrollmentData, setEnrollmentData] = useState<Map<string, { progress: number; status: string }>>(new Map());
+  // Removed dual-role self-enrollment tracking
 
   // Filter courses
   const filteredCourses = courses.filter(course => {
@@ -60,33 +59,7 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ role }) => {
     }
   };
 
-  // Load user enrollments for non-student roles
-  useEffect(() => {
-    const loadEnrollments = async () => {
-      if (profile?.id && role !== 'student') {
-        try {
-          const response = await enrollmentsApi.getByStudent(profile.id);
-          const enrolledCourseIds = new Set<string>();
-          const enrollmentMap = new Map<string, { progress: number; status: string }>();
-          
-          response.data?.forEach((enrollment: any) => {
-            enrolledCourseIds.add(enrollment.course_id);
-            enrollmentMap.set(enrollment.course_id, {
-              progress: enrollment.progress_percentage || 0,
-              status: enrollment.status || 'active'
-            });
-          });
-          
-          setUserEnrollments(enrolledCourseIds);
-          setEnrollmentData(enrollmentMap);
-        } catch (error) {
-          console.error('Failed to load enrollments:', error);
-        }
-      }
-    };
-    
-    loadEnrollments();
-  }, [profile?.id, role]);
+  // Removed dual-role self-enrollment data load
 
   // Temporarily allow all actions for testing
   const canCreate = true; // Was: ['super_admin', 'school_admin', 'instructor'].includes(role);
@@ -339,47 +312,7 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ role }) => {
                     </div>
                   )}
 
-                  {/* Enrollment Button for Non-Student Roles */}
-                  {role !== 'student' && course.status === 'published' && (
-                    <div className="mt-4 pt-3 border-t border-gray-200">
-                      <UniversalEnrollmentButton
-                        courseId={course.id}
-                        courseTitle={course.title}
-                        isEnrolled={userEnrollments.has(course.id)}
-                        enrollmentProgress={enrollmentData.get(course.id)?.progress || 0}
-                        enrollmentStatus={enrollmentData.get(course.id)?.status || 'active'}
-                        onEnrollmentChange={() => {
-                          // Refresh enrollments
-                          const loadEnrollments = async () => {
-                            if (profile?.id) {
-                              try {
-                                const response = await enrollmentsApi.getByStudent(profile.id);
-                                const enrolledCourseIds = new Set<string>();
-                                const enrollmentMap = new Map<string, { progress: number; status: string }>();
-                                
-                                response.data?.forEach((enrollment: any) => {
-                                  enrolledCourseIds.add(enrollment.course_id);
-                                  enrollmentMap.set(enrollment.course_id, {
-                                    progress: enrollment.progress_percentage || 0,
-                                    status: enrollment.status || 'active'
-                                  });
-                                });
-                                
-                                setUserEnrollments(enrolledCourseIds);
-                                setEnrollmentData(enrollmentMap);
-                              } catch (error) {
-                                console.error('Failed to load enrollments:', error);
-                              }
-                            }
-                          };
-                          loadEnrollments();
-                        }}
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                      />
-                    </div>
-                  )}
+                  {/* Dual-role self-enrollment removed */}
                 </div>
               </div>
             ))}

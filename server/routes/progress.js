@@ -15,6 +15,10 @@ router.use(tenantContext);
  * Get student's overall progress across all courses
  */
 router.get('/student/:studentId', asyncHandler(async (req, res) => {
+  // Security: Students (activeRole) can only view their own progress
+  if (req.user.activeRole === 'student' && req.user.id !== req.params.studentId) {
+    return res.status(403).json({ success: false, error: 'You can only view your own progress' });
+  }
   const progress = await progressService.getStudentProgress(
     req.params.studentId, 
     req.tenantId, 
@@ -32,6 +36,9 @@ router.get('/student/:studentId', asyncHandler(async (req, res) => {
  * Get student's progress for a specific course (detailed by module)
  */
 router.get('/course/:courseId/student/:studentId', asyncHandler(async (req, res) => {
+  if (req.user.activeRole === 'student' && req.user.id !== req.params.studentId) {
+    return res.status(403).json({ success: false, error: 'You can only view your own course progress' });
+  }
   const progress = await progressService.getCourseProgress(
     req.params.courseId,
     req.params.studentId,
@@ -50,6 +57,9 @@ router.get('/course/:courseId/student/:studentId', asyncHandler(async (req, res)
  * Get student's progress for a specific course with unified content (lessons + quizzes)
  */
 router.get('/course/:courseId/student/:studentId/unified', asyncHandler(async (req, res) => {
+  if (req.user.activeRole === 'student' && req.user.id !== req.params.studentId) {
+    return res.status(403).json({ success: false, error: 'You can only view your own course progress' });
+  }
   const progress = await progressService.getUnifiedCourseProgress(
     req.params.courseId,
     req.params.studentId,

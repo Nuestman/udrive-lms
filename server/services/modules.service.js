@@ -8,16 +8,24 @@ import { ValidationError, NotFoundError } from '../middleware/errorHandler.js';
  * - Others: Only if course is in their school
  */
 export async function getModulesByCourse(courseId, tenantId, isSuperAdmin = false) {
-  // Verify course access
-  if (!isSuperAdmin) {
-    const courseCheck = await query(
+  // Verify course exists
+  let courseCheck;
+  if (isSuperAdmin && tenantId === null) {
+    // Super admin: Verify course exists without tenant filter
+    courseCheck = await query(
+      'SELECT id FROM courses WHERE id = $1',
+      [courseId]
+    );
+  } else {
+    // Regular tenant-scoped check
+    courseCheck = await query(
       'SELECT id FROM courses WHERE id = $1 AND tenant_id = $2',
       [courseId, tenantId]
     );
+  }
 
     if (courseCheck.rows.length === 0) {
       throw new NotFoundError('Course not found');
-    }
   }
 
   const result = await query(

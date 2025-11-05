@@ -29,12 +29,28 @@ const CertificateVerificationPage: React.FC = () => {
   const verifyCertificate = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/api/certificates/verify/${verificationCode}`);
-      setCertificate(response.data.data);
       setError(null);
+      
+      // Decode the verification code in case it's URL encoded
+      const decodedCode = decodeURIComponent(verificationCode || '');
+      console.log('Verifying certificate with code:', decodedCode);
+      
+      const response = await api.get(`/api/certificates/verify/${encodeURIComponent(decodedCode)}`);
+      
+      if (response && response.success && response.data) {
+        setCertificate(response.data);
+        setError(null);
+      } else if (response && response.data) {
+        // Handle case where data is directly in response.data
+        setCertificate(response.data);
+        setError(null);
+      } else {
+        setError('Certificate not found or invalid');
+      }
     } catch (err: any) {
       console.error('Error verifying certificate:', err);
-      setError(err.response?.data?.error || 'Certificate not found or invalid');
+      console.error('Verification code used:', verificationCode);
+      setError(err.response?.data?.error || err.message || 'Certificate not found or invalid');
     } finally {
       setLoading(false);
     }
