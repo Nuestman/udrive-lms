@@ -5,6 +5,34 @@ All notable changes to SunLMS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2025-11-05
+
+### ✨ Dual-Role Switcher, Certificates UX, RBAC/Tenant Fixes
+
+This release re-implements the dual-role system via an active role switcher, hardens RBAC and tenant isolation across enrollments/progress, and delivers a complete certificates management experience including public verification improvements and end-user documentation.
+
+### Added
+- RoleSwitcher UI with persisted `settings.active_role` and `X-Active-Role` header
+- Certificates management UI: Revoke/Activate modal with notes and preset reasons; Download/Print via verification page; bulk revoke with per-item results
+- Public verification: URL-encoding/decoding support; enriched details; clearer messages
+- Documentation: New `docs/dual-role-system.md`; expanded `docs/certificate-system.md` with end-user guides, screenshots/GIFs placeholders
+
+### Changed
+- Auth/Tenant middleware: use activeRole for student scoping and primaryRole for admin privileges; super admin bypass preserved when `tenantId=null`
+- App/Dashboard routing/navigation now respect `active_role`
+- Certificate routes/services: verification route decodes code; verify service returns normalized data; fixed SQL param index for notes
+- Student experience: removed silent redirects; explicit error toasts; improved thumbnail fallbacks
+
+### Fixed
+- Cross-user data bleed by enforcing `student_id` scope in Student Mode across APIs and client hooks
+- Super admin enrollment/access by bypassing tenant filters where intended
+- Build error in `StudentLessonViewer` by renaming conflicting `error` state
+
+### Documentation
+- Added and updated dual-role and certificate system docs with setups, flows, FAQs, and media guidance
+
+---
+
 ## [2.2.0] - 2025-11-04
 
 ### 🎨 Brand System Implementation
@@ -426,6 +454,7 @@ This major release introduces a unified approach to learning content, treating l
 
 | Version | Release Date | Major Features |
 |---------|--------------|----------------|
+| 2.3.0   | 2025-11-05   | Active role switcher, certificates UX (modals/notes), verification fixes, RBAC/tenant hardening |
 | 2.1.0   | 2025-10-21   | Dual-Role Learning System, Universal Enrollment, Cross-Role Student Experience |
 | 2.0.0   | 2025-10-18   | Unified Learning System, Enhanced Quiz Experience, Comprehensive Documentation |
 | 1.5.0   | 2025-09-15   | User Profile Separation, Avatar Upload |
