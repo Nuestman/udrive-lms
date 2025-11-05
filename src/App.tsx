@@ -50,6 +50,7 @@ const ResetPasswordPage = lazy(() => import('./components/pages/Auth/ResetPasswo
 const PrivacyPage = lazy(() => import('./components/pages/PrivacyPage'));
 const TermsPage = lazy(() => import('./components/pages/TermsPage'));
 const ContactPage = lazy(() => import('./components/pages/ContactPage'));
+const ImplementationProgressPage = lazy(() => import('./components/pages/ImplementationProgressPage'));
 
 // Profile Page
 const UserProfilePage = lazy(() => import('./components/profile/UserProfilePage'));
@@ -315,8 +316,9 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           
-          {/* Documentation Route */}
+          {/* Documentation Routes */}
           <Route path="/docs" element={<DocumentationLayout />} />
+          <Route path="/docs/implementation-progress" element={<ImplementationProgressPage />} />
           
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
