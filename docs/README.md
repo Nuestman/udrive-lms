@@ -5,7 +5,7 @@ Welcome to the SunLMS (LMS/CMS-as-a-Service) documentation. This comprehensive g
 ## 🏢 System Information
 
 - **System Name**: SunLMS
-- **Version**: 2.2.0
+- **Version**: 2.3.0
 - **Status**: Active Development
 - **Brand Colors**: Gold/Bronze palette (Primary: #B98C1B)
 
@@ -19,7 +19,8 @@ Welcome to the SunLMS (LMS/CMS-as-a-Service) documentation. This comprehensive g
 ### Feature Documentation
 - [Authentication System](authentication-system.md) - User authentication, authorization, and security
 - [Student Module](student-module.md) - Student dashboard, course enrollment, and learning flows
-- [Dual-Role System](dual-role-system.md) - Cross-role learning system for instructors and admins
+- [Dual-Role System](dual-role-system.md) - Active role switcher (primary vs active role)
+- [Certificate System](certificate-system.md) - Certificates management, verification, and user guides
 - [Quiz Engine](quiz-engine.md) - Quiz creation, management, and unified progress tracking
 - [Progress Management](progress-management.md) - Unified progress tracking for lessons and quizzes
 - [Admin System](admin-system.md) - Administrative features and user management
@@ -47,6 +48,13 @@ Welcome to the SunLMS (LMS/CMS-as-a-Service) documentation. This comprehensive g
 3. **For Administrators**: See [Admin Guide](admin-guide.md)
 
 ## 📋 Recent Updates
+
+### Version 2.3.0 - Active Role Switcher & Certificates UX
+- **Dual-Role (Current Approach)**: Active role switching via `settings.active_role` + `X-Active-Role` header; routing/nav respect `active_role`
+- **RBAC/Tenant Isolation**: Student Mode scoping hardened; super admin bypass preserved by primary role
+- **Certificates Management**: Revoke/Activate modal with notes and presets; bulk revoke with results; Download/Print via verification page
+- **Public Verification**: URL-encoding/decoding handled; enriched details; clearer messages
+- **Docs**: Updated dual-role doc and comprehensive certificate doc including end-user guides and media placeholders
 
 ### Version 2.2.0 - Brand System Implementation
 - **SunLMS Brand Colors**: Comprehensive system-wide implementation of SunLMS brand color palette
@@ -108,4 +116,4 @@ For technical support or questions:
 ---
 
 *Last updated: November 2025*  
-*Current Version: 2.2.0*
+*Current Version: 2.3.0*
