@@ -18,7 +18,8 @@ import {
   UserCheck,
   GraduationCap,
   User,
-  Bell
+  Bell,
+  Mail
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -35,6 +36,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { profile, signOut } = useAuth();
   const { unreadCount } = useNotifications();
+  const [unreadContactMessages, setUnreadContactMessages] = useState(0);
   const navigate = useNavigate();
   const routerLocation = useLocation();
   const location = routerLocation.pathname; // current path
@@ -46,6 +48,30 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       mainRef.current.scrollTo({ top: 0, behavior: 'auto' });
     }
   }, [routerLocation.pathname, routerLocation.search, routerLocation.hash]);
+
+  // Fetch unread contact messages count for super admin only (system-level)
+  useEffect(() => {
+    if (role === 'super_admin') {
+      const fetchUnreadCount = async () => {
+        try {
+          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+          const response = await fetch(`${API_URL}/contact/messages/stats`, {
+            credentials: 'include',
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setUnreadContactMessages(data.data?.unread_count || 0);
+          }
+        } catch (error) {
+          console.error('Failed to fetch contact messages count:', error);
+        }
+      };
+      fetchUnreadCount();
+      // Refresh every 30 seconds
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [role]);
 
   const getNavItems = () => {
     const commonItems = [
@@ -126,6 +152,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             label: 'System Settings', 
             href: '/admin/settings',
             isActive: location === '/admin/settings'
+          },
+          { 
+            icon: <Mail size={20} />, 
+            label: 'Contact Messages', 
+            href: '/admin/contact-messages',
+            isActive: location === '/admin/contact-messages',
+            badge: unreadContactMessages > 0 ? unreadContactMessages : undefined
           },
           { 
             icon: <User size={20} />, 

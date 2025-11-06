@@ -24,12 +24,16 @@ Welcome to the SunLMS (LMS/CMS-as-a-Service) documentation. This comprehensive g
 - [Quiz Engine](quiz-engine.md) - Quiz creation, management, and unified progress tracking
 - [Progress Management](progress-management.md) - Unified progress tracking for lessons and quizzes
 - [Admin System](admin-system.md) - Administrative features and user management
+- [Contact Messages System](contact-messages-system.md) - Public contact form and admin message management
 
 ### Development Documentation
 - [API Reference](api-reference.md) - Complete API endpoints and usage
 - [Development Setup](development-setup.md) - Local development environment setup
 - [Deployment Guide](deployment-guide.md) - Production deployment instructions
 - [Migration Guide](migration-guide.md) - Database migrations and updates
+- [Notification System](notification-system.md) - Real-time notifications and email system
+- [Email Templates](email-templates.md) - Email notification templates reference
+- [White Label System](white-label-system.md) - Custom branding and theming
 
 ### Business Documentation
 - [Business Model & Strategic Plan](business-model.md) - Comprehensive business model and market strategy

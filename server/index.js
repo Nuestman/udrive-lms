@@ -23,6 +23,7 @@ import settingsRoutes from './routes/settings.js';
 import twoFactorAuthRoutes from './routes/twoFactorAuth.js';
 import notificationRoutes from './routes/notifications.js';
 import whiteLabelRoutes from './routes/whiteLabel.js';
+import contactRoutes from './routes/contact.js';
 import { pool } from './lib/db.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { APP_CONFIG, validateConfig } from './config/app.js';
@@ -248,6 +249,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/2fa', twoFactorAuthRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/settings/white-label', whiteLabelRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

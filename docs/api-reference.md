@@ -1251,6 +1251,203 @@ Update enrollment progress.
 ### DELETE /enrollments/:id
 Delete enrollment.
 
+## Contact Messages Endpoints
+
+### POST /api/contact
+Submit a contact message from the public landing page (no authentication required).
+
+**Request:**
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "subject": "Question about pricing",
+  "message": "I would like to know more about your pricing plans."
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "subject": "Question about pricing",
+    "message": "I would like to know more about your pricing plans.",
+    "status": "new",
+    "is_read": false,
+    "created_at": "2025-01-15T10:30:00Z"
+  },
+  "message": "Contact message submitted successfully"
+}
+```
+
+### GET /api/contact/messages
+Get all contact messages (Super Admin only). Supports filtering, search, and pagination.
+
+**Query Parameters:**
+- `status` (optional): Filter by status (new, read, replied, archived)
+- `is_read` (optional): Filter by read status (true/false)
+- `search` (optional): Search in name, email, subject, or message
+- `limit` (optional): Number of messages per page (default: 50)
+- `offset` (optional): Pagination offset (default: 0)
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "subject": "Question about pricing",
+      "message": "I would like to know more...",
+      "status": "new",
+      "is_read": false,
+      "created_at": "2025-01-15T10:30:00Z",
+      "reply_count": 0,
+      "replied_by_name": null,
+      "replied_by_email": null
+    }
+  ]
+}
+```
+
+### GET /api/contact/messages/stats
+Get contact message statistics (Super Admin only).
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "total": 150,
+    "new_count": 25,
+    "read_count": 80,
+    "replied_count": 40,
+    "archived_count": 5,
+    "unread_count": 30
+  }
+}
+```
+
+### GET /api/contact/messages/:id
+Get a single contact message with all replies (Super Admin only).
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "subject": "Question about pricing",
+    "message": "I would like to know more...",
+    "status": "replied",
+    "is_read": true,
+    "created_at": "2025-01-15T10:30:00Z",
+    "replied_at": "2025-01-15T11:00:00Z",
+    "replied_by": "admin-uuid",
+    "replied_by_name": "System Admin",
+    "replied_by_email": "admin@sunlms.com",
+    "reply_count": 1,
+    "replies": [
+      {
+        "id": "reply-uuid",
+        "contact_message_id": "uuid",
+        "replied_by": "admin-uuid",
+        "reply_message": "Thank you for your inquiry...",
+        "created_at": "2025-01-15T11:00:00Z",
+        "replied_by_name": "System Admin",
+        "replied_by_email": "admin@sunlms.com"
+      }
+    ]
+  }
+}
+```
+
+### PUT /api/contact/messages/:id/read
+Mark a contact message as read (Super Admin only).
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "is_read": true,
+    "status": "read"
+  },
+  "message": "Message marked as read"
+}
+```
+
+### POST /api/contact/messages/:id/reply
+Reply to a contact message (Super Admin only). Sends email notification to original sender.
+
+**Request:**
+```json
+{
+  "reply_message": "Thank you for your inquiry. We'll get back to you soon."
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "reply": {
+      "id": "reply-uuid",
+      "contact_message_id": "uuid",
+      "replied_by": "admin-uuid",
+      "reply_message": "Thank you for your inquiry...",
+      "created_at": "2025-01-15T11:00:00Z"
+    },
+    "contactMessage": {
+      "id": "uuid",
+      "status": "replied",
+      "replied_at": "2025-01-15T11:00:00Z"
+    }
+  },
+  "message": "Reply sent successfully"
+}
+```
+
+### PUT /api/contact/messages/:id/status
+Update contact message status (Super Admin only).
+
+**Request:**
+```json
+{
+  "status": "archived"
+}
+```
+
+**Valid Status Values:**
+- `new` - Newly received message
+- `read` - Message has been read
+- `replied` - Message has been replied to
+- `archived` - Message archived
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "status": "archived"
+  },
+  "message": "Status updated successfully"
+}
+```
+
+**Note:** Contact messages are system-level and accessible only to super administrators. School admins (tenant-level) do not have access to contact messages.
+
 ## File Upload Endpoints
 
 ### POST /upload/avatar
@@ -1400,6 +1597,7 @@ courses = api.courses.list()
 - Quiz management
 - Progress tracking
 - File uploads
+- Contact messages (public form and admin management)
 
 ### 🚧 Partially Implemented
 - Advanced search and filtering
@@ -1416,4 +1614,4 @@ courses = api.courses.list()
 
 ---
 
-*This API reference documentation is maintained alongside the codebase and reflects the current API implementation as of October 2025.*
+*This API reference documentation is maintained alongside the codebase and reflects the current API implementation as of November 2025.*

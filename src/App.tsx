@@ -24,6 +24,7 @@ const UsersPage = lazy(() => import('./components/users/UsersPage'));
 const InstructorsPage = lazy(() => import('./components/instructors/InstructorsPage'));
 const AnalyticsPage = lazy(() => import('./components/pages/AnalyticsPage'));
 const SettingsPage = lazy(() => import('./components/pages/SettingsPage'));
+const ContactMessagesPage = lazy(() => import('./components/pages/ContactMessagesPage'));
 const CertificatesPage = lazy(() => import('./components/pages/CertificatesPage'));
 const HelpPage = lazy(() => import('./components/pages/HelpPage'));
 const NotificationsPage = lazy(() => import('./components/pages/NotificationsPage'));
@@ -394,6 +395,7 @@ function App() {
           <Route path="/admin/analytics" element={<AnalyticsPage role="super_admin" />} />
           <Route path="/admin/settings" element={<SettingsPage role="super_admin" />} />
           <Route path="/admin/certificates" element={<CertificateManagementPage />} />
+          <Route path="/admin/contact-messages" element={<ContactMessagesPage />} />
           {/* Removed dual-role lesson route for super admins */}
           <Route path="/admin/profile" element={<UserProfilePage />} />
           

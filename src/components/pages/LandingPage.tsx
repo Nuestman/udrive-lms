@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BookOpen, 
   Users, 
@@ -31,7 +32,8 @@ import {
   TrendingDown,
   Clock,
   AlertTriangle,
-  X
+  X,
+  Menu
 } from 'lucide-react';
 
 const LandingPage: React.FC = () => {
@@ -44,6 +46,7 @@ const LandingPage: React.FC = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [contactForm, setContactForm] = useState({ name: '', email: '', subject: '', message: '' });
   const [contactStatus, setContactStatus] = useState<'idle'|'submitting'|'success'|'error'>('idle');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const featuresTabs = useMemo(() => ([
     {
@@ -366,33 +369,38 @@ const LandingPage: React.FC = () => {
     e.preventDefault();
     if (contactStatus === 'submitting') return;
     setContactStatus('submitting');
+    
     try {
-      // Attempt to POST to a backend endpoint if available
-      const res = await fetch('/api/contact', {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const endpoint = `${API_URL}/contact`;
+      
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(contactForm)
       });
-      if (res.ok) {
+      
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
         setContactStatus('success');
         setContactForm({ name: '', email: '', subject: '', message: '' });
-        return;
+        // Reset success message after 5 seconds
+        setTimeout(() => setContactStatus('idle'), 5000);
+      } else {
+        // Show error message but don't automatically fall back to mailto
+        setContactStatus('error');
+        console.error('Contact form error:', data.message || 'Failed to send message');
+        // Keep error message for 8 seconds to give user time to see it
+        setTimeout(() => setContactStatus('idle'), 8000);
       }
-      // Fallback to mailto if endpoint not found/disabled
-      const subject = encodeURIComponent(`[SunLMS Contact] ${contactForm.subject}`);
-      const body = encodeURIComponent(`Name: ${contactForm.name}\nEmail: ${contactForm.email}\n\n${contactForm.message}`);
-      window.location.href = `mailto:nuestman@icloud.com?subject=${subject}&body=${body}`;
-      setContactStatus('success');
-      setContactForm({ name: '', email: '', subject: '', message: '' });
-    } catch {
-      // Final fallback still triggers mailto
-      const subject = encodeURIComponent(`[SunLMS Contact] ${contactForm.subject}`);
-      const body = encodeURIComponent(`Name: ${contactForm.name}\nEmail: ${contactForm.email}\n\n${contactForm.message}`);
-      window.location.href = `mailto:nuestman@icloud.com?subject=${subject}&body=${body}`;
-      setContactStatus('success');
-      setContactForm({ name: '', email: '', subject: '', message: '' });
-    } finally {
-      setTimeout(() => setContactStatus('idle'), 4000);
+    } catch (error) {
+      // Network error or other exception
+      console.error('Contact form submission error:', error);
+      setContactStatus('error');
+      // Keep error message for 8 seconds
+      setTimeout(() => setContactStatus('idle'), 8000);
     }
   };
 
@@ -405,6 +413,8 @@ const LandingPage: React.FC = () => {
             <div className="flex items-center">
               <img src={branding.logoUrl} alt={branding.companyName} className="h-12 w-auto mr-3" />
             </div>
+            
+            {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-gray-700 hover:text-primary-600 transition-colors">Features</a>
               <a href="#testimonials" className="text-gray-700 hover:text-primary-600 transition-colors">Testimonials</a>
@@ -425,7 +435,9 @@ const LandingPage: React.FC = () => {
                 <ExternalLink className="w-4 h-4 ml-1" />
               </Link>
             </nav>
-            <div className="flex items-center space-x-4">
+
+            {/* Desktop CTA Buttons */}
+            <div className="hidden md:flex items-center space-x-4">
               <Link
                 to="/login"
                 className="text-gray-700 hover:text-primary-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
@@ -439,75 +451,279 @@ const LandingPage: React.FC = () => {
                 Get Started
               </Link>
             </div>
+
+            {/* Mobile Menu Button */}
+            <motion.button
+              onClick={() => setMobileMenuOpen(true)}
+              className="md:hidden relative p-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+              aria-label="Open menu"
+              whileTap={{ scale: 0.95 }}
+            >
+              <Menu className="w-6 h-6" />
+            </motion.button>
           </div>
         </div>
       </header>
 
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            />
+            
+            {/* Sidebar Menu */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed top-0 right-0 w-80 max-w-[85vw] bg-white shadow-2xl z-50 md:hidden rounded-bl-2xl overflow-hidden flex flex-col max-h-screen"
+            >
+              <nav className="p-6 space-y-2 flex-1 overflow-y-auto">
+                {/* Close Button */}
+                <div className="flex justify-end mb-4 -mt-2 -mr-2">
+                  <motion.button
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                    aria-label="Close menu"
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <X className="w-5 h-5" />
+                  </motion.button>
+                </div>
+                <motion.a
+                  href="#features"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-3 px-4 text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors font-medium"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  Features
+                </motion.a>
+                <motion.a
+                  href="#testimonials"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-3 px-4 text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors font-medium"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.15 }}
+                >
+                  Testimonials
+                </motion.a>
+                <motion.a
+                  href="#faq"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-3 px-4 text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors font-medium"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  FAQ
+                </motion.a>
+                <motion.a
+                  href="#contact"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-3 px-4 text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors font-medium"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.25 }}
+                >
+                  Contact
+                </motion.a>
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <Link
+                    to="/docs"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center py-3 px-4 text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors font-medium"
+                  >
+                    Documentation
+                    <ExternalLink className="w-4 h-4 ml-2" />
+                  </Link>
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.35 }}
+                >
+                  <Link
+                    to="/docs/implementation-progress"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center py-3 px-4 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition-colors font-medium"
+                  >
+                    Development Status
+                    <ExternalLink className="w-4 h-4 ml-2" />
+                  </Link>
+                </motion.div>
+                <motion.div
+                  className="pt-6 mt-6 border-t border-gray-200 space-y-3"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  <Link
+                    to="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block w-full text-center px-4 py-3 border-2 border-gray-300 hover:border-primary-300 text-gray-700 hover:text-primary-600 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    to="/signup"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block w-full text-center px-4 py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-700 hover:to-primary-800 text-white rounded-lg text-sm font-medium transition-all shadow-lg"
+                  >
+                    Get Started
+                  </Link>
+                </motion.div>
+              </nav>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-50 via-white to-secondary-50">
+      <motion.section 
+        className="relative overflow-hidden bg-gradient-to-br from-primary-50 via-white to-secondary-50"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
           <div className="text-center">
-            <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800 rounded-full text-sm font-medium mb-8 animate-pulse">
+            <motion.div 
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800 rounded-full text-sm font-medium mb-8"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+            >
               <span className="w-2 h-2 bg-yellow-500 rounded-full mr-2 animate-ping"></span>
               🚧 System Under Active Development
-            </div>
+            </motion.div>
             
-            <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-8 leading-tight">
+            <motion.h1 
+              className="text-5xl md:text-7xl font-bold text-gray-900 mb-8 leading-tight"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.6 }}
+            >
               Flexible, Context-Aware
               <span className="block bg-gradient-to-r from-primary-600 via-primary-700 to-secondary-600 bg-clip-text text-transparent">
                 Learning for Modern Organizations
               </span>
-            </h1>
+            </motion.h1>
             
-            <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-4xl mx-auto leading-relaxed">
+            <motion.p 
+              className="text-xl md:text-2xl text-gray-600 mb-12 max-w-4xl mx-auto leading-relaxed"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.6 }}
+            >
               SunLMS helps healthcare, industrial, corporate, and educational teams deliver relevant training, reinforce culture, and stay compliant—at scale.
-            </p>
+            </motion.p>
 
-            <div className="flex flex-col sm:flex-row gap-6 justify-center mb-16">
-              <Link
-                to="/signup"
-                className="group inline-flex items-center px-8 py-4 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-700 hover:to-primary-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-xl hover:shadow-2xl"
+            <motion.div 
+              className="flex flex-col sm:flex-row gap-6 justify-center mb-16"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.6 }}
+            >
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
-                Start Free Trial
-                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-              </Link>
-              <Link
-                to="/login"
-                className="inline-flex items-center px-8 py-4 border-2 border-gray-300 hover:border-primary-300 text-gray-700 hover:text-primary-600 font-semibold rounded-xl transition-all hover:bg-primary-50"
+                <Link
+                  to="/signup"
+                  className="group inline-flex items-center px-8 py-4 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-700 hover:to-primary-800 text-white font-semibold rounded-xl transition-all shadow-xl hover:shadow-2xl"
+                >
+                  Start Free Trial
+                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </motion.div>
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
-                Sign In to Dashboard
-              </Link>
-            </div>
+                <Link
+                  to="/login"
+                  className="inline-flex items-center px-8 py-4 border-2 border-gray-300 hover:border-primary-300 text-gray-700 hover:text-primary-600 font-semibold rounded-xl transition-all hover:bg-primary-50"
+                >
+                  Sign In to Dashboard
+                </Link>
+              </motion.div>
+            </motion.div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto">
+            <motion.div 
+              className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.6 }}
+            >
               {stats.map((stat, index) => (
-                <div key={index} className="text-center">
+                <motion.div 
+                  key={index} 
+                  className="text-center"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.7 + index * 0.1, duration: 0.4 }}
+                  whileHover={{ scale: 1.1 }}
+                >
                   <div className="text-3xl md:text-4xl font-bold text-primary-600 mb-2">{stat.number}</div>
                   <div className="text-gray-600 font-medium">{stat.label}</div>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Why SunLMS Section */}
-      <section className="py-20 bg-white">
+      <motion.section 
+        className="py-20 bg-white"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <motion.div 
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
               Why SunLMS?
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
               We've identified the critical problems organizations face. Here's how SunLMS solves them.
             </p>
-          </div>
+          </motion.div>
 
           <div className="space-y-12">
             {/* Problem 1: Culture Erosion - Normal layout (Problem left, Solution right) */}
-            <div className="rounded-2xl overflow-hidden shadow-lg border border-gray-200">
+            <motion.div 
+              className="rounded-2xl overflow-hidden shadow-lg border border-gray-200"
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+            >
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
                 <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-8 lg:p-10">
                   <div className="flex items-center gap-3 mb-6">
@@ -560,10 +776,16 @@ const LandingPage: React.FC = () => {
                   </ul>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Problem 2: Irrelevant Professional Development - Style B (alternating bg design) */}
-            <div className="rounded-2xl overflow-hidden shadow-xl border-2 border-primary-200 bg-gradient-to-r from-primary-50/30 to-secondary-50/30">
+            <motion.div 
+              className="rounded-2xl overflow-hidden shadow-xl border-2 border-primary-200 bg-gradient-to-r from-primary-50/30 to-secondary-50/30"
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
                 <div className="bg-white/80 backdrop-blur-sm p-8 lg:p-10">
                   <div className="flex items-center gap-3 mb-6">
@@ -616,10 +838,16 @@ const LandingPage: React.FC = () => {
                   </ul>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Problem 3: Inefficient Onboarding - Normal layout (Problem left, Solution right) */}
-            <div className="rounded-2xl overflow-hidden shadow-lg border border-gray-200">
+            <motion.div 
+              className="rounded-2xl overflow-hidden shadow-lg border border-gray-200"
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            >
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
                 <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-8 lg:p-10">
                   <div className="flex items-center gap-3 mb-6">
@@ -672,10 +900,16 @@ const LandingPage: React.FC = () => {
                   </ul>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Problem 4: Compliance and Safety Gaps - Style B (alternating bg design) */}
-            <div className="rounded-2xl overflow-hidden shadow-xl border-2 border-primary-200 bg-gradient-to-r from-primary-50/30 to-secondary-50/30">
+            <motion.div 
+              className="rounded-2xl overflow-hidden shadow-xl border-2 border-primary-200 bg-gradient-to-r from-primary-50/30 to-secondary-50/30"
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+            >
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
                 <div className="bg-white/80 backdrop-blur-sm p-8 lg:p-10">
                   <div className="flex items-center gap-3 mb-6">
@@ -728,10 +962,16 @@ const LandingPage: React.FC = () => {
                   </ul>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Problem 5: Accessibility Issues - Normal layout (Problem left, Solution right) */}
-            <div className="rounded-2xl overflow-hidden shadow-lg border border-gray-200">
+            <motion.div 
+              className="rounded-2xl overflow-hidden shadow-lg border border-gray-200"
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.5 }}
+            >
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
                 <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-8 lg:p-10">
                   <div className="flex items-center gap-3 mb-6">
@@ -784,11 +1024,17 @@ const LandingPage: React.FC = () => {
                   </ul>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
 
           {/* Summary CTA */}
-          <div className="mt-12 bg-gradient-to-r from-primary-600 to-primary-700 rounded-2xl p-8 md:p-12 text-white text-center shadow-xl">
+          <motion.div 
+            className="mt-12 bg-gradient-to-r from-primary-600 to-primary-700 rounded-2xl p-8 md:p-12 text-white text-center shadow-xl"
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+          >
             <h3 className="text-3xl md:text-4xl font-bold mb-4">
               Ready to Solve These Problems?
             </h3>
@@ -811,12 +1057,18 @@ const LandingPage: React.FC = () => {
                 Schedule a Demo
               </Link>
             </div>
-          </div>
+          </motion.div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Industries / Target Markets */}
-      <section className="py-16 bg-white">
+      <motion.section 
+        className="py-16 bg-white"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-4">Built for Your Industry</h2>
@@ -838,12 +1090,19 @@ const LandingPage: React.FC = () => {
             ))}
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* removed Current Development Status section; see /docs/implementation-progress */}
 
       {/* Features Section - Vertical Tabs with Rich Panel */}
-      <section id="features" className="py-20 bg-white">
+      <motion.section 
+        id="features" 
+        className="py-20 bg-white"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Powerful Features</h2>
@@ -935,10 +1194,16 @@ const LandingPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Value Propositions by Segment */}
-      <section className="py-16 bg-gradient-to-br from-gray-50 to-gray-100">
+      <motion.section 
+        className="py-16 bg-gradient-to-br from-gray-50 to-gray-100"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-4">Value That Drives Outcomes</h2>
@@ -979,10 +1244,17 @@ const LandingPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Testimonials Section */}
-      <section id="testimonials" className="py-20 bg-gradient-to-br from-gray-50 to-gray-100">
+      <motion.section 
+        id="testimonials" 
+        className="py-20 bg-gradient-to-br from-gray-50 to-gray-100"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
@@ -1071,10 +1343,16 @@ const LandingPage: React.FC = () => {
             ))}
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Pricing Section */}
-      <section className="py-20 bg-white">
+      <motion.section 
+        className="py-20 bg-white"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-4">Simple, Transparent Pricing</h2>
@@ -1100,10 +1378,17 @@ const LandingPage: React.FC = () => {
             Compliance: GDPR and Ghana Data Protection Act (Act 843).
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* FAQ Section */}
-      <section id="faq" className="py-20 bg-white">
+      <motion.section 
+        id="faq" 
+        className="py-20 bg-white"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
@@ -1137,10 +1422,16 @@ const LandingPage: React.FC = () => {
             ))}
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* KPIs Section */}
-      <section className="py-16 bg-gradient-to-br from-primary-50 to-secondary-50">
+      <motion.section 
+        className="py-16 bg-gradient-to-br from-primary-50 to-secondary-50"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
             <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-4">Measure What Matters</h2>
@@ -1155,10 +1446,17 @@ const LandingPage: React.FC = () => {
             ))}
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Contact Section (2 columns) */}
-      <section id="contact" className="py-20 bg-gradient-to-br from-primary-50 to-secondary-50">
+      <motion.section 
+        id="contact" 
+        className="py-20 bg-gradient-to-br from-primary-50 to-secondary-50"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
@@ -1201,7 +1499,24 @@ const LandingPage: React.FC = () => {
             <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
               <h3 className="text-xl font-semibold text-gray-900 mb-4">Send a Message</h3>
               {contactStatus === 'success' && (
-                <div className="mb-4 p-4 rounded-lg bg-green-50 text-green-700 border border-green-200">Thanks! Your message has been initiated. We'll be in touch soon.</div>
+                <div className="mb-4 p-4 rounded-lg bg-green-50 text-green-700 border border-green-200">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5" />
+                    <div>
+                      <strong>Message sent successfully!</strong> We'll get back to you soon.
+                    </div>
+                  </div>
+                </div>
+              )}
+              {contactStatus === 'error' && (
+                <div className="mb-4 p-4 rounded-lg bg-red-50 text-red-700 border border-red-200">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5" />
+                    <div>
+                      <strong>Failed to send message.</strong> Please check your connection and try again, or contact us directly at <a href="mailto:nuestman@icloud.com" className="underline">nuestman@icloud.com</a>.
+                    </div>
+                  </div>
+                </div>
               )}
               <form onSubmit={handleContactSubmit} className="grid grid-cols-1 gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1230,10 +1545,16 @@ const LandingPage: React.FC = () => {
           </div>
 
         </div>
-      </section>
+      </motion.section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-white">
+      <motion.section 
+        className="py-16 bg-white"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-2xl p-10 text-white shadow-xl">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
@@ -1248,7 +1569,7 @@ const LandingPage: React.FC = () => {
             </div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-12">

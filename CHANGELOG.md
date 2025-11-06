@@ -5,6 +5,109 @@ All notable changes to SunLMS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2025-01-15
+
+### 📬 Contact Messages System
+
+This release introduces a comprehensive contact messages system for managing public inquiries from the SunLMS landing page, including backend storage, email notifications, and an admin interface for managing and responding to messages.
+
+### ✨ Added
+
+#### Contact Messages System
+- **Public Contact Form**: Integrated contact form on landing page with real-time validation and error handling
+- **Backend Message Storage**: PostgreSQL database schema for storing contact messages and replies
+- **Admin Interface**: Email-style interface for managing messages with search, filters, and status management
+- **Reply System**: Direct reply functionality with email notifications to original senders
+- **Statistics Dashboard**: Real-time counts of messages by status (new, read, replied, archived)
+- **Sidebar Badge**: Unread message count badge in admin sidebar (similar to notifications)
+
+#### Database Schema
+- **Contact Messages Table**: Stores public inquiries with status tracking and read/unread states
+- **Contact Message Replies Table**: Stores admin replies to messages
+- **Indexes**: Optimized indexes for filtering, search, and sorting
+
+#### Email Notifications
+- **Admin Notifications**: Email alerts to admin when new messages are received
+- **Reply Notifications**: Email notifications to original senders when admins reply
+- **Graceful Degradation**: System continues to work without email configuration
+
+#### API Endpoints
+- **POST /api/contact**: Public endpoint for submitting contact messages (no auth required)
+- **GET /api/contact/messages**: Admin endpoint for retrieving messages with filtering and pagination
+- **GET /api/contact/messages/stats**: Admin endpoint for message statistics
+- **GET /api/contact/messages/:id**: Admin endpoint for retrieving single message with replies
+- **PUT /api/contact/messages/:id/read**: Admin endpoint for marking messages as read
+- **POST /api/contact/messages/:id/reply**: Admin endpoint for replying to messages
+- **PUT /api/contact/messages/:id/status**: Admin endpoint for updating message status
+
+### 🔄 Changed
+
+#### Security & Access Control
+- **Super Admin Only**: All contact message management restricted to super administrators
+- **System-Level Feature**: Contact messages are system-level and not tenant-isolated
+- **Role-Based Access**: School admins (tenant-level) do not have access to contact messages
+
+#### Landing Page
+- **Contact Form Integration**: Contact form now submits directly to backend API
+- **Error Handling**: Improved error messages with fallback to manual email contact
+- **Success Feedback**: Clear success messages with automatic form clearing
+
+### 🐛 Fixed
+
+#### Database Queries
+- **User Profile Joins**: Fixed SQL queries to correctly join `user_profiles` table for replier information
+- **Name Fields**: Fixed queries to use `first_name` and `last_name` from `user_profiles` instead of `users` table
+- **COALESCE Handling**: Added proper fallback for replier names when profile doesn't exist
+
+#### API Integration
+- **Contact Form**: Fixed contact form to work directly with backend API instead of mailto fallback
+- **Badge Updates**: Fixed unread message count badge to update correctly in sidebar
+- **Message Fetching**: Fixed message list queries to handle missing user profile data gracefully
+
+### 📚 Documentation
+
+#### New Documentation
+- **Contact Messages System**: Comprehensive documentation (`docs/contact-messages-system.md`)
+  - System architecture and database schema
+  - API endpoints with request/response examples
+  - Setup instructions and configuration
+  - Admin interface features and workflows
+  - Troubleshooting guide
+  - Best practices and maintenance
+
+#### Updated Documentation
+- **API Reference**: Added complete Contact Messages Endpoints section
+- **README**: Added link to Contact Messages System documentation
+- **Implementation Status**: Updated to include contact messages system
+
+### 🔒 Security
+
+#### Access Control
+- **Super Admin Only**: All admin endpoints require super admin role
+- **Public Submission**: Public endpoint for message submission (no authentication)
+- **Data Isolation**: System-level messages accessible only to super admins
+- **RBAC Enforcement**: Proper role-based access control on all admin endpoints
+
+### 🗃️ Database Changes
+
+#### New Tables
+- `contact_messages`: Stores public contact form submissions
+- `contact_message_replies`: Stores admin replies to messages
+
+#### Indexes
+- Status filtering indexes
+- Read/unread query indexes
+- Date sorting indexes
+- Email search indexes
+- Reply relationship indexes
+
+### 📋 Migration Required
+
+#### Database Migration
+- Run migration: `database/migrations/create_contact_messages.sql`
+- Creates tables, indexes, and triggers
+- No data migration required (new feature)
+
 ## [2.3.0] - 2025-11-05
 
 ### ✨ Dual-Role Switcher, Certificates UX, RBAC/Tenant Fixes
@@ -454,6 +557,7 @@ This major release introduces a unified approach to learning content, treating l
 
 | Version | Release Date | Major Features |
 |---------|--------------|----------------|
+| 2.4.0   | 2025-01-15   | Contact Messages System, Public Contact Form, Admin Message Management, Email Notifications |
 | 2.3.0   | 2025-11-05   | Active role switcher, certificates UX (modals/notes), verification fixes, RBAC/tenant hardening |
 | 2.2.0   | 2025-11-04   | SunLMS brand color system, white-label enhancements, system-wide styling updates |
 | 2.1.0   | 2025-10-21   | Dual-Role Learning System, Universal Enrollment, Cross-Role Student Experience |
