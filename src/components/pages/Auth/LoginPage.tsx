@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AlertCircle, Eye, EyeOff, BookOpen, ArrowLeft, Loader2 } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
@@ -14,6 +14,7 @@ const LoginPage: React.FC = () => {
   const [requires2FA, setRequires2FA] = useState(false);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const { signIn, verify2FA } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +49,7 @@ const LoginPage: React.FC = () => {
         // Verify 2FA token
         await verify2FA(pendingUserId, twoFactorToken);
         console.log('2FA verification successful - redirect will be handled by App.tsx');
+        navigate('/app', { replace: true });
       } else {
         // Initial login attempt
         const result = await signIn(credential, password);
@@ -59,6 +61,7 @@ const LoginPage: React.FC = () => {
           console.log('2FA required for login');
         } else {
           console.log('Login successful - redirect will be handled by App.tsx');
+          navigate('/app', { replace: true });
         }
       }
     } catch (err: any) {
