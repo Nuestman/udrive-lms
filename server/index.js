@@ -303,26 +303,38 @@ app.use((req, res) => {
 // Global error handler (must be last)
 app.use(errorHandler);
 
-// Start server
-server.listen(APP_CONFIG.PORT, async () => {
+const startServer = async () => {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`🚀 Server running on http://localhost:${APP_CONFIG.PORT}`);
   console.log(`📡 API available at http://localhost:${APP_CONFIG.PORT}/api`);
   console.log(`🔐 Auth endpoints at http://localhost:${APP_CONFIG.PORT}/api/auth`);
   console.log(`🌍 Environment: ${APP_CONFIG.NODE_ENV}`);
   console.log(`🎨 Frontend: ${APP_CONFIG.FRONTEND_URL}`);
-  
-  // Test database connection
+
   try {
     const result = await pool.query('SELECT NOW()');
     console.log('✅ Database connected successfully');
   } catch (error) {
     console.error('❌ Database connection failed:', error.message);
   }
-  
+
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('🎯 Server is ready! Keep this terminal open.\n');
-});
+};
 
-export default app;
+if (!process.env.VERCEL) {
+  server.listen(APP_CONFIG.PORT, startServer);
+} else {
+  console.log('⚡ Running in Vercel environment - deferring server.listen');
+  startServer().catch((error) => {
+    console.error('❌ Failed to initialize server in Vercel environment:', error);
+  });
+}
+
+const handler = (req, res) => {
+  server.emit('request', req, res);
+};
+
+export default handler;
+export { app };
 
