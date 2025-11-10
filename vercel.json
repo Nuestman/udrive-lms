@@ -19,8 +19,19 @@
       "dest": "server/index.js"
     },
     {
+      "src": "/socket.io/(.*)",
+      "dest": "server/index.js"
+    },
+    {
+      "src": "/socket.io",
+      "dest": "server/index.js"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/$1"
+      "dest": "/index.html"
     }
   ],
   "env": {
