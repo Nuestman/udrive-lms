@@ -63,33 +63,46 @@ const NotificationsPage: React.FC = () => {
     }
   };
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'success':
-        return '✅';
-      case 'warning':
-        return '⚠️';
-      case 'error':
-        return '❌';
-      case 'info':
-      default:
-        return 'ℹ️';
+  const getNotificationStyles = (type: string, read: boolean) => {
+    if (read) {
+      return {
+        headerBg: 'bg-gray-100',
+        headerText: 'text-gray-700',
+        border: 'border-gray-200',
+        messageText: 'text-gray-600'
+      };
     }
-  };
 
-  const getNotificationColor = (type: string, read: boolean) => {
-    if (read) return 'bg-gray-50 border-gray-200';
-    
     switch (type) {
       case 'success':
-        return 'bg-green-50 border-green-200';
+        return {
+          headerBg: 'bg-green-50',
+          headerText: 'text-green-700',
+          border: 'border-green-200',
+          messageText: 'text-gray-800'
+        };
       case 'warning':
-        return 'bg-yellow-50 border-yellow-200';
+        return {
+          headerBg: 'bg-yellow-50',
+          headerText: 'text-yellow-700',
+          border: 'border-yellow-200',
+          messageText: 'text-gray-800'
+        };
       case 'error':
-        return 'bg-red-50 border-red-200';
+        return {
+          headerBg: 'bg-red-50',
+          headerText: 'text-red-700',
+          border: 'border-red-200',
+          messageText: 'text-gray-800'
+        };
       case 'info':
       default:
-        return 'bg-primary-50 border-primary-200';
+        return {
+          headerBg: 'bg-primary-50',
+          headerText: 'text-primary-700',
+          border: 'border-primary-200',
+          messageText: 'text-gray-800'
+        };
     }
   };
 
@@ -202,78 +215,75 @@ const NotificationsPage: React.FC = () => {
               </p>
             </div>
           ) : (
-            filteredNotifications.map((notification) => (
-              <div
-                key={notification.id}
-                className={`bg-white rounded-lg shadow-sm border-2 p-6 transition-all hover:shadow-md ${getNotificationColor(notification.type, notification.read)}`}
-              >
-                <div className="flex items-start space-x-4">
-                  {/* Icon */}
-                  <div className="flex-shrink-0">
-                    <span className="text-2xl">{getNotificationIcon(notification.type)}</span>
-                  </div>
-                  
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className={`text-lg font-medium ${notification.read ? 'text-gray-700' : 'text-gray-900'}`}>
-                          {notification.title}
-                        </h3>
-                        <p className={`mt-1 ${notification.read ? 'text-gray-500' : 'text-gray-700'}`}>
-                          {notification.message}
-                        </p>
-                        
-                        {/* Timestamp */}
-                        <p className="mt-2 text-sm text-gray-400">
-                          {(() => {
-                            try {
-                              const date = new Date(notification.createdAt);
-                              if (isNaN(date.getTime())) {
-                                return 'Invalid date';
-                              }
-                              return formatDistanceToNow(date, { addSuffix: true });
-                            } catch (error) {
-                              return 'Invalid date';
-                            }
-                          })()}
-                        </p>
-                        
-                        {/* Link */}
-                        {notification.link && (
-                          <a
-                            href={notification.link}
-                            className="mt-2 inline-flex items-center text-sm text-primary-600 hover:text-primary-800"
-                          >
-                            View Details →
-                          </a>
-                        )}
-                      </div>
-                      
-                      {/* Actions */}
-                      <div className="flex items-center space-x-2 ml-4">
-                        {!notification.read && (
-                          <button
-                            onClick={() => handleMarkAsRead(notification.id)}
-                            className="p-2 text-gray-400 hover:text-green-600 transition-colors"
-                            title="Mark as read"
-                          >
-                            <Check className="h-4 w-4" />
-                          </button>
-                        )}
+            filteredNotifications.map((notification) => {
+              const styles = getNotificationStyles(notification.type, notification.read);
+              const timestamp = (() => {
+                try {
+                  const date = new Date(notification.createdAt);
+                  if (isNaN(date.getTime())) {
+                    return 'Invalid date';
+                  }
+                  return formatDistanceToNow(date, { addSuffix: true });
+                } catch (error) {
+                  return 'Invalid date';
+                }
+              })();
+
+              return (
+                <div
+                  key={notification.id}
+                  className={`bg-white border ${styles.border} rounded-lg shadow-sm transition-all hover:shadow-md overflow-hidden`}
+                >
+                  <div className={`flex gap-3 sm:flex-row sm:items-center justify-between px-4 py-3 sm:px-6 bg-green-50 ${styles.headerBg}`}>
+                    <div>
+                      <h3 className={`text-lg font-semibold ${styles.headerText}`}>
+                        {notification.title}
+                      </h3>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                      {!notification.read && (
                         <button
-                          onClick={() => handleDelete(notification.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                          title="Delete notification"
+                          onClick={() => handleMarkAsRead(notification.id)}
+                          className={`p-2 text-gray-500 hover:text-green-600 transition-colors rounded-md bg-white/90 hover:bg-white/70 border ${styles.border} hover:border-green-400`}
+                          title="Mark as read"
+                          aria-label="Mark notification as read"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Check className="h-4 w-4" />
                         </button>
-                      </div>
+                      )}
+                      <button
+                        onClick={() => handleDelete(notification.id)}
+                        className={`p-2 text-gray-500 hover:text-red-600 transition-colors rounded-md bg-white/90 hover:bg-white/70 border ${styles.border} hover:border-red-600`}
+                        title="Delete notification"
+                        aria-label="Delete notification"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
+
+                  <div className="px-4 py-4 sm:px-6 space-y-3">
+                    <p className={`text-sm sm:text-base ${styles.messageText}`}>
+                      {notification.message}
+                    </p>
+
+                    {notification.link && (
+                      <a
+                        href={notification.link}
+                        className="text-sm font-medium text-primary-600 hover:text-primary-700 inline-flex items-center"
+                      >
+                        View Details →
+                      </a>
+                    )}
+
+                    <p className="text-sm text-gray-400">
+                      {timestamp}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
