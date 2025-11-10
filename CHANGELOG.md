@@ -5,7 +5,7 @@ All notable changes to SunLMS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.4.0] - 2025-01-15
+## [2.4.0] - 2025-11-06
 
 ### 📬 Contact Messages System
 
@@ -557,7 +557,7 @@ This major release introduces a unified approach to learning content, treating l
 
 | Version | Release Date | Major Features |
 |---------|--------------|----------------|
-| 2.4.0   | 2025-01-15   | Contact Messages System, Public Contact Form, Admin Message Management, Email Notifications |
+| 2.4.0   | 2025-11-06   | Contact Messages System, Public Contact Form, Admin Message Management, Email Notifications |
 | 2.3.0   | 2025-11-05   | Active role switcher, certificates UX (modals/notes), verification fixes, RBAC/tenant hardening |
 | 2.2.0   | 2025-11-04   | SunLMS brand color system, white-label enhancements, system-wide styling updates |
 | 2.1.0   | 2025-10-21   | Dual-Role Learning System, Universal Enrollment, Cross-Role Student Experience |

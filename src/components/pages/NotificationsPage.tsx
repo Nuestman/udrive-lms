@@ -109,8 +109,8 @@ const NotificationsPage: React.FC = () => {
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start sm:items-center gap-3">
               <div className="p-2 bg-primary-100 rounded-lg">
                 <Bell className="h-6 w-6 text-primary-600" />
               </div>
@@ -123,11 +123,11 @@ const NotificationsPage: React.FC = () => {
             </div>
             
             {notifications.length > 0 && (
-              <div className="flex space-x-2">
+              <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-end">
                 {unreadCount > 0 && (
                   <button
                     onClick={handleMarkAllAsRead}
-                    className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors sm:w-auto w-full"
                   >
                     <CheckCheck className="h-4 w-4" />
                     <span>Mark All Read</span>
@@ -135,7 +135,7 @@ const NotificationsPage: React.FC = () => {
                 )}
                 <button
                   onClick={handleClearAll}
-                  className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors sm:w-auto w-full"
                 >
                   <Trash2 className="h-4 w-4" />
                   <span>Clear All</span>

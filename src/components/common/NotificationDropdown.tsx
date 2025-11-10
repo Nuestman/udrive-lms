@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, Trash2, ExternalLink, X, List } from 'lucide-react';
+import { Bell, Trash2, ExternalLink, X } from 'lucide-react';
 import { useNotifications, Notification } from '../../contexts/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
@@ -78,7 +78,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ className =
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-hidden">
+        <div className="absolute left-1/2 sm:left-auto sm:right-0 transform -translate-x-1/2 sm:translate-x-0 mt-2 w-[90vw] sm:w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-hidden origin-top flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">Notifications</h3>
@@ -103,7 +103,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ className =
           </div>
 
           {/* Notifications List */}
-          <div className="max-h-80 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="p-6 text-center text-gray-500">
                 <Bell size={32} className="mx-auto mb-2 text-gray-300" />
@@ -186,18 +186,16 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ className =
           </div>
 
           {/* Footer */}
-          {notifications.length > 0 && (
-            <div className="p-3 border-t border-gray-200 bg-gray-50">
-              <Link
-                to="/notifications"
-                className="flex items-center justify-center w-full text-sm text-primary-600 hover:text-primary-700 font-medium"
-                onClick={() => setIsOpen(false)}
-              >
-                <List size={14} className="mr-2" />
-                View all notifications ({notifications.length})
-              </Link>
-            </div>
-          )}
+          <div className="p-3 border-t border-gray-200 bg-gray-50 shrink-0">
+            <Link
+              to="/notifications"
+              className="flex items-center justify-center w-full text-sm text-primary-600 hover:text-primary-700 font-medium"
+              onClick={() => setIsOpen(false)}
+            >
+              View all notifications
+              {notifications.length > 0 && ` (${notifications.length})`}
+            </Link>
+          </div>
         </div>
       )}
     </div>

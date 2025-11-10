@@ -53,26 +53,28 @@ const RoleSwitcher: React.FC = () => {
       {isStudentMode ? (
         <button
           onClick={() => setDropdownOpen(!dropdownOpen)}
-          className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors text-sm font-medium"
+          className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors text-xs sm:text-sm font-medium"
+          aria-label="Switch role from student mode"
         >
           <GraduationCap size={16} />
-          <span>Student Mode</span>
-          <ChevronDown size={16} className={dropdownOpen ? 'rotate-180' : ''} />
+          <span className="hidden sm:inline">Student Mode</span>
+          <ChevronDown size={16} className={`hidden sm:block ${dropdownOpen ? 'rotate-180' : ''}`} />
         </button>
       ) : (
         <button
           onClick={() => setDropdownOpen(!dropdownOpen)}
-          className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
+          className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-xs sm:text-sm"
+          aria-label="Switch active role"
         >
           <User size={16} />
-          <span>{roleLabels[primaryRole as keyof typeof roleLabels]}</span>
-          <ChevronDown size={16} className={dropdownOpen ? 'rotate-180' : ''} />
+          <span className="hidden sm:inline">{roleLabels[primaryRole as keyof typeof roleLabels]}</span>
+          <ChevronDown size={16} className={`hidden sm:block ${dropdownOpen ? 'rotate-180' : ''}`} />
         </button>
       )}
 
       {/* Dropdown Menu */}
       {dropdownOpen && (
-        <div className="absolute right-0 mt-2 w-48 rounded-lg shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 dark:ring-gray-600 z-50">
+        <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-48 rounded-lg shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 dark:ring-gray-600 z-50 origin-top-left sm:origin-top-right">
           <div className="py-1">
             <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Switch Role</p>

@@ -2,7 +2,6 @@ import React, { ReactNode, useEffect, useRef, useState } from 'react';
 import { useWhiteLabel } from '../../contexts/WhiteLabelContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNotifications } from '../../contexts/NotificationContext';
 import { Layout, Sidebar, Header, Footer } from '../ui/Layout';
 import { 
   BookOpen, 
@@ -18,7 +17,6 @@ import {
   UserCheck,
   GraduationCap,
   User,
-  Bell,
   Mail
 } from 'lucide-react';
 
@@ -35,7 +33,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { profile, signOut } = useAuth();
-  const { unreadCount } = useNotifications();
   const [unreadContactMessages, setUnreadContactMessages] = useState(0);
   const navigate = useNavigate();
   const routerLocation = useLocation();
@@ -75,13 +72,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   const getNavItems = () => {
     const commonItems = [
-      { 
-        icon: <Bell size={20} />, 
-        label: 'Notifications', 
-        href: '/notifications',
-        isActive: currentPath === '/notifications',
-        badge: unreadCount > 0 ? unreadCount : undefined
-      },
       { 
         icon: <HelpCircle size={20} />, 
         label: 'Help & Support', 
@@ -339,14 +329,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
         onLogout={handleLogout}
       />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden">
         <Sidebar 
           navItems={getNavItems()} 
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           onLogout={handleLogout}
         />
-        <main ref={mainRef} className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
+        <main
+          ref={mainRef}
+          className="relative flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4 md:p-6 md:ml-20 transition-[margin-left] duration-300 ease-out"
+        >
           {children}
         </main>
       </div>

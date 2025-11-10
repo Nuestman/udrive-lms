@@ -197,26 +197,40 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ navItems, isOpen = true, onClose, onLogout }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const handleMouseEnter = () => setIsHovered(true);
+  const handleMouseLeave = () => setIsHovered(false);
+
+  const sidebarWidthClass = isHovered ? 'md:w-64' : 'md:w-20';
+  const sidebarTranslateClass = isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0';
+  const { getBrandingConfig } = useWhiteLabel();
+  const branding = getBrandingConfig();
+
   return (
     <>
       {/* Mobile overlay */}
       {isOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-75\" onClick={onClose}></div>
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={onClose}></div>
         </div>
       )}
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out
-        md:relative md:translate-x-0 md:block
-        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
+        group fixed inset-y-0 left-0 z-50 w-64 h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-all duration-300 ease-in-out
+        md:absolute md:inset-y-0 md:h-full md:border-r md:border-gray-200 md:dark:border-gray-700
+        ${sidebarTranslateClass} ${sidebarWidthClass}
+      `}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
         <div className="h-full flex flex-col">
           {/* Mobile close button */}
           <div className="flex items-center justify-between p-4 md:hidden">
             <div className="flex items-center">
-              <img src="/sunlms-logo-wide.png" alt="SunLMS" className="h-10 w-auto" />
+              <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                {branding.companyName || 'Dashboard'}
+              </span>
             </div>
             <button
               onClick={onClose}
@@ -232,21 +246,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ navItems, isOpen = true, onClo
               <Link
                 key={index}
                 to={item.href}
-                className={`group flex items-center px-2 py-2 text-base font-medium rounded-md transition-colors ${
+                className={`group flex items-center gap-3 px-2 py-2 text-base font-medium rounded-md transition-all duration-200 md:h-12 ${
                   item.isActive
                     ? 'bg-primary-600 dark:bg-primary-900/20 text-primary-50 dark:text-primary-400 border-r-2 border-primary-600 dark:border-primary-400'
                     : 'text-gray-600 dark:text-gray-300 hover:bg-primary-100 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400'
-                }`}
+                } ${isHovered ? 'md:px-3 md:justify-start md:gap-3' : 'md:px-0 md:justify-center md:gap-0'}`}
                 onClick={onClose}
               >
-                <div className={`mr-3 transition-colors ${
+                <div className={`flex-shrink-0 transition-colors ${
                   item.isActive ? 'text-primary-50 dark:text-primary-400' : 'text-gray-400 dark:text-gray-500 group-hover:text-primary-600 dark:group-hover:text-primary-400'
                 }`}>
                   {item.icon}
                 </div>
-                <span className="flex-1">{item.label}</span>
+                <span
+                  className={`flex-1 transition-all duration-200 ease-in-out overflow-hidden whitespace-nowrap ${
+                    isHovered ? 'md:max-w-xs md:opacity-100 md:ml-3' : 'md:max-w-0 md:opacity-0 md:ml-0'
+                  }`}
+                >
+                  {item.label}
+                </span>
                 {item.badge && item.badge > 0 && (
-                  <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
+                  <span className={`inline-flex items-center justify-center text-xs font-bold leading-none text-white bg-red-500 rounded-full transition-all duration-200 ${
+                    isHovered
+                      ? 'md:opacity-100 md:max-w-[6rem] md:px-2 md:py-1 md:ml-2'
+                      : 'md:opacity-0 md:max-w-0 md:px-0 md:py-0 md:ml-0'
+                  }`}>
                     {item.badge > 99 ? '99+' : item.badge}
                   </span>
                 )}
@@ -260,10 +284,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ navItems, isOpen = true, onClo
                 onClose?.();
                 onLogout?.();
               }}
-              className="group flex items-center w-full px-2 py-2 text-base font-medium rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+              className={`group flex items-center w-full px-2 py-2 text-base font-medium rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 md:h-12 ${
+                isHovered ? 'md:px-3 md:justify-start' : 'md:px-0 md:justify-center'
+              }`}
             >
-              <LogOut size={20} className="mr-3 text-gray-400 dark:text-gray-500 group-hover:text-red-600 dark:group-hover:text-red-400" />
-              Sign out
+              <LogOut
+                size={20}
+                className={`text-gray-400 dark:text-gray-500 group-hover:text-red-600 dark:group-hover:text-red-400 ${
+                  isHovered ? 'md:mr-3' : 'md:mr-0'
+                }`}
+              />
+              <span
+                className={`transition-all duration-200 ease-in-out overflow-hidden whitespace-nowrap ${
+                  isHovered ? 'md:max-w-xs md:opacity-100 md:ml-1' : 'md:max-w-0 md:opacity-0 md:ml-0'
+                }`}
+              >
+                Sign out
+              </span>
             </button>
           </div>
         </div>
