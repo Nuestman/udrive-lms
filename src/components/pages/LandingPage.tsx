@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   BookOpen, 
@@ -33,8 +33,16 @@ import {
   Clock,
   AlertTriangle,
   X,
-  Menu
+  Menu,
+  LogOut,
+  Home,
+  User,
+  Sun,
+  Moon,
+  Monitor
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const LandingPage: React.FC = () => {
   // Use default branding on marketing site
@@ -47,6 +55,110 @@ const LandingPage: React.FC = () => {
   const [contactForm, setContactForm] = useState({ name: '', email: '', subject: '', message: '' });
   const [contactStatus, setContactStatus] = useState<'idle'|'submitting'|'success'|'error'>('idle');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const { user, profile, signOut } = useAuth();
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const activeRole = profile?.active_role || profile?.role || null;
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  const dashboardPath = useMemo(() => {
+    if (!activeRole) {
+      return '/dashboard';
+    }
+    switch (activeRole) {
+      case 'student':
+        return '/student/dashboard';
+      case 'instructor':
+        return '/instructor/dashboard';
+      case 'super_admin':
+        return '/admin/dashboard';
+      default:
+        return '/school/dashboard';
+    }
+  }, [activeRole]);
+
+  const userDisplayName = useMemo(() => {
+    if (!profile) return null;
+    const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+    return fullName || profile.email;
+  }, [profile]);
+
+  const userAvatar = useMemo(() => {
+    if (profile?.avatar_url) return profile.avatar_url;
+    if (!userDisplayName) return `https://ui-avatars.com/api/?name=User&background=B98C1B&color=fff`;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(userDisplayName)}&background=B98C1B&color=fff`;
+  }, [profile?.avatar_url, userDisplayName]);
+
+  const formattedRole = useMemo(() => {
+    if (!activeRole) return null;
+    return activeRole
+      .split('_')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }, [activeRole]);
+
+  const isAuthenticated = Boolean(user && profile);
+  const profilePath = useMemo(() => {
+    if (!activeRole) return '/profile';
+    switch (activeRole) {
+      case 'student':
+        return '/student/profile';
+      case 'instructor':
+        return '/instructor/profile';
+      case 'super_admin':
+        return '/admin/profile';
+      default:
+        return '/school/profile';
+    }
+  }, [activeRole]);
+
+  const themeOptions = useMemo(
+    () => [
+      {
+        value: 'light' as const,
+        label: 'Light',
+        description: 'Bright interface',
+        icon: <Sun className="w-4 h-4" />
+      },
+      {
+        value: 'dark' as const,
+        label: 'Dark',
+        description: 'Low-light mode',
+        icon: <Moon className="w-4 h-4" />
+      },
+      {
+        value: 'auto' as const,
+        label: 'System',
+        description: `Match ${resolvedTheme} mode`,
+        icon: <Monitor className="w-4 h-4" />
+      }
+    ],
+    [resolvedTheme]
+  );
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [userMenuOpen]);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      setUserMenuOpen(false);
+      navigate('/login');
+    } catch (error) {
+      console.error('Sign out failed:', error);
+    }
+  };
 
   const featuresTabs = useMemo(() => ([
     {
@@ -405,10 +517,10 @@ const LandingPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100 transition-colors duration-200">
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <header className="bg-white/90 dark:bg-gray-900/80 backdrop-blur sticky top-0 z-50 border-b border-gray-100 dark:border-gray-800 transition-colors duration-200">
+        <div className="mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
               <img src={branding.logoUrl} alt={branding.companyName} className="h-12 w-auto mr-3" />
@@ -416,46 +528,168 @@ const LandingPage: React.FC = () => {
             
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-gray-700 hover:text-primary-600 transition-colors">Features</a>
-              <a href="#testimonials" className="text-gray-700 hover:text-primary-600 transition-colors">Testimonials</a>
-              <a href="#faq" className="text-gray-700 hover:text-primary-600 transition-colors">FAQ</a>
-              <a href="#contact" className="text-gray-700 hover:text-primary-600 transition-colors">Contact</a>
+              <a href="#features" className="text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-300 transition-colors">Features</a>
+              <a href="#testimonials" className="text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-300 transition-colors">Testimonials</a>
+              <a href="#faq" className="text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-300 transition-colors">FAQ</a>
+              <a href="#contact" className="text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-300 transition-colors">Contact</a>
               <Link
                 to="/docs"
-                className="flex items-center text-gray-700 hover:text-primary-600 transition-colors"
+                className="flex items-center text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-300 transition-colors"
               >
-                Documentation
+                Docs
                 <ExternalLink className="w-4 h-4 ml-1" />
               </Link>
               <Link
                 to="/docs/implementation-progress"
-                className="flex items-center text-primary-600 hover:text-primary-700 font-medium transition-colors"
+                className="flex items-center text-primary-600 dark:text-primary-300 hover:text-primary-700 dark:hover:text-primary-200 font-medium transition-colors"
               >
-                Development Status
+                Status
                 <ExternalLink className="w-4 h-4 ml-1" />
               </Link>
             </nav>
 
             {/* Desktop CTA Buttons */}
-            <div className="hidden md:flex items-center space-x-4">
-              <Link
-                to="/login"
-                className="text-gray-700 hover:text-primary-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                Sign In
-              </Link>
-              <Link
-                to="/signup"
-                className="bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-700 hover:to-primary-800 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all transform hover:scale-105 shadow-lg"
-              >
-                Get Started
-              </Link>
-            </div>
+            {isAuthenticated ? (
+              <div className="hidden md:flex items-center space-x-4">
+                <Link
+                  to={dashboardPath}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-primary-500 via-primary-600 to-primary-700 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
+                >
+                  Go to Dashboard
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+                <div className="relative" ref={userMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setUserMenuOpen((prev) => !prev)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-primary-200 dark:hover:border-primary-400 transition-colors"
+                    aria-haspopup="true"
+                  >
+                    <img
+                      src={userAvatar}
+                      alt={userDisplayName || 'User avatar'}
+                      className="h-9 w-9 rounded-full object-cover border border-primary-100"
+                    />
+                    <div className="flex flex-col items-start">
+                      <span className="text-sm font-semibold text-gray-800">{userDisplayName}</span>
+                      {formattedRole && (
+                        <span className="text-xs text-gray-500">{formattedRole}</span>
+                      )}
+                    </div>
+                    <ChevronDown
+                      className={`w-4 h-4 text-gray-500 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                  <AnimatePresence>
+                    {userMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 mt-3 w-56 rounded-lg border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl ring-1 ring-black/[0.04] dark:ring-white/[0.05] overflow-hidden z-50 transition-colors duration-200"
+                      >
+                        <div className="px-4 py-3 bg-gradient-to-r from-primary-50 to-secondary-50 dark:from-gray-800 dark:to-gray-900">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{userDisplayName}</p>
+                          {formattedRole && (
+                            <p className="text-xs text-gray-600 dark:text-gray-400">{formattedRole}</p>
+                          )}
+                        </div>
+                        <div className="py-2">
+                          <Link
+                            to={dashboardPath}
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-800 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+                          >
+                            <Home className="w-4 h-4" />
+                            Dashboard
+                          </Link>
+                          <Link
+                            to={profilePath}
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-800 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+                          >
+                            <User className="w-4 h-4" />
+                            View Profile
+                          </Link>
+                        </div>
+                        <div className="border-t border-gray-100 dark:border-gray-800">
+                          <div className="px-4 pt-3 pb-2">
+                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Theme</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Choose how SunLMS looks for you.</p>
+                          </div>
+                          <div className="flex flex-col gap-1 px-2 pb-2">
+                            {themeOptions.map((option) => {
+                              const isActive = theme === option.value;
+                              return (
+                                <button
+                                  type="button"
+                                  key={option.value}
+                                  onClick={() => {
+                                    setTheme(option.value);
+                                  }}
+                                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+                                    isActive
+                                      ? 'bg-primary-50 text-primary-700 border border-primary-100 shadow-inner dark:bg-primary-500/10 dark:text-primary-200 dark:border-primary-500/40'
+                                      : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                  }`}
+                                >
+                                  <span
+                                    className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+                                      isActive
+                                        ? 'bg-primary-100 text-primary-600 dark:bg-primary-500/20 dark:text-primary-200'
+                                        : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+                                    }`}
+                                  >
+                                    {option.icon}
+                                  </span>
+                                  <div className="flex flex-col text-left">
+                                    <span className="font-medium leading-tight">{option.label}</span>
+                                    <span className="text-xs text-gray-500 leading-tight dark:text-gray-400">
+                                      {option.description}
+                                    </span>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div className="border-t border-gray-100 dark:border-gray-800">
+                          <button
+                            type="button"
+                            onClick={handleSignOut}
+                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                          >
+                            <LogOut className="w-4 h-4" />
+                            Sign Out
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            ) : (
+              <div className="hidden md:flex items-center space-x-4">
+                <Link
+                  to="/login"
+                  className="text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/signup"
+                  className="bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-700 hover:to-primary-800 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all transform hover:scale-105 shadow-lg"
+                >
+                  Get Started
+                </Link>
+              </div>
+            )}
 
             {/* Mobile Menu Button */}
             <motion.button
               onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden relative p-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+              className="md:hidden relative p-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               aria-label="Open menu"
               whileTap={{ scale: 0.95 }}
             >
@@ -573,20 +807,49 @@ const LandingPage: React.FC = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4 }}
                 >
-                  <Link
-                    to="/login"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="block w-full text-center px-4 py-3 border-2 border-gray-300 hover:border-primary-300 text-gray-700 hover:text-primary-600 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    Sign In
-                  </Link>
-                  <Link
-                    to="/signup"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="block w-full text-center px-4 py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-700 hover:to-primary-800 text-white rounded-lg text-sm font-medium transition-all shadow-lg"
-                  >
-                    Get Started
-                  </Link>
+                  {isAuthenticated ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                        <img
+                          src={userAvatar}
+                          alt={userDisplayName || 'User avatar'}
+                          className="h-12 w-12 rounded-full object-cover border border-primary-200"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-base font-semibold text-gray-800">
+                            {userDisplayName}
+                          </span>
+                          {formattedRole && (
+                            <span className="text-sm text-gray-500">{formattedRole}</span>
+                          )}
+                        </div>
+                      </div>
+                      <Link
+                        to={dashboardPath}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block w-full text-center px-4 py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-700 hover:to-primary-800 text-white rounded-lg text-sm font-semibold transition-all shadow-lg"
+                      >
+                        Go to Dashboard
+                      </Link>
+                    </div>
+                  ) : (
+                    <>
+                      <Link
+                        to="/login"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block w-full text-center px-4 py-3 border-2 border-gray-300 hover:border-primary-300 text-gray-700 hover:text-primary-600 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        Sign In
+                      </Link>
+                      <Link
+                        to="/signup"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block w-full text-center px-4 py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-700 hover:to-primary-800 text-white rounded-lg text-sm font-medium transition-all shadow-lg"
+                      >
+                        Get Started
+                      </Link>
+                    </>
+                  )}
                 </motion.div>
               </nav>
             </motion.div>
@@ -596,7 +859,7 @@ const LandingPage: React.FC = () => {
 
       {/* Hero Section */}
       <motion.section 
-        className="relative overflow-hidden bg-gradient-to-br from-primary-50 via-white to-secondary-50"
+        className="relative overflow-hidden bg-gradient-to-br from-primary-50 via-white to-secondary-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 transition-colors"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6 }}
@@ -627,7 +890,7 @@ const LandingPage: React.FC = () => {
             </motion.h1>
             
             <motion.p 
-              className="text-xl md:text-2xl text-gray-600 mb-12 max-w-4xl mx-auto leading-relaxed"
+              className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.6 }}
@@ -667,8 +930,8 @@ const LandingPage: React.FC = () => {
             </motion.div>
 
             {/* Stats */}
-            <motion.div 
-              className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto"
+              <motion.div 
+                className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.6 }}
@@ -682,8 +945,8 @@ const LandingPage: React.FC = () => {
                   transition={{ delay: 0.7 + index * 0.1, duration: 0.4 }}
                   whileHover={{ scale: 1.1 }}
                 >
-                  <div className="text-3xl md:text-4xl font-bold text-primary-600 mb-2">{stat.number}</div>
-                  <div className="text-gray-600 font-medium">{stat.label}</div>
+                  <div className="text-3xl md:text-4xl font-bold text-primary-600 dark:text-primary-300 mb-2">{stat.number}</div>
+                  <div className="text-gray-600 dark:text-gray-400 font-medium">{stat.label}</div>
                 </motion.div>
               ))}
             </motion.div>
@@ -693,7 +956,7 @@ const LandingPage: React.FC = () => {
 
       {/* Why SunLMS Section */}
       <motion.section 
-        className="py-20 bg-white"
+        className="py-20 bg-white dark:bg-gray-950 transition-colors"
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
         viewport={{ once: true, margin: "-100px" }}
@@ -707,10 +970,10 @@ const LandingPage: React.FC = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               Why SunLMS?
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
               We've identified the critical problems organizations face. Here's how SunLMS solves them.
             </p>
           </motion.div>
