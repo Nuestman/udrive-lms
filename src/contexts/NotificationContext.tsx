@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { useSettings } from './SettingsContext';
+import { useToast } from './ToastContext';
 import { get, put, del } from '../lib/api';
 
 export interface Notification {
@@ -13,6 +14,7 @@ export interface Notification {
   read: boolean;
   createdAt: string;
   icon?: string;
+  data?: Record<string, unknown>;
 }
 
 interface NotificationContextType {
@@ -41,6 +43,7 @@ interface NotificationProviderProps {
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const { user, profile } = useAuth();
   const { userSettings } = useSettings();
+  const toast = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -179,7 +182,28 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         if (isNaN(date.getTime())) {
           console.warn('Invalid date in socket notification:', notification.createdAt, notification);
         }
-        setNotifications(prev => [notification, ...prev]);
+        const normalizedNotification: Notification = {
+          ...notification,
+          data: notification.data && typeof notification.data === 'string'
+            ? (() => {
+                try {
+                  return JSON.parse(notification.data as unknown as string);
+                } catch (parseError) {
+                  console.warn('Failed to parse notification data payload:', parseError);
+                  return {};
+                }
+              })()
+            : notification.data || {},
+        };
+        setNotifications(prev => [normalizedNotification, ...prev]);
+
+        if (
+          normalizedNotification.data &&
+          typeof normalizedNotification.data === 'object' &&
+          (normalizedNotification.data as Record<string, unknown>).eventType === 'review_submitted'
+        ) {
+          toast.info(normalizedNotification.title || 'New review submitted');
+        }
         
         // Show browser notification if enabled and permission granted
         if (userSettings?.notifications?.pushNotifications && 'Notification' in window) {
@@ -249,7 +273,19 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       const data = await get<{ success: boolean; data: Notification[] }>('/notifications');
       
       if (data.success) {
-        const notifications = data.data || [];
+        const notifications = (data.data || []).map((notification: Notification) => ({
+          ...notification,
+          data: notification.data && typeof notification.data === 'string'
+            ? (() => {
+                try {
+                  return JSON.parse(notification.data as unknown as string);
+                } catch (parseError) {
+                  console.warn('Failed to parse notification data payload:', parseError);
+                  return {};
+                }
+              })()
+            : notification.data || {},
+        }));
         // Debug: Check for invalid dates in loaded notifications
         notifications.forEach((notification, index) => {
           const date = new Date(notification.createdAt);

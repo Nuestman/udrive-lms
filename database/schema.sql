@@ -363,6 +363,125 @@ CREATE INDEX idx_notifications_is_read ON notifications(user_id, is_read);
 CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
 
 -- =============================================
+-- REVIEWS & FEEDBACK
+-- =============================================
+CREATE TABLE IF NOT EXISTS reviews (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reviewable_type TEXT NOT NULL CHECK (reviewable_type IN ('platform', 'course', 'school')),
+    reviewable_id UUID,
+    rating INTEGER CHECK (rating BETWEEN 1 AND 5),
+    title TEXT,
+    body TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    visibility TEXT NOT NULL DEFAULT 'private' CHECK (visibility IN ('private', 'public')),
+    approved_at TIMESTAMP WITH TIME ZONE,
+    approved_by UUID REFERENCES users(id),
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE reviews
+    ADD CONSTRAINT chk_reviews_reviewable_id
+    CHECK (
+        (reviewable_type = 'platform' AND reviewable_id IS NULL)
+        OR (reviewable_type IN ('course', 'school') AND reviewable_id IS NOT NULL)
+    );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reviews_unique_active
+    ON reviews (
+        user_id,
+        reviewable_type,
+        COALESCE(reviewable_id, '00000000-0000-0000-0000-000000000000'::UUID)
+    )
+    WHERE status IN ('pending', 'approved');
+
+CREATE INDEX idx_reviews_status ON reviews(status);
+CREATE INDEX idx_reviews_reviewable_type ON reviews(reviewable_type);
+CREATE INDEX idx_reviews_created_at ON reviews(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS platform_feedback (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    tenant_id UUID REFERENCES tenants(id) ON DELETE SET NULL,
+    onboarding_score SMALLINT CHECK (onboarding_score BETWEEN 1 AND 5),
+    usability_score SMALLINT CHECK (usability_score BETWEEN 1 AND 5),
+    ui_score SMALLINT CHECK (ui_score BETWEEN 1 AND 5),
+    navigation_score SMALLINT CHECK (navigation_score BETWEEN 1 AND 5),
+    support_score SMALLINT CHECK (support_score BETWEEN 1 AND 5),
+    role_context TEXT,
+    additional_context JSONB DEFAULT '{}',
+    comments TEXT,
+    submitted_from TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_platform_feedback_user_id ON platform_feedback(user_id);
+CREATE INDEX idx_platform_feedback_tenant_id ON platform_feedback(tenant_id);
+CREATE INDEX idx_platform_feedback_created_at ON platform_feedback(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS testimonials (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    review_id UUID REFERENCES reviews(id) ON DELETE SET NULL,
+    feedback_id UUID REFERENCES platform_feedback(id) ON DELETE SET NULL,
+    headline TEXT,
+    body TEXT,
+    attribution_name TEXT,
+    attribution_title TEXT,
+    attribution_organization TEXT,
+    placement TEXT,
+    display_order INTEGER DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
+    is_featured BOOLEAN DEFAULT false,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE testimonials
+    ADD CONSTRAINT chk_testimonials_source
+    CHECK (
+        (review_id IS NOT NULL)::int
+        + (feedback_id IS NOT NULL)::int
+        + (body IS NOT NULL)::int >= 1
+    );
+
+CREATE INDEX idx_testimonials_status ON testimonials(status);
+CREATE INDEX idx_testimonials_display_order ON testimonials(display_order);
+
+CREATE TABLE IF NOT EXISTS course_review_settings (
+    course_id UUID PRIMARY KEY REFERENCES courses(id) ON DELETE CASCADE,
+    trigger_type TEXT NOT NULL DEFAULT 'percentage' CHECK (trigger_type IN ('percentage', 'lesson_count', 'manual')),
+    trigger_value INTEGER DEFAULT 20,
+    cooldown_days INTEGER DEFAULT 30,
+    allow_multiple BOOLEAN DEFAULT false,
+    manual_trigger_enabled BOOLEAN DEFAULT false,
+    prompt_message TEXT,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS course_review_prompt_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    last_prompted_at TIMESTAMP WITH TIME ZONE,
+    last_review_id UUID REFERENCES reviews(id) ON DELETE SET NULL,
+    prompt_count INTEGER DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'dismissed', 'completed')),
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(course_id, user_id)
+);
+
+CREATE INDEX idx_course_review_prompt_history_course ON course_review_prompt_history(course_id);
+CREATE INDEX idx_course_review_prompt_history_user ON course_review_prompt_history(user_id);
+CREATE INDEX idx_course_review_prompt_history_status ON course_review_prompt_history(status);
+
+-- =============================================
 -- AUDIT LOG
 -- =============================================
 CREATE TABLE IF NOT EXISTS audit_log (
@@ -403,4 +522,7 @@ CREATE TRIGGER update_quizzes_updated_at BEFORE UPDATE ON quizzes FOR EACH ROW E
 CREATE TRIGGER update_quiz_questions_updated_at BEFORE UPDATE ON quiz_questions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_assignments_updated_at BEFORE UPDATE ON assignments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_assignment_submissions_updated_at BEFORE UPDATE ON assignment_submissions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_testimonials_updated_at BEFORE UPDATE ON testimonials FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_course_review_settings_updated_at BEFORE UPDATE ON course_review_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_course_review_prompt_history_updated_at BEFORE UPDATE ON course_review_prompt_history FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

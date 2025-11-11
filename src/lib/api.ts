@@ -398,6 +398,172 @@ export const enrollmentsApi = {
 };
 
 /**
+ * Reviews API - User feedback and moderation
+ */
+export const reviewsApi = {
+  submit: (data: {
+    type: 'course' | 'school';
+    targetId?: string;
+    rating?: number | null;
+    title?: string | null;
+    body: string;
+  }) =>
+    post<{ success: boolean; data: any; message: string }>('/reviews', data),
+
+  mine: () => get<{ success: boolean; data: any[] }>('/reviews/mine'),
+
+  list: (params?: {
+    status?: 'pending' | 'approved' | 'rejected';
+    type?: 'platform' | 'course' | 'school';
+    user_id?: string;
+    reviewable_id?: string;
+    search?: string;
+    visibility?: 'private' | 'public';
+    limit?: number;
+    offset?: number;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return get<{ success: boolean; data: any[] }>(
+      `/reviews${queryString ? `?${queryString}` : ''}`
+    );
+  },
+
+  updateStatus: (id: string, status: 'pending' | 'approved' | 'rejected') =>
+    put<{ success: boolean; data: any; message: string }>(`/reviews/${id}/status`, {
+      status,
+    }),
+
+  updateVisibility: (id: string, visibility: 'private' | 'public') =>
+    put<{ success: boolean; data: any; message: string }>(`/reviews/${id}/visibility`, {
+      visibility,
+    }),
+
+  getPublic: (params?: { type?: 'platform' | 'course' | 'school'; limit?: number; reviewable_id?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.type) {
+      queryParams.set('type', params.type);
+    }
+    if (params?.limit) {
+      queryParams.set('limit', params.limit.toString());
+    }
+    if (params?.reviewable_id) {
+      queryParams.set('reviewable_id', params.reviewable_id);
+    }
+    const queryString = queryParams.toString();
+    return get<{ success: boolean; data: any[] }>(
+      `/reviews/public${queryString ? `?${queryString}` : ''}`
+    );
+  },
+};
+
+/**
+ * Feedback API - Platform surveys
+ */
+export const feedbackApi = {
+  submitPlatform: (data: {
+    onboarding_score?: number | null;
+    usability_score?: number | null;
+    ui_score?: number | null;
+    navigation_score?: number | null;
+    support_score?: number | null;
+    role_context?: string | null;
+    comments?: string | null;
+    submitted_from?: string | null;
+    additional_context?: Record<string, any>;
+  }) => post<{ success: boolean; data: any; message: string }>('/feedback/platform', data),
+
+  listPlatform: (params?: { tenant_id?: string; limit?: number; offset?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.tenant_id) {
+      queryParams.set('tenant_id', params.tenant_id);
+    }
+    if (params?.limit) {
+      queryParams.set('limit', params.limit.toString());
+    }
+    if (params?.offset) {
+      queryParams.set('offset', params.offset.toString());
+    }
+    const queryString = queryParams.toString();
+    return get<{ success: boolean; data: any[] }>(
+      `/feedback/platform${queryString ? `?${queryString}` : ''}`
+    );
+  },
+
+  getSummary: (params?: { tenant_id?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.tenant_id) {
+      queryParams.set('tenant_id', params.tenant_id);
+    }
+    const queryString = queryParams.toString();
+    return get<{ success: boolean; data: any }>(
+      `/feedback/platform/summary${queryString ? `?${queryString}` : ''}`
+    );
+  },
+};
+
+/**
+ * Testimonials API
+ */
+export const testimonialsApi = {
+  listPublic: (params?: { placement?: string; limit?: number; featured?: boolean }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.placement) {
+      queryParams.set('placement', params.placement);
+    }
+    if (params?.limit) {
+      queryParams.set('limit', params.limit.toString());
+    }
+    if (params?.featured !== undefined) {
+      queryParams.set('featured', params.featured ? 'true' : 'false');
+    }
+    const queryString = queryParams.toString();
+    return get<{ success: boolean; data: any[] }>(
+      `/testimonials/public${queryString ? `?${queryString}` : ''}`
+    );
+  },
+
+  list: (params?: { status?: 'draft' | 'published' | 'archived'; placement?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.status) {
+      queryParams.set('status', params.status);
+    }
+    if (params?.placement) {
+      queryParams.set('placement', params.placement);
+    }
+    const queryString = queryParams.toString();
+    return get<{ success: boolean; data: any[] }>(
+      `/testimonials${queryString ? `?${queryString}` : ''}`
+    );
+  },
+
+  create: (data: any) => post<{ success: boolean; data: any; message: string }>('/testimonials', data),
+
+  update: (id: string, data: any) =>
+    put<{ success: boolean; data: any; message: string }>(`/testimonials/${id}`, data),
+
+  remove: (id: string) => del<{ success: boolean; message: string }>(`/testimonials/${id}`),
+};
+
+/**
+ * Course Review Settings API
+ */
+export const reviewSettingsApi = {
+  get: (courseId: string) =>
+    get<{ success: boolean; data: any | null }>(`/review-settings/${courseId}`),
+
+  update: (courseId: string, data: any) =>
+    put<{ success: boolean; data: any; message: string }>(`/review-settings/${courseId}`, data),
+};
+
+/**
  * Quizzes API
  */
 export const quizzesApi = {
@@ -468,6 +634,10 @@ export const api = {
   instructors: instructorsApi,
   students: studentsApi,
   enrollments: enrollmentsApi,
+  reviews: reviewsApi,
+  feedback: feedbackApi,
+  testimonials: testimonialsApi,
+  reviewSettings: reviewSettingsApi,
   quizzes: quizzesApi,
 };
 
@@ -483,6 +653,10 @@ export default {
   instructorsApi,
   studentsApi,
   enrollmentsApi,
+  reviewsApi,
+  feedbackApi,
+  testimonialsApi,
+  reviewSettingsApi,
   quizzesApi,
 };
 

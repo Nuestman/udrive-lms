@@ -1,7 +1,7 @@
 // Course Details Page - View course structure with modules and lessons
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, BookOpen, Clock, Users, Edit, Trash2, GripVertical, ChevronDown, ChevronRight, FileText, Eye } from 'lucide-react';
+import { ArrowLeft, Plus, BookOpen, Clock, Users, Edit, Trash2, GripVertical, ChevronDown, ChevronRight, FileText, Eye, MessageSquareHeart, Sparkles, Loader2, CheckCircle2, Megaphone, Pin as PinIcon } from 'lucide-react';
 import { useModules } from '../../hooks/useModules';
 import { useLessons } from '../../hooks/useLessons';
 import api, { quizzesApi } from '../../lib/api';
@@ -11,6 +11,29 @@ import QuizBuilderModal from '../quiz/QuizBuilderModal';
 import QuizEditModal from '../quiz/QuizEditModal';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  CourseReviewSettings,
+  getCourseReviewSettings,
+  updateCourseReviewSettings,
+} from '../../services/reviewSettings.service';
+import { Announcement, AnnouncementPayload, fetchAnnouncements, createAnnouncement } from '../../services/announcements.service';
+import AnnouncementEditorModal from '../announcements/AnnouncementEditorModal';
+import { formatDistanceToNow } from 'date-fns';
+import { formatFileSize } from '../../utils/upload.utils';
+
+const buildDefaultReviewSettings = (courseId?: string): CourseReviewSettings =>
+  ({
+    course_id: courseId ?? '',
+    trigger_type: 'percentage',
+    trigger_value: 20,
+    cooldown_days: 30,
+    allow_multiple: false,
+    manual_trigger_enabled: false,
+    prompt_message: '',
+    metadata: {},
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  } as CourseReviewSettings);
 
 const CourseDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -28,9 +51,24 @@ const CourseDetailsPage: React.FC = () => {
   const [showAddLesson, setShowAddLesson] = useState(false);
   const [newLessonTitle, setNewLessonTitle] = useState('');
   const [newLessonStatus, setNewLessonStatus] = useState<'draft' | 'published'>('draft');
+  const [reviewSettings, setReviewSettings] = useState<CourseReviewSettings | null>(null);
+  const [settingsDraft, setSettingsDraft] = useState<CourseReviewSettings>(() =>
+    buildDefaultReviewSettings(id)
+  );
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [resolvedCourseId, setResolvedCourseId] = useState<string | null>(null);
+  const [showCourseAnnouncementModal, setShowCourseAnnouncementModal] = useState(false);
+  const [courseAnnouncements, setCourseAnnouncements] = useState<Announcement[]>([]);
+  const [courseAnnouncementsLoading, setCourseAnnouncementsLoading] = useState(false);
+  const [courseAnnouncementsError, setCourseAnnouncementsError] = useState<string | null>(null);
+  const [courseAnnouncementSubmitting, setCourseAnnouncementSubmitting] = useState(false);
 
   useEffect(() => {
+    setSettingsDraft(buildDefaultReviewSettings(id));
     fetchCourse();
+    loadReviewSettings();
   }, [id]);
 
   const fetchCourse = async () => {
@@ -38,11 +76,95 @@ const CourseDetailsPage: React.FC = () => {
       const response = await api.get(`/courses/${id}`);
       if (response.success) {
         setCourse(response.data);
+        if (response.data?.id) {
+          setResolvedCourseId(response.data.id);
+        }
       }
     } catch (err) {
       console.error('Error fetching course:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadReviewSettings = async () => {
+    if (!id) return;
+    try {
+      setSettingsLoading(true);
+      setSettingsError(null);
+      const response = await getCourseReviewSettings(id);
+      const normalizedResponse = response
+        ? {
+            ...response,
+            metadata:
+              typeof response.metadata === 'string'
+                ? (() => {
+                    try {
+                      return JSON.parse(response.metadata);
+                    } catch (error) {
+                      console.warn(
+                        'Failed to parse review settings metadata; defaulting to empty object.',
+                        error
+                      );
+                      return {};
+                    }
+                  })()
+                : response.metadata ?? {},
+          }
+        : null;
+
+      setReviewSettings(normalizedResponse);
+      if (normalizedResponse) {
+        setSettingsDraft(normalizedResponse);
+      } else {
+        setSettingsDraft(buildDefaultReviewSettings(id));
+      }
+    } catch (err: any) {
+      console.error('Failed to load review settings:', err);
+      setSettingsError(err.message || 'Unable to load review settings.');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleSaveReviewSettings = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!id) return;
+    try {
+      setSettingsSaving(true);
+      setSettingsError(null);
+      let metadataPayload: Record<string, any> | undefined;
+      if (settingsDraft.metadata !== undefined && settingsDraft.metadata !== null) {
+        if (typeof settingsDraft.metadata === 'string') {
+          try {
+            metadataPayload = JSON.parse(settingsDraft.metadata);
+          } catch (parseError) {
+            console.warn('Unable to parse review settings metadata; defaulting to object.', parseError);
+            metadataPayload = {};
+          }
+        } else {
+          metadataPayload = settingsDraft.metadata;
+        }
+      }
+
+      await updateCourseReviewSettings(id, {
+        trigger_type: settingsDraft.trigger_type,
+        trigger_value: settingsDraft.trigger_type === 'manual' ? null : settingsDraft.trigger_value,
+        cooldown_days: settingsDraft.cooldown_days,
+        allow_multiple: settingsDraft.allow_multiple,
+        manual_trigger_enabled: settingsDraft.manual_trigger_enabled,
+        prompt_message: settingsDraft.prompt_message || null,
+        metadata: metadataPayload ?? {},
+      });
+      showToast('Review prompt settings updated', 'success');
+      await loadReviewSettings();
+    } catch (err: any) {
+      console.error('Failed to save review settings:', err);
+      const message = err?.message || 'Unable to update review settings.';
+      setSettingsError(message);
+      showToast(message, 'error');
+    } finally {
+      setSettingsSaving(false);
     }
   };
 
@@ -106,6 +228,75 @@ const CourseDetailsPage: React.FC = () => {
     }
   };
 
+  const loadCourseAnnouncements = useCallback(async (courseUuid: string) => {
+    if (!courseUuid) return;
+    try {
+      setCourseAnnouncementsLoading(true);
+      setCourseAnnouncementsError(null);
+      const data = await fetchAnnouncements({
+        courseId: courseUuid,
+        includeGlobal: false,
+        status: 'all',
+        includeExpired: true,
+      });
+      const relevant = (data || []).filter(
+        (announcement) => announcement.courseId === courseUuid && announcement.audienceScope === 'course'
+      );
+      setCourseAnnouncements(relevant);
+    } catch (err: any) {
+      console.error('Failed to load course announcements:', err);
+      setCourseAnnouncementsError(err?.message || 'Unable to load course announcements right now.');
+    } finally {
+      setCourseAnnouncementsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (resolvedCourseId) {
+      loadCourseAnnouncements(resolvedCourseId);
+    }
+  }, [resolvedCourseId, loadCourseAnnouncements]);
+
+  const sortedCourseAnnouncements = useMemo(() => {
+    const list = [...courseAnnouncements];
+    list.sort((a, b) => {
+      if (Boolean(a.isPinned) !== Boolean(b.isPinned)) {
+        return Boolean(b.isPinned) ? 1 : -1;
+      }
+      const aDate = new Date(a.publishedAt || a.createdAt || 0).getTime();
+      const bDate = new Date(b.publishedAt || b.createdAt || 0).getTime();
+      return bDate - aDate;
+    });
+    return list;
+  }, [courseAnnouncements]);
+
+  const handleCreateCourseAnnouncement = async (payload: AnnouncementPayload) => {
+    if (!resolvedCourseId) return;
+    try {
+      setCourseAnnouncementSubmitting(true);
+      const finalPayload: AnnouncementPayload = {
+        ...payload,
+        audience_scope: 'course',
+        course_id: resolvedCourseId,
+        module_id: payload.module_id || null,
+        lesson_id: payload.lesson_id || null,
+        quiz_id: payload.quiz_id || null,
+      };
+
+      await createAnnouncement(finalPayload);
+      showToast('Course announcement created', 'success');
+      setShowCourseAnnouncementModal(false);
+      await loadCourseAnnouncements(resolvedCourseId);
+    } catch (err: any) {
+      console.error('Failed to create course announcement:', err);
+      const message = err?.message || 'Unable to create course announcement.';
+      showToast(message, 'error');
+      throw err;
+    } finally {
+      setCourseAnnouncementSubmitting(false);
+    }
+  };
+
   // Student view functionality removed: only students can take courses
 
   if (loading) {
@@ -121,7 +312,23 @@ const CourseDetailsPage: React.FC = () => {
   }
 
   return (
-    <PageLayout
+    <>
+      <AnnouncementEditorModal
+        open={showCourseAnnouncementModal}
+        mode="create"
+        onClose={() => {
+          if (!courseAnnouncementSubmitting) {
+            setShowCourseAnnouncementModal(false);
+          }
+        }}
+        onSubmit={handleCreateCourseAnnouncement}
+        submitting={courseAnnouncementSubmitting}
+        audienceScopeOptions={['course']}
+        lockedAudienceScope="course"
+        lockedCourseId={resolvedCourseId || ''}
+        disableAudienceSelection
+      />
+      <PageLayout
       title={course.title}
       breadcrumbs={[
         { 
@@ -178,6 +385,323 @@ const CourseDetailsPage: React.FC = () => {
             <p className="text-gray-700">{course.description}</p>
           </div>
         )}
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 mb-6">
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+                <Megaphone size={14} />
+                Course Announcements
+              </div>
+              <h2 className="mt-2 text-xl font-semibold text-gray-900">
+                Keep enrolled learners in the loop
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Publish updates inside this course’s lesson viewer. Only enrolled learners can see these messages.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowCourseAnnouncementModal(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-70"
+              disabled={courseAnnouncementSubmitting || !resolvedCourseId}
+            >
+              <Plus size={16} />
+              New Course Announcement
+            </button>
+          </div>
+
+          {courseAnnouncementsError && (
+            <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {courseAnnouncementsError}
+            </div>
+          )}
+
+          {courseAnnouncementsLoading ? (
+            <div className="mt-6 flex items-center gap-3 text-sm text-gray-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading course announcements...
+            </div>
+          ) : sortedCourseAnnouncements.length === 0 ? (
+            <div className="mt-6 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
+              No announcements yet. Click “New Course Announcement” to publish one.
+            </div>
+          ) : (
+            <div className="mt-6 space-y-4">
+              {sortedCourseAnnouncements.map((announcement) => {
+                const metadata = (announcement.metadata || {}) as Record<string, any>;
+                const ctaLink =
+                  metadata?.ctaUrl || metadata?.cta_url || metadata?.link || undefined;
+                const timestamp = (() => {
+                  const rawDate =
+                    announcement.publishedAt || announcement.updatedAt || announcement.createdAt;
+                  if (!rawDate) return '';
+                  const parsed = new Date(rawDate);
+                  if (Number.isNaN(parsed.getTime())) return '';
+                  return formatDistanceToNow(parsed, { addSuffix: true });
+                })();
+
+                return (
+                  <article
+                    key={announcement.id}
+                    className="rounded-2xl border border-gray-100 bg-gray-50/80 p-4 shadow-sm transition hover:shadow-md md:p-6"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-gray-500">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-2 py-1 font-semibold text-primary-700">
+                          {announcement.status}
+                        </span>
+                        {announcement.isPinned && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 font-semibold text-amber-700">
+                            <PinIcon size={12} />
+                            Pinned
+                          </span>
+                        )}
+                        {timestamp && <span>{timestamp}</span>}
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">{announcement.title}</h3>
+                      {announcement.summary && (
+                        <p className="text-sm text-gray-600">{announcement.summary}</p>
+                      )}
+                      <div
+                        className="prose prose-sm max-w-none text-gray-700"
+                        dangerouslySetInnerHTML={{ __html: announcement.bodyHtml }}
+                      />
+                      {metadata && Object.keys(metadata).length > 0 && (
+                        <div className="flex flex-wrap gap-2 text-xs text-gray-500">
+                          {Array.isArray(metadata.changes) && metadata.changes.length > 0 && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-1 font-semibold text-primary-700">
+                              Updates: {metadata.changes.join(', ')}
+                            </span>
+                          )}
+                          {typeof metadata.moduleName === 'string' && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-1 font-semibold text-primary-700">
+                              Module: {metadata.moduleName}
+                            </span>
+                          )}
+                          {typeof metadata.lessonName === 'string' && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-1 font-semibold text-primary-700">
+                              Lesson: {metadata.lessonName}
+                            </span>
+                          )}
+                          {typeof metadata.quizTitle === 'string' && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-1 font-semibold text-primary-700">
+                              Quiz: {metadata.quizTitle}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {announcement.media && announcement.media.length > 0 && (
+                        <div className="grid gap-2 md:grid-cols-2">
+                          {announcement.media.map((media) => (
+                            <a
+                              key={media.id}
+                              href={media.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 transition hover:border-primary-200 hover:text-primary-700"
+                            >
+                              <div className="flex items-center gap-2">
+                                <PinIcon size={12} />
+                                <span>{media.title || media.mediaType}</span>
+                              </div>
+                              <span className="text-[11px] text-gray-400">
+                                {media.fileSize ? formatFileSize(media.fileSize) : media.mimeType || ''}
+                              </span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                      {ctaLink && (
+                        <a
+                          href={ctaLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700"
+                        >
+                          View details →
+                        </a>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+                <MessageSquareHeart size={14} />
+                Review Prompt Settings
+              </div>
+              <h2 className="mt-2 text-xl font-semibold text-gray-900">
+                Control how and when students are prompted
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Configure the cadence for in-course review requests. Encourage timely feedback without disrupting learners.
+              </p>
+            </div>
+            <button
+              onClick={loadReviewSettings}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:text-gray-900"
+            >
+              <Sparkles className="h-4 w-4" />
+              Reset draft
+            </button>
+          </div>
+
+          {settingsError && (
+            <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {settingsError}
+            </div>
+          )}
+
+          <form onSubmit={handleSaveReviewSettings} className="mt-6 grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Prompt trigger</label>
+              <select
+                value={settingsDraft.trigger_type}
+                onChange={(event) => {
+                  const nextType = event.target.value as 'percentage' | 'lesson_count' | 'manual';
+                  setSettingsDraft((prev) => ({
+                    ...prev,
+                    trigger_type: nextType,
+                    trigger_value:
+                      nextType === 'manual'
+                        ? null
+                        : prev.trigger_value ?? (nextType === 'percentage' ? 20 : 3),
+                  }));
+                }}
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                disabled={settingsLoading || settingsSaving}
+              >
+                <option value="percentage">Percentage of course progress</option>
+                <option value="lesson_count">After completing N lessons</option>
+                <option value="manual">Manual only</option>
+              </select>
+            </div>
+
+            {settingsDraft.trigger_type !== 'manual' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  {settingsDraft.trigger_type === 'percentage'
+                    ? 'Progress percentage'
+                    : 'Lessons completed'}
+                </label>
+                <input
+                  type="number"
+                  min={settingsDraft.trigger_type === 'percentage' ? 1 : 1}
+                  max={settingsDraft.trigger_type === 'percentage' ? 100 : undefined}
+                  value={settingsDraft.trigger_value ?? ''}
+                  onChange={(event) =>
+                    setSettingsDraft((prev) => ({
+                      ...prev,
+                      trigger_value: event.target.value ? Number(event.target.value) : null,
+                    }))
+                  }
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                  disabled={settingsLoading || settingsSaving}
+                  placeholder={settingsDraft.trigger_type === 'percentage' ? 'e.g. 20' : 'e.g. 3'}
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Prompt cooldown (days)</label>
+              <input
+                type="number"
+                min={0}
+                value={settingsDraft.cooldown_days}
+                onChange={(event) =>
+                  setSettingsDraft((prev) => ({
+                    ...prev,
+                    cooldown_days: Number(event.target.value),
+                  }))
+                }
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                disabled={settingsLoading || settingsSaving}
+                placeholder="30"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 pt-6">
+              <input
+                id="allow-multiple"
+                type="checkbox"
+                checked={settingsDraft.allow_multiple}
+                onChange={(event) =>
+                  setSettingsDraft((prev) => ({ ...prev, allow_multiple: event.target.checked }))
+                }
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                disabled={settingsLoading || settingsSaving}
+              />
+              <label htmlFor="allow-multiple" className="text-sm text-gray-700">
+                Allow learners to submit multiple reviews over time
+              </label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                id="manual-trigger"
+                type="checkbox"
+                checked={settingsDraft.manual_trigger_enabled}
+                onChange={(event) =>
+                  setSettingsDraft((prev) => ({
+                    ...prev,
+                    manual_trigger_enabled: event.target.checked,
+                  }))
+                }
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                disabled={settingsLoading || settingsSaving}
+              />
+              <label htmlFor="manual-trigger" className="text-sm text-gray-700">
+                Allow instructors to trigger prompts manually
+              </label>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Optional message displayed in the prompt
+              </label>
+              <textarea
+                rows={3}
+                value={settingsDraft.prompt_message || ''}
+                onChange={(event) =>
+                  setSettingsDraft((prev) => ({ ...prev, prompt_message: event.target.value }))
+                }
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                placeholder="Share any context or highlight the type of feedback you’re hoping for."
+                disabled={settingsLoading || settingsSaving}
+              />
+            </div>
+
+            <div className="md:col-span-2 flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={loadReviewSettings}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+              >
+                Reset
+              </button>
+              <button
+                type="submit"
+                disabled={settingsLoading || settingsSaving}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+              >
+                {settingsSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                {settingsSaving ? 'Saving...' : 'Save settings'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
 
       {/* Modules Section */}
@@ -248,7 +772,8 @@ const CourseDetailsPage: React.FC = () => {
           </div>
         )}
       </div>
-    </PageLayout>
+      </PageLayout>
+    </>
   );
 };
 

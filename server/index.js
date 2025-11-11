@@ -24,6 +24,11 @@ import twoFactorAuthRoutes from './routes/twoFactorAuth.js';
 import notificationRoutes from './routes/notifications.js';
 import whiteLabelRoutes from './routes/whiteLabel.js';
 import contactRoutes from './routes/contact.js';
+import reviewsRoutes from './routes/reviews.js';
+import announcementsRoutes from './routes/announcements.js';
+import feedbackRoutes from './routes/feedback.js';
+import testimonialsRoutes from './routes/testimonials.js';
+import reviewSettingsRoutes from './routes/reviewSettings.js';
 import { pool } from './lib/db.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { APP_CONFIG, validateConfig } from './config/app.js';
@@ -250,6 +255,11 @@ app.use('/api/2fa', twoFactorAuthRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/settings/white-label', whiteLabelRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/reviews', reviewsRoutes);
+app.use('/api/feedback', feedbackRoutes);
+app.use('/api/testimonials', testimonialsRoutes);
+app.use('/api/review-settings', reviewSettingsRoutes);
+app.use('/api/announcements', announcementsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

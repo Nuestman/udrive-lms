@@ -19,14 +19,9 @@ import { CompactModeProvider } from './contexts/CompactModeContext';
 import { FeatureFlagsProvider } from './contexts/FeatureFlagsContext';
 
 const DashboardLayout = lazy(() => import('./components/dashboard/DashboardLayout'));
-const BlockEditor = lazy(() => import('./components/lesson/BlockEditor'));
-const QuizEngine = lazy(() => import('./components/quiz/QuizEngine'));
-const CertificateGenerator = lazy(() => import('./components/certificate/CertificateGenerator'));
 const CertificateViewPage = lazy(() => import('./components/certificate/CertificateViewPage'));
 const CertificateVerificationPage = lazy(() => import('./components/certificate/CertificateVerificationPage'));
 const CertificateManagementPage = lazy(() => import('./components/certificate/CertificateManagementPage'));
-const StudentManagement = lazy(() => import('./components/student/StudentManagement'));
-const EnrollmentSystem = lazy(() => import('./components/enrollment/EnrollmentSystem'));
 const MediaLibrary = lazy(() => import('./components/media/MediaLibrary'));
 const SchoolAdminDashboard = lazy(() => import('./components/dashboard/SchoolDashboard'));
 const SuperAdminDashboard = lazy(() => import('./components/dashboard/SuperAdminDashboard'));
@@ -44,13 +39,16 @@ const ContactMessagesPage = lazy(() => import('./components/pages/ContactMessage
 const CertificatesPage = lazy(() => import('./components/pages/CertificatesPage'));
 const HelpPage = lazy(() => import('./components/pages/HelpPage'));
 const NotificationsPage = lazy(() => import('./components/pages/NotificationsPage'));
+const FeedbackPage = lazy(() => import('./components/pages/FeedbackPage'));
+const ReviewsModerationPage = lazy(() => import('./components/pages/Admin/ReviewsModerationPage'));
+const FeedbackInsightsPage = lazy(() => import('./components/pages/Admin/FeedbackInsightsPage'));
+const TestimonialsManagerPage = lazy(() => import('./components/pages/Admin/TestimonialsManagerPage'));
 const StudentDashboardPage = lazy(() => import('./components/student/StudentDashboardPage'));
 const StudentProgressPage = lazy(() => import('./components/pages/student/StudentProgressPage'));
 const StudentLessonViewer = lazy(() => import('./components/student/StudentLessonViewer'));
 const StudentCoursesPage = lazy(() => import('./components/student/StudentCoursesPage'));
-const LearningPathNavigation = lazy(() => import('./components/student/LearningPathNavigation'));
-const AssignmentSubmission = lazy(() => import('./components/student/AssignmentSubmission'));
-const ProgressTracking = lazy(() => import('./components/student/ProgressTracking'));
+const AnnouncementsManagementPage = lazy(() => import('./components/announcements/AnnouncementsManagementPage'));
+const StudentAnnouncementsPage = lazy(() => import('./components/student/StudentAnnouncementsPage'));
 const LandingPage = lazy(() => import('./components/pages/LandingPage'));
 const LoginPage = lazy(() => import('./components/pages/Auth/LoginPage'));
 const SignupPage = lazy(() => import('./components/pages/Auth/SignupPage'));
@@ -163,189 +161,6 @@ function App() {
       loading
     });
   }, [user, profile, loading]);
-
-  const sampleQuestions = [
-    {
-      id: '1',
-      type: 'multiple_choice' as const,
-      text: 'What should you do when approaching a yellow traffic light?',
-      options: [
-        'Speed up to get through',
-        'Prepare to stop if it is safe to do so',
-        'Always stop immediately',
-        'Ignore it if no other cars are present'
-      ],
-      correctAnswer: 'Prepare to stop if it is safe to do so',
-      points: 10,
-      explanation:
-        'A yellow light indicates that the signal is about to turn red. You should prepare to stop if you can do so safely, as rushing through could be dangerous.'
-    },
-    {
-      id: '2',
-      type: 'true_false' as const,
-      text: 'In most states, it is legal to turn right on a red light after coming to a complete stop, unless otherwise posted.',
-      correctAnswer: 'True',
-      points: 5,
-      explanation:
-        'Right turns on red are generally permitted in the United States after a complete stop, unless a sign prohibits it. Always check for pedestrians and oncoming traffic.'
-    },
-    {
-      id: '3',
-      type: 'multiple_choice' as const,
-      text: 'What is the proper following distance in good weather conditions?',
-      options: ['1 second', '2 seconds', '3 seconds', '5 seconds'],
-      correctAnswer: '3 seconds',
-      points: 10,
-      explanation:
-        'The three-second rule provides a safe following distance in good weather conditions. This gives you enough time to react if the vehicle ahead suddenly stops.'
-    }
-  ];
-
-  const sampleBlocks = [
-    {
-      id: 'block-1',
-      type: 'text' as const,
-      content: {
-        text: 'Welcome to SunLMS - The comprehensive Learning Management System and Content Management System. This platform helps organizations across various industries manage their curriculum, track progress, and deliver high-quality educational content.',
-        formatting: 'paragraph'
-      }
-    },
-    {
-      id: 'block-2',
-      type: 'image' as const,
-      content: {
-        imageUrl:
-          'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-        caption: 'Professional learning and training made easy with SunLMS',
-        altText: 'Driving instructor teaching a student in a car'
-      }
-    },
-    {
-      id: 'block-3',
-      type: 'road_sign' as const,
-      content: {
-        signId: 'stop',
-        description: 'Understanding stop signs is crucial for safe driving.',
-        showMeaning: true,
-        interactive: true
-      }
-    },
-    {
-      id: 'block-4',
-      type: 'scenario' as const,
-      content: {
-        scenarioType: 'intersection',
-        description: 'Practice making safe decisions at intersections.',
-        interactive: true
-      }
-    }
-  ];
-
-  const sampleCertificateData = {
-    studentName: 'Sarah Johnson',
-    courseName: 'Advanced Defensive Driving',
-    completionDate: 'March 15, 2024',
-    certificateId: 'CERT-2024-0001',
-    schoolName: 'Premier Driving Academy',
-    instructorName: 'Michael Anderson'
-  };
-
-  const sampleCourse = {
-    id: '1',
-    title: 'Basic Driving Course',
-    description: 'Learn the fundamentals of safe driving',
-    overallProgress: 75,
-    difficulty: 'beginner' as const,
-    modules: [
-      {
-        id: '1',
-        title: 'Getting Started',
-        description: 'Introduction to driving basics',
-        progress: 100,
-        isUnlocked: true,
-        estimatedTime: '2 hours',
-        lessons: [
-          {
-            id: '1-1',
-            title: 'Vehicle Controls',
-            type: 'lesson' as const,
-            status: 'completed' as const,
-            duration: '30 min',
-            isRequired: true
-          },
-          {
-            id: '1-2',
-            title: 'Safety Check Quiz',
-            type: 'quiz' as const,
-            status: 'completed' as const,
-            score: 95,
-            isRequired: true
-          }
-        ]
-      },
-      {
-        id: '2',
-        title: 'Basic Maneuvers',
-        description: 'Learn essential driving maneuvers',
-        progress: 60,
-        isUnlocked: true,
-        estimatedTime: '3 hours',
-        lessons: [
-          {
-            id: '2-1',
-            title: 'Parking Techniques',
-            type: 'lesson' as const,
-            status: 'current' as const,
-            duration: '45 min',
-            isRequired: true
-          },
-          {
-            id: '2-2',
-            title: 'Three-Point Turn',
-            type: 'lesson' as const,
-            status: 'available' as const,
-            duration: '30 min',
-            isRequired: true
-          }
-        ]
-      }
-    ]
-  };
-
-  const sampleAssignment = {
-    id: '1',
-    title: 'Defensive Driving Essay',
-    description: 'Write a comprehensive essay about defensive driving techniques',
-    dueDate: '2024-03-25T23:59:00',
-    maxScore: 100,
-    submissionTypes: ['text', 'file'] as ('file' | 'image' | 'text' | 'video')[],
-    instructions:
-      'Write a 500-word essay discussing the importance of defensive driving techniques. Include at least three specific examples of defensive driving strategies and explain how they help prevent accidents.',
-    status: 'not_submitted' as const,
-    rubric: [
-      {
-        criteria: 'Content Quality',
-        points: 40,
-        description: 'Demonstrates understanding of defensive driving concepts'
-      },
-      {
-        criteria: 'Examples',
-        points: 30,
-        description: 'Provides relevant and specific examples'
-      },
-      {
-        criteria: 'Writing Quality',
-        points: 20,
-        description: 'Clear, well-organized writing with proper grammar'
-      },
-      {
-        criteria: 'Length',
-        points: 10,
-        description: 'Meets the 500-word requirement'
-      }
-    ]
-  };
-
   if (loading) {
     return <LoadingScreen message="Loading SunLMS..." />;
   }
@@ -390,6 +205,9 @@ function App() {
               <Route path="/school/analytics" element={<AnalyticsPage role="school_admin" />} />
               <Route path="/school/settings" element={<SettingsPage role="school_admin" />} />
               <Route path="/school/certificates" element={<CertificateManagementPage />} />
+              <Route path="/school/announcements" element={<AnnouncementsManagementPage role="school_admin" />} />
+              <Route path="/school/reviews" element={<ReviewsModerationPage />} />
+              <Route path="/school/feedback-insights" element={<FeedbackInsightsPage />} />
               <Route path="/school/profile" element={<UserProfilePage />} />
               <Route path="/media-library" element={<MediaLibrary />} />
 
@@ -401,11 +219,16 @@ function App() {
               <Route path="/admin/settings" element={<SettingsPage role="super_admin" />} />
               <Route path="/admin/certificates" element={<CertificateManagementPage />} />
               <Route path="/admin/contact-messages" element={<ContactMessagesPage />} />
+              <Route path="/admin/reviews" element={<ReviewsModerationPage />} />
+              <Route path="/admin/feedback-insights" element={<FeedbackInsightsPage />} />
+              <Route path="/admin/announcements" element={<AnnouncementsManagementPage role="super_admin" />} />
+              <Route path="/admin/testimonials" element={<TestimonialsManagerPage />} />
               <Route path="/admin/profile" element={<UserProfilePage />} />
 
               <Route path="/instructor/dashboard" element={<InstructorDashboard />} />
               <Route path="/instructor/courses" element={<CoursesPage role="instructor" />} />
               <Route path="/instructor/certificates" element={<CertificateManagementPage />} />
+              <Route path="/instructor/announcements" element={<AnnouncementsManagementPage role="instructor" />} />
               <Route path="/instructor/profile" element={<UserProfilePage />} />
 
               <Route path="/student/dashboard" element={<StudentDashboardPage />} />
@@ -414,69 +237,13 @@ function App() {
               <Route path="/student/courses/:courseId/lessons/:lessonId" element={<StudentLessonViewer />} />
               <Route path="/student/certificates" element={<CertificatesPage role="student" />} />
               <Route path="/student/certificates/:enrollmentId" element={<CertificateViewPage />} />
+              <Route path="/student/announcements" element={<StudentAnnouncementsPage />} />
               <Route path="/student/profile" element={<UserProfilePage />} />
 
               {/* Shared app utilities */}
+              <Route path="/feedback" element={<FeedbackPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/help" element={<HelpPage />} />
-
-              {/* Demo components */}
-              <Route
-                path="/block-editor-demo"
-                element={
-                  <BlockEditor
-                    initialContent={sampleBlocks}
-                    showPreview
-                    onChange={(blocks) => console.log('Content updated:', blocks)}
-                  />
-                }
-              />
-              <Route
-                path="/quiz-engine-demo"
-                element={
-                  <QuizEngine
-                    questions={sampleQuestions}
-                    timeLimit={5}
-                    passingScore={70}
-                    showFeedback
-                    onComplete={(score, answers) => console.log('Quiz completed', { score, answers })}
-                  />
-                }
-              />
-              <Route
-                path="/certificate-generator-demo"
-                element={
-                  <CertificateGenerator
-                    data={sampleCertificateData}
-                    onGenerate={(url) => console.log('Certificate generated:', url.substring(0, 100) + '...')}
-                  />
-                }
-              />
-              <Route path="/student-management-demo" element={<StudentManagement role="school_admin" />} />
-              <Route path="/enrollment-system-demo" element={<EnrollmentSystem role="school_admin" />} />
-              <Route
-                path="/learning-path-navigation-demo"
-                element={
-                  <LearningPathNavigation
-                    course={sampleCourse}
-                    onLessonSelect={(lessonId) => console.log('Selected lesson:', lessonId)}
-                  />
-                }
-              />
-              <Route
-                path="/assignment-submission-demo"
-                element={
-                  <AssignmentSubmission
-                    assignment={sampleAssignment}
-                    onSubmit={(submission) => console.log('Assignment submitted:', submission)}
-                    onSaveDraft={(draft) => console.log('Draft saved:', draft)}
-                  />
-                }
-              />
-              <Route
-                path="/progress-tracking-demo"
-                element={<ProgressTracking studentId="demo-student-id" />}
-              />
 
               <Route path="*" element={<DashboardRedirect role={activeRole} />} />
             </Route>

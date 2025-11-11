@@ -1,7 +1,7 @@
 // Celebration Modal - Shows when student completes module or course
 import React, { useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import { Trophy, Award, ChevronRight, Home } from 'lucide-react';
+import { Trophy, Award, ChevronRight, Home, Star } from 'lucide-react';
 
 interface CelebrationModalProps {
   isOpen: boolean;
@@ -12,6 +12,7 @@ interface CelebrationModalProps {
   onNext?: () => void;
   onGoToDashboard?: () => void;
   nextButtonText?: string;
+  onTriggerReview?: () => void;
 }
 
 const CelebrationModal: React.FC<CelebrationModalProps> = ({
@@ -22,7 +23,8 @@ const CelebrationModal: React.FC<CelebrationModalProps> = ({
   message,
   onNext,
   onGoToDashboard,
-  nextButtonText = 'Next Module'
+  nextButtonText = 'Next Module',
+  onTriggerReview,
 }) => {
   useEffect(() => {
     if (isOpen) {
@@ -99,6 +101,19 @@ const CelebrationModal: React.FC<CelebrationModalProps> = ({
 
           {/* Action Buttons */}
           <div className="space-y-3">
+            {onTriggerReview && (
+              <button
+                onClick={() => {
+                  onTriggerReview();
+                  onClose();
+                }}
+                className="w-full flex items-center justify-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-6 py-3 text-primary-700 transition hover:bg-primary-100 hover:text-primary-800"
+              >
+                <Star size={18} className="text-primary-500" />
+                Share a Review
+              </button>
+            )}
+
             {onNext && (
               <button
                 onClick={() => {

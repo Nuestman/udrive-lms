@@ -3,21 +3,25 @@ import { useWhiteLabel } from '../../contexts/WhiteLabelContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Layout, Sidebar, Header, Footer } from '../ui/Layout';
-import { 
-  BookOpen, 
-  Users, 
-  BarChart, 
-  Settings, 
-  Briefcase, 
-  FileText, 
-  Award, 
+import {
+  BookOpen,
+  Users,
+  BarChart,
+  Settings,
+  Briefcase,
+  FileText,
+  Award,
   HelpCircle,
   Home,
   TrendingUp,
   UserCheck,
   GraduationCap,
   User,
-  Mail
+  Mail,
+  MessageSquareHeart,
+  Sparkles,
+  Star,
+  Megaphone,
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -34,6 +38,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { profile, signOut } = useAuth();
   const [unreadContactMessages, setUnreadContactMessages] = useState(0);
+  const [unreadAnnouncements, setUnreadAnnouncements] = useState(0);
   const navigate = useNavigate();
   const routerLocation = useLocation();
   const location = routerLocation.pathname; // current path
@@ -70,11 +75,53 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     }
   }, [role]);
 
+  useEffect(() => {
+    const rolesWithAnnouncements = ['super_admin', 'school_admin', 'instructor', 'student'];
+    if (!rolesWithAnnouncements.includes(role)) {
+      return;
+    }
+
+    const fetchUnreadAnnouncements = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        const params = new URLSearchParams({
+          limit: '50',
+          include_global: 'true',
+          status: 'published',
+          include_expired: 'false',
+        });
+
+        const response = await fetch(`${API_URL}/announcements?${params.toString()}`, {
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const items = Array.isArray(data?.data) ? data.data : [];
+          const unreadCount = items.filter((item: any) => item && item.is_read === false).length;
+          setUnreadAnnouncements(unreadCount);
+        }
+      } catch (error) {
+        console.error('Failed to fetch unread announcements count:', error);
+      }
+    };
+
+    fetchUnreadAnnouncements();
+    const interval = setInterval(fetchUnreadAnnouncements, 30000);
+    return () => clearInterval(interval);
+  }, [role]);
+
   const getNavItems = () => {
     const commonItems = [
-      { 
-        icon: <HelpCircle size={20} />, 
-        label: 'Help & Support', 
+      {
+        icon: <MessageSquareHeart size={20} />,
+        label: 'Feedback & Reviews',
+        href: '/feedback',
+        isActive: currentPath === '/feedback'
+      },
+      {
+        icon: <HelpCircle size={20} />,
+        label: 'Help & Support',
         href: '/help',
         isActive: currentPath === '/help'
       },
@@ -137,6 +184,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             href: '/admin/analytics',
             isActive: location === '/admin/analytics'
           },
+          {
+            icon: <Star size={20} />,
+            label: 'Reviews Moderation',
+            href: '/admin/reviews',
+            isActive: location === '/admin/reviews'
+          },
           { 
             icon: <Settings size={20} />, 
             label: 'System Settings', 
@@ -149,6 +202,25 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             href: '/admin/contact-messages',
             isActive: location === '/admin/contact-messages',
             badge: unreadContactMessages > 0 ? unreadContactMessages : undefined
+          },
+          {
+            icon: <Megaphone size={20} />,
+            label: 'Announcements',
+            href: '/admin/announcements',
+            isActive: location === '/admin/announcements',
+            badge: unreadAnnouncements > 0 ? unreadAnnouncements : undefined,
+          },
+          {
+            icon: <MessageSquareHeart size={20} />,
+            label: 'Feedback Insights',
+            href: '/admin/feedback-insights',
+            isActive: location === '/admin/feedback-insights'
+          },
+          {
+            icon: <Sparkles size={20} />,
+            label: 'Testimonials',
+            href: '/admin/testimonials',
+            isActive: location === '/admin/testimonials'
           },
           { 
             icon: <User size={20} />, 
@@ -197,17 +269,36 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             href: '/school/certificates',
             isActive: location === '/school/certificates'
           },
+          {
+            icon: <Megaphone size={20} />,
+            label: 'Announcements',
+            href: '/school/announcements',
+            isActive: location === '/school/announcements',
+            badge: unreadAnnouncements > 0 ? unreadAnnouncements : undefined,
+          },
           { 
             icon: <BarChart size={20} />, 
             label: 'Analytics', 
             href: '/school/analytics',
             isActive: location === '/school/analytics'
           },
+          {
+            icon: <Star size={20} />,
+            label: 'Reviews Moderation',
+            href: '/school/reviews',
+            isActive: location === '/school/reviews'
+          },
           { 
             icon: <Settings size={20} />, 
             label: 'Settings', 
             href: '/school/settings',
             isActive: location === '/school/settings'
+          },
+          {
+            icon: <MessageSquareHeart size={20} />,
+            label: 'Feedback Insights',
+            href: '/school/feedback-insights',
+            isActive: location === '/school/feedback-insights'
           },
           { 
             icon: <User size={20} />, 
@@ -250,6 +341,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             href: '/instructor/progress',
             isActive: location === '/instructor/progress'
           },
+          {
+            icon: <Megaphone size={20} />,
+            label: 'Announcements',
+            href: '/instructor/announcements',
+            isActive: location === '/instructor/announcements',
+            badge: unreadAnnouncements > 0 ? unreadAnnouncements : undefined,
+          },
           { 
             icon: <User size={20} />, 
             label: 'My Profile', 
@@ -272,6 +370,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             label: 'My Courses', 
             href: '/student/courses',
             isActive: location.startsWith('/student/courses')
+          },
+          {
+            icon: <Megaphone size={20} />,
+            label: 'Announcements',
+            href: '/student/announcements',
+            isActive: location === '/student/announcements',
+            badge: unreadAnnouncements > 0 ? unreadAnnouncements : undefined,
           },
           { 
             icon: <TrendingUp size={20} />, 

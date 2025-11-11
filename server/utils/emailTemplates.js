@@ -356,6 +356,43 @@ const templates = {
     const html = layout({ title, bodyHtml, appName, brandLogoCid, brandLogoUrl });
     return { subject: `${appName} — New Course: ${courseName}`, html, text: toText(`${title} ${courseName}`) };
   },
+
+  announcement_broadcast: ({
+    appName = DEFAULT_APP_NAME,
+    firstName,
+    announcementTitle,
+    announcementSummary,
+    announcementBodyHtml,
+    ctaUrl,
+    primaryColor = '#2563eb',
+    brandLogoCid,
+    brandLogoUrl,
+  }) => {
+    const safePrimary = primaryColor || '#2563eb';
+    const title = announcementTitle || 'New Announcement';
+    const bodyHtml = `
+      ${firstName ? `<p style="margin:0 0 12px 0;">Hi ${firstName},</p>` : ''}
+      ${announcementSummary ? `<p style="margin:0 0 16px 0;color:#334155;">${announcementSummary}</p>` : ''}
+      <div style="margin:0 0 16px 0;color:#0f172a;">${announcementBodyHtml || ''}</div>
+      ${
+        ctaUrl
+          ? `<p style="margin:24px 0 0;">
+              <a href="${ctaUrl}"
+                 style="display:inline-block;background:${safePrimary};color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600;">
+                View Announcement
+              </a>
+            </p>`
+          : ''
+      }
+    `;
+
+    const html = layout({ title, bodyHtml, appName, brandLogoCid, brandLogoUrl });
+    return {
+      subject: `${appName} — ${title}`,
+      html,
+      text: toText(`${title} ${announcementSummary || ''}`),
+    };
+  },
 };
 
 export function getEmailTemplate(templateId) {

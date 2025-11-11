@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Student Lesson Viewer - View and complete lessons
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, Circle, ChevronLeft, ChevronRight, Clock, Menu, X, Settings } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Circle, ChevronLeft, ChevronRight, Clock, Menu, X, Settings, Star, Pin } from 'lucide-react';
+import { formatDistanceToNow, differenceInCalendarDays } from 'date-fns';
 import { useProgress } from '../../hooks/useProgress';
 import { useAuth } from '../../contexts/AuthContext';
 import { useEnrollments } from '../../hooks/useEnrollments';
@@ -12,11 +13,52 @@ import PageLayout from '../ui/PageLayout';
 import { cleanLessonContent, convertYouTubeUrls, fixIframeAttributes } from '../../utils/htmlUtils';
 import CelebrationModal from '../ui/CelebrationModal';
 import QuizEngine from '../quiz/QuizEngine';
+import { fetchPublicReviews, Review } from '../../services/reviews.service';
+import { fetchAnnouncements, markAnnouncementAsRead, type Announcement } from '../../services/announcements.service';
+import { getCourseReviewSettings, type CourseReviewSettings } from '../../services/reviewSettings.service';
+import CourseReviewPromptModal from './CourseReviewPromptModal';
+
+const getLessonAnnouncementStyles = (announcement: Announcement) => {
+  if (announcement.isPinned) {
+    return {
+      headerBg: 'bg-amber-50',
+      headerText: 'text-amber-800',
+      border: 'border-amber-200',
+      statusBadge: 'bg-amber-100 text-amber-700',
+    };
+  }
+
+  if (!announcement.isRead) {
+    return {
+      headerBg: 'bg-primary-50',
+      headerText: 'text-primary-800',
+      border: 'border-primary-200',
+      statusBadge: 'bg-primary-100 text-primary-700',
+    };
+  }
+
+  return {
+    headerBg: 'bg-gray-50',
+    headerText: 'text-gray-800',
+    border: 'border-gray-200',
+    statusBadge: 'bg-gray-200 text-gray-600',
+  };
+};
+
+type ReviewPromptLocalState = {
+  promptCount: number;
+  lastPromptAt?: string | null;
+  lastAction?: 'prompted' | 'dismissed' | 'submitted';
+  lastActionAt?: string | null;
+  submittedAt?: string | null;
+};
+
+const REVIEW_PROMPT_STORAGE_PREFIX = 'udrive:course-review-prompt';
 
 const StudentLessonViewer: React.FC = () => {
   const { courseId: courseSlugOrId, lessonId: lessonParam } = useParams<{ courseId: string; lessonId: string }>();
   const navigate = useNavigate();
-  const { profile, user } = useAuth();
+  const { profile } = useAuth();
   
   const [course, setCourse] = useState<any>(null);
   const [modules, setModules] = useState<any[]>([]);
@@ -33,11 +75,22 @@ const StudentLessonViewer: React.FC = () => {
   const [resolvedCourseId, setResolvedCourseId] = useState<string | null>(null);
   const [resolvedLessonId, setResolvedLessonId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'lesson' | 'discussion' | 'notes' | 'announcements' | 'reviews' | 'tools'>('lesson');
   
   // Quiz state
   const [quizStarted, setQuizStarted] = useState(false);
   const [quizAttempts, setQuizAttempts] = useState<any[]>([]);
   const [loadingAttempts, setLoadingAttempts] = useState(false);
+
+  const [courseReviews, setCourseReviews] = useState<Review[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
+  const [ratingFilter, setRatingFilter] = useState<'all' | number>('all');
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewSettings, setReviewSettings] = useState<CourseReviewSettings | null>(null);
+  const [reviewSettingsLoaded, setReviewSettingsLoaded] = useState(false);
+  const [hasAutoPrompted, setHasAutoPrompted] = useState(false);
+  const [promptState, setPromptState] = useState<ReviewPromptLocalState>({ promptCount: 0 });
   
   // Celebration modal state
   const [celebrationModal, setCelebrationModal] = useState<{
@@ -61,8 +114,178 @@ const StudentLessonViewer: React.FC = () => {
     if (resolvedCourseId) base.course_id = resolvedCourseId;
     return Object.keys(base).length ? base : undefined;
   }, [profile?.id, resolvedCourseId]);
+  const promptStorageKey = useMemo(() => {
+    if (!profile?.id || !resolvedCourseId) {
+      return null;
+    }
+    return `${REVIEW_PROMPT_STORAGE_PREFIX}:${profile.id}:${resolvedCourseId}`;
+  }, [profile?.id, resolvedCourseId]);
   const { enrollments, refreshEnrollments } = useEnrollments(enrollmentFilters as any);
   const { info, success, error } = useToast();
+  const [courseAnnouncements, setCourseAnnouncements] = useState<Announcement[]>([]);
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false);
+  const [announcementsError, setAnnouncementsError] = useState<string | null>(null);
+  const markedAnnouncementsRef = useRef<Set<string>>(new Set());
+
+  const isStudentContext = useMemo(
+    () =>
+      Boolean(
+        profile &&
+          (profile.active_role === 'student' ||
+            (!profile.active_role && profile.role === 'student'))
+      ),
+    [profile]
+  );
+
+  const lessonTabs = useMemo(
+    () => [
+      { label: 'Overview', value: 'overview' as const },
+      { label: 'Lesson', value: 'lesson' as const },
+      { label: 'Discussion', value: 'discussion' as const },
+      { label: 'Notes', value: 'notes' as const },
+      { label: 'Announcements', value: 'announcements' as const },
+      { label: 'Reviews', value: 'reviews' as const },
+      { label: 'Tools', value: 'tools' as const }
+    ],
+    []
+  );
+
+  useEffect(() => {
+    if (!promptStorageKey || typeof window === 'undefined') {
+      setPromptState({ promptCount: 0 });
+      return;
+    }
+
+    try {
+      const raw = localStorage.getItem(promptStorageKey);
+      if (!raw) {
+        setPromptState({ promptCount: 0 });
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      setPromptState({
+        promptCount: Number(parsed.promptCount) || 0,
+        lastPromptAt: parsed.lastPromptAt ?? null,
+        lastAction: parsed.lastAction ?? undefined,
+        lastActionAt: parsed.lastActionAt ?? null,
+        submittedAt: parsed.submittedAt ?? null,
+      });
+    } catch (storageError) {
+      console.warn('Failed to read review prompt state', storageError);
+      setPromptState({ promptCount: 0 });
+    }
+  }, [promptStorageKey]);
+
+  const writePromptState = useCallback(
+    (updater: (prev: ReviewPromptLocalState) => ReviewPromptLocalState) => {
+      if (!promptStorageKey || typeof window === 'undefined') {
+        return;
+      }
+
+      setPromptState((prev) => {
+        const base = prev ?? { promptCount: 0 };
+        const next = updater(base);
+        try {
+          localStorage.setItem(promptStorageKey, JSON.stringify(next));
+        } catch (storageError) {
+          console.warn('Failed to persist review prompt state', storageError);
+        }
+        return next;
+      });
+    },
+    [promptStorageKey]
+  );
+
+  useEffect(() => {
+    if (!resolvedCourseId) {
+      setCourseAnnouncements([]);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadAnnouncements = async () => {
+      try {
+        setAnnouncementsLoading(true);
+        setAnnouncementsError(null);
+        const data = await fetchAnnouncements({
+          courseId: resolvedCourseId,
+          includeGlobal: true,
+          limit: 50,
+        });
+        if (!isCancelled) {
+          setCourseAnnouncements(Array.isArray(data) ? data : []);
+        }
+      } catch (err: any) {
+        if (!isCancelled) {
+          console.error('Failed to load course announcements:', err);
+          setAnnouncementsError(err.message || 'Unable to load announcements right now.');
+        }
+      } finally {
+        if (!isCancelled) {
+          setAnnouncementsLoading(false);
+        }
+      }
+    };
+
+    loadAnnouncements();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [resolvedCourseId]);
+
+  useEffect(() => {
+    if (activeTab !== 'announcements') return;
+    if (courseAnnouncements.length === 0) return;
+
+    const unreadAnnouncements = courseAnnouncements.filter(
+      (announcement) =>
+        !announcement.isRead && !markedAnnouncementsRef.current.has(announcement.id)
+    );
+
+    if (unreadAnnouncements.length === 0) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const markAnnouncementsRead = async () => {
+      await Promise.all(
+        unreadAnnouncements.map(async (announcement) => {
+          try {
+            const updated = await markAnnouncementAsRead(announcement.id);
+            markedAnnouncementsRef.current.add(announcement.id);
+            if (!isCancelled) {
+              setCourseAnnouncements((prev) =>
+                prev.map((item) =>
+                  item.id === announcement.id
+                    ? {
+                        ...item,
+                        isRead: true,
+                        readAt:
+                          updated?.readAt ||
+                          updated?.publishedAt ||
+                          item.readAt ||
+                          new Date().toISOString(),
+                      }
+                    : item
+                )
+              );
+            }
+          } catch (err) {
+            console.warn('Failed to mark announcement as read', err);
+          }
+        })
+      );
+    };
+
+    markAnnouncementsRead();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeTab, courseAnnouncements]);
 
   useEffect(() => {
     if (courseSlugOrId) {
@@ -70,6 +293,105 @@ const StudentLessonViewer: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseSlugOrId]);
+
+  useEffect(() => {
+    if (!resolvedCourseId) {
+      setReviewSettings(null);
+      setReviewSettingsLoaded(false);
+      return;
+    }
+
+    setReviewSettingsLoaded(false);
+    let isCancelled = false;
+
+    const loadReviewSettings = async () => {
+      try {
+        const data = await getCourseReviewSettings(resolvedCourseId);
+        if (!isCancelled) {
+          setReviewSettings(data);
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          console.warn('Failed to load course review settings', err);
+          setReviewSettings(null);
+        }
+      } finally {
+        if (!isCancelled) {
+          setReviewSettingsLoaded(true);
+        }
+      }
+    };
+
+    loadReviewSettings();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [resolvedCourseId]);
+
+  const loadCourseReviews = useCallback(async () => {
+    if (!resolvedCourseId) {
+      return;
+    }
+    try {
+      setLoadingReviews(true);
+      setReviewsError(null);
+      const data = await fetchPublicReviews({
+        type: 'course',
+        reviewable_id: resolvedCourseId,
+        limit: 50,
+      });
+      setCourseReviews(data);
+    } catch (err: any) {
+      console.error('Failed to load course reviews:', err);
+      setReviewsError(err.message || 'Unable to load course reviews right now.');
+    } finally {
+      setLoadingReviews(false);
+    }
+  }, [resolvedCourseId]);
+
+  useEffect(() => {
+    if (activeTab === 'reviews' && resolvedCourseId) {
+      loadCourseReviews();
+    }
+  }, [activeTab, resolvedCourseId, loadCourseReviews]);
+
+  useEffect(() => {
+    setRatingFilter('all');
+  }, [resolvedCourseId]);
+
+  useEffect(() => {
+    setHasAutoPrompted(false);
+  }, [resolvedCourseId]);
+
+  const averageRating = useMemo(() => {
+    const rated = courseReviews.filter((review) => review.rating && review.rating > 0);
+    if (rated.length === 0) {
+      return null;
+    }
+    const sum = rated.reduce((acc, review) => acc + (review.rating || 0), 0);
+    return {
+      value: sum / rated.length,
+      count: rated.length,
+    };
+  }, [courseReviews]);
+
+  const ratingBuckets = useMemo(() => {
+    const base = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } as Record<number, number>;
+    courseReviews.forEach((review) => {
+      if (review.rating && review.rating >= 1 && review.rating <= 5) {
+        base[review.rating] += 1;
+      }
+    });
+    return base;
+  }, [courseReviews]);
+
+  const filteredCourseReviews = useMemo(() => {
+    if (ratingFilter === 'all') {
+      return courseReviews;
+    }
+    return courseReviews.filter((review) => review.rating === ratingFilter);
+  }, [ratingFilter, courseReviews]);
 
   // Combine lessons and quizzes into a single content array
   useEffect(() => {
@@ -493,59 +815,174 @@ const StudentLessonViewer: React.FC = () => {
     }
   };
 
-  const isContentCompleted = (contentId: string) => {
-    // Since the overall progress is working correctly (88%), let's use a simpler approach
-    // Check if this is a quiz first
-    const isQuiz = allQuizzes.some(quiz => quiz.id === contentId);
-    
-    if (isQuiz) {
-      // For quizzes, check cached completion status
-      const cachedStatus = quizCompletionStatus[contentId];
-      if (cachedStatus) {
-        console.log(`[Completion Check] Quiz ${contentId} completed (cached): ${cachedStatus}`);
-        return true;
-      }
-    }
-    
-    // For lessons, check the progress data
-    if (!progress) {
-      console.log(`[Completion Check] No progress data available for ${contentId}`);
-      return false;
-    }
-    
-    // Look through all modules for the lesson
-    for (const module of progress) {
-      console.log(`[Completion Check] Checking module ${module.module_title} for content ${contentId}`);
-      
-      // Check legacy lessons array (this is what's working)
-      const lessons = module.lessons || [];
-      console.log(`[Completion Check] Module has ${lessons.length} lessons:`, lessons.map((l: any) => ({ id: l.lesson_id, title: l.title, completed: l.completed })));
-      
-      const lesson = lessons.find((l: any) => l.lesson_id === contentId);
-      if (lesson?.completed) {
-        console.log(`[Completion Check] Lesson ${contentId} completed: ${lesson.completed}`);
-        return true;
-      }
-      
-      // Check unified content array if available
-      if (module.content && Array.isArray(module.content)) {
-        const contentItem = module.content.find((item: any) => {
-          return (item.lesson_id === contentId) || (item.quiz_id === contentId);
-        });
-        
-        if (contentItem?.completed) {
-          console.log(`[Completion Check] ${contentItem.type} ${contentId} completed: ${contentItem.completed}`);
+  const isContentCompleted = useCallback(
+    (contentId: string) => {
+      // Since the overall progress is working correctly (88%), let's use a simpler approach
+      // Check if this is a quiz first
+      const isQuiz = allQuizzes.some((quiz) => quiz.id === contentId);
+
+      if (isQuiz) {
+        // For quizzes, check cached completion status
+        const cachedStatus = quizCompletionStatus[contentId];
+        if (cachedStatus) {
+          console.log(`[Completion Check] Quiz ${contentId} completed (cached): ${cachedStatus}`);
           return true;
         }
       }
-    }
-    
-    console.log(`[Completion Check] Content ${contentId} not completed`);
-    return false;
-  };
+
+      // For lessons, check the progress data
+      if (!progress) {
+        console.log(`[Completion Check] No progress data available for ${contentId}`);
+        return false;
+      }
+
+      // Look through all modules for the lesson
+      for (const module of progress) {
+        console.log(
+          `[Completion Check] Checking module ${module.module_title} for content ${contentId}`
+        );
+
+        // Check legacy lessons array (this is what's working)
+        const lessons = module.lessons || [];
+        console.log(
+          `[Completion Check] Module has ${lessons.length} lessons:`,
+          lessons.map((l: any) => ({ id: l.lesson_id, title: l.title, completed: l.completed }))
+        );
+
+        const lesson = lessons.find((l: any) => l.lesson_id === contentId);
+        if (lesson?.completed) {
+          console.log(`[Completion Check] Lesson ${contentId} completed: ${lesson.completed}`);
+          return true;
+        }
+
+        // Check unified content array if available
+        if (module.content && Array.isArray(module.content)) {
+          const contentItem = module.content.find((item: any) => {
+            return item.lesson_id === contentId || item.quiz_id === contentId;
+          });
+
+          if (contentItem?.completed) {
+            console.log(
+              `[Completion Check] ${contentItem.type} ${contentId} completed: ${contentItem.completed}`
+            );
+            return true;
+          }
+        }
+      }
+
+      console.log(`[Completion Check] Content ${contentId} not completed`);
+      return false;
+    },
+    [allQuizzes, progress, quizCompletionStatus]
+  );
 
   // Keep the old function name for backward compatibility
   const isLessonCompleted = isContentCompleted;
+
+  useEffect(() => {
+    if (hasAutoPrompted) return;
+    if (!reviewSettingsLoaded) return;
+    if (!reviewSettings) return;
+    if (!resolvedCourseId) return;
+    if (!isStudentContext) return;
+    if (!promptStorageKey) return;
+    if (showReviewModal) return;
+
+    const enrollment = enrollments.find((e: any) => e.course_id === resolvedCourseId);
+    const enrollmentProgress = enrollment?.progress_percentage ?? 0;
+    const totalContent = allContent.length;
+    const completedContent =
+      totalContent > 0 ? allContent.filter((item) => isContentCompleted(item.id)).length : 0;
+    const calculatedProgress =
+      totalContent > 0 ? Math.round((completedContent / totalContent) * 100) : 0;
+    const progressPercentage =
+      enrollmentProgress > 0 ? enrollmentProgress : calculatedProgress;
+
+    const settings = reviewSettings;
+    let meetsTrigger = false;
+
+    if (settings.trigger_type === 'percentage') {
+      const threshold = settings.trigger_value ?? 0;
+      meetsTrigger = threshold > 0 && progressPercentage >= threshold;
+    } else if (settings.trigger_type === 'lesson_count') {
+      const threshold = settings.trigger_value ?? 0;
+      meetsTrigger = threshold > 0 && completedContent >= threshold;
+    } else {
+      return; // manual trigger only
+    }
+
+    if (!meetsTrigger) return;
+
+    const state = promptState || { promptCount: 0 };
+
+    if (!settings.allow_multiple) {
+      if (state.submittedAt) return;
+      if (state.promptCount >= 1) return;
+    }
+
+    if (settings.cooldown_days && settings.cooldown_days > 0 && state.lastPromptAt) {
+      try {
+        const diff = differenceInCalendarDays(new Date(), new Date(state.lastPromptAt));
+        if (!Number.isNaN(diff) && diff < settings.cooldown_days) {
+          return;
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+
+    setHasAutoPrompted(true);
+    setShowReviewModal(true);
+    writePromptState((prev) => ({
+      ...prev,
+      promptCount: (prev.promptCount ?? 0) + 1,
+      lastPromptAt: new Date().toISOString(),
+      lastAction: 'prompted',
+      lastActionAt: new Date().toISOString(),
+    }));
+  }, [
+    allContent,
+    enrollments,
+    hasAutoPrompted,
+    isContentCompleted,
+    isStudentContext,
+    promptState,
+    promptStorageKey,
+    reviewSettings,
+    reviewSettingsLoaded,
+    resolvedCourseId,
+    showReviewModal,
+    writePromptState,
+  ]);
+
+  const handleReviewModalClose = useCallback(() => {
+    setShowReviewModal(false);
+    writePromptState((prev) => ({
+      ...prev,
+      lastAction: 'dismissed',
+      lastActionAt: new Date().toISOString(),
+    }));
+  }, [writePromptState]);
+
+  const handleReviewModalSubmitted = useCallback(() => {
+    loadCourseReviews();
+    setShowReviewModal(false);
+    writePromptState((prev) => ({
+      ...prev,
+      lastAction: 'submitted',
+      lastActionAt: new Date().toISOString(),
+      submittedAt: new Date().toISOString(),
+    }));
+  }, [loadCourseReviews, writePromptState]);
+
+  const handleReviewModalManualOpen = useCallback(() => {
+    setShowReviewModal(true);
+    writePromptState((prev) => ({
+      ...prev,
+      lastAction: 'prompted',
+      lastActionAt: new Date().toISOString(),
+    }));
+  }, [writePromptState]);
 
   // Check if quiz complete button should be shown (only if passed and not already completed)
   const shouldShowQuizCompleteButton = () => {
@@ -987,6 +1424,438 @@ const StudentLessonViewer: React.FC = () => {
     );
   };
 
+  const renderNonLessonTabContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return (
+          <div className="space-y-6 p-4 sm:p-6">
+            <section>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Course Overview</h2>
+              <p className="text-gray-700 whitespace-pre-line">
+                {course?.description || 'Course overview will be available soon.'}
+              </p>
+            </section>
+
+            <section>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Modules</h3>
+              <ul className="space-y-3">
+                {modules.length > 0 ? (
+                  modules.map((module) => {
+                    const moduleContentCount = allContent.filter((item) => item.module_id === module.id).length;
+                    return (
+                      <li
+                        key={module.id}
+                        className="p-4 border border-gray-200 rounded-lg bg-gray-50"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <span className="font-medium text-gray-900">{module.title}</span>
+                          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                            {moduleContentCount} item{moduleContentCount === 1 ? '' : 's'}
+                          </span>
+                        </div>
+                        {module.description && (
+                          <p className="text-sm text-gray-600 mt-2">{module.description}</p>
+                        )}
+                      </li>
+                    );
+                  })
+                ) : (
+                  <li className="text-sm text-gray-500">
+                    Modules will appear here once available.
+                  </li>
+                )}
+              </ul>
+            </section>
+          </div>
+        );
+      case 'announcements':
+        return (
+          <div className="p-4 sm:p-6 space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Announcements</h2>
+                <p className="text-gray-600">
+                  Track course-wide updates, refreshed modules, and lesson tweaks from your instructors in real time.
+                </p>
+              </div>
+            </div>
+
+            {announcementsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-b-2 border-primary-600"></div>
+                  <p className="text-sm text-gray-600">Loading announcements...</p>
+                </div>
+              </div>
+            ) : announcementsError ? (
+              <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                {announcementsError}
+              </div>
+            ) : courseAnnouncements.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
+                <h3 className="text-base font-semibold text-gray-900">No course announcements yet</h3>
+                <p className="mt-2 text-sm text-gray-600">
+                  When instructors publish course, module, lesson, or quiz updates you&apos;ll find them here.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {courseAnnouncements.map((announcement) => {
+                const metadata = (announcement.metadata || {}) as Record<string, any>;
+                const link =
+                  (typeof metadata.link === 'string' && metadata.link) ||
+                  (typeof metadata.ctaUrl === 'string' && metadata.ctaUrl) ||
+                  (typeof (metadata as any).cta_url === 'string' && (metadata as any).cta_url) ||
+                  undefined;
+                const publishedAt =
+                  announcement.publishedAt || announcement.updatedAt || announcement.createdAt;
+                  const timestamp = (() => {
+                    try {
+                    if (!publishedAt) return 'Just now';
+                    const date = new Date(publishedAt);
+                      if (Number.isNaN(date.getTime())) {
+                        return 'Just now';
+                      }
+                      return formatDistanceToNow(date, { addSuffix: true });
+                    } catch {
+                      return 'Just now';
+                    }
+                  })();
+                  const authorName =
+                    announcement.author?.fullName ||
+                    [announcement.author?.firstName, announcement.author?.lastName]
+                      .filter(Boolean)
+                      .join(' ')
+                      .trim() ||
+                    announcement.author?.email ||
+                    (announcement.authorRole === 'super_admin' ? 'Super Admin' : 'Announcement');
+                  const styles = getLessonAnnouncementStyles(announcement);
+
+                  return (
+                    <article
+                      key={announcement.id}
+                      className={`bg-white border ${styles.border} rounded-lg shadow-sm transition hover:shadow-md overflow-hidden`}
+                    >
+                      <div
+                        className={`flex flex-col gap-2 px-4 py-3 sm:px-6 ${styles.headerBg}`}
+                      >
+                        <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-1 font-semibold ${styles.statusBadge}`}
+                          >
+                            {announcement.isPinned ? (
+                              <>
+                                <Pin size={12} />
+                                Pinned
+                              </>
+                            ) : (
+                              'Announcement'
+                            )}
+                          </span>
+                          {announcement.audienceScope !== 'global' && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white/70 px-2 py-1 font-semibold text-gray-700">
+                              {announcement.audienceScope === 'tenant'
+                                ? 'School'
+                                : announcement.audienceScope}
+                            </span>
+                          )}
+                          {announcement.contextType !== 'general' && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white/70 px-2 py-1 font-semibold text-gray-700">
+                              {announcement.contextType}
+                            </span>
+                          )}
+                          <span className="text-gray-500">{timestamp}</span>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Posted by {authorName}</p>
+                          <h3 className={`text-lg font-semibold ${styles.headerText}`}>
+                            {announcement.title}
+                          </h3>
+                        </div>
+                      </div>
+
+                      <div className="px-4 py-4 sm:px-6 space-y-4">
+                        {announcement.summary && (
+                          <p className="text-sm text-gray-600">{announcement.summary}</p>
+                        )}
+                        <div
+                          className="prose prose-sm max-w-none text-sm text-gray-700"
+                          dangerouslySetInnerHTML={{ __html: announcement.bodyHtml || '' }}
+                        />
+                        {metadata && Object.keys(metadata).length > 0 && (
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                              {(() => {
+                              if (Array.isArray(metadata.changes) && metadata.changes.length > 0) {
+                                  return (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-1 text-primary-700">
+                                    Updates: {metadata.changes.join(', ')}
+                                    </span>
+                                  );
+                                }
+                              if (typeof metadata.moduleName === 'string') {
+                                  return (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-1 text-primary-700">
+                                    Module: {metadata.moduleName}
+                                    </span>
+                                  );
+                                }
+                              if (typeof metadata.lessonName === 'string') {
+                                  return (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-1 text-primary-700">
+                                    Lesson: {metadata.lessonName}
+                                    </span>
+                                  );
+                                }
+                              if (typeof metadata.quizTitle === 'string') {
+                                  return (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-1 text-primary-700">
+                                    Quiz: {metadata.quizTitle}
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
+                        )}
+                        {announcement.media && announcement.media.length > 0 && (
+                          <div className="space-y-3">
+                            {announcement.media.map((media) => (
+                              <div
+                                key={media.id}
+                                className="overflow-hidden rounded-lg border border-gray-200 bg-gray-50"
+                              >
+                                {media.mediaType === 'image' ? (
+                                  <img
+                                    src={media.url}
+                                    alt={media.altText || media.title || 'Announcement media'}
+                                    className="max-h-72 w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm text-gray-700">
+                                    <div className="flex flex-col">
+                                      <span className="font-medium text-gray-900">
+                                        {media.title || 'Attachment'}
+                                      </span>
+                                      {media.description && (
+                                        <span className="text-xs text-gray-500">{media.description}</span>
+                          )}
+                        </div>
+                            <a
+                                      href={media.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-700"
+                            >
+                                      View
+                            </a>
+                                  </div>
+                          )}
+                        </div>
+                            ))}
+                      </div>
+                        )}
+                        {link && (
+                          <a
+                            href={link}
+                            className="inline-flex w-fit items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-700"
+                          >
+                            View details →
+                          </a>
+                        )}
+                    </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      case 'reviews':
+        return (
+          <div className="p-4 sm:p-6 space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Hear from fellow learners</h2>
+              <p className="text-sm text-gray-600">
+                Discover how this course is helping other students grow, then add your own voice to guide future learners.
+              </p>
+            </div>
+
+            {isStudentContext && resolvedCourseId && (
+              <div className="rounded-xl border border-gray-100 bg-primary-50/60 px-5 py-4 text-sm text-primary-700 shadow-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <Star className="h-4 w-4 text-primary-500" />
+                    <p>
+                      Ready to share your perspective? Leave a quick review once you&apos;ve experienced enough of the course.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleReviewModalManualOpen}
+                    className="inline-flex items-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700"
+                  >
+                    Share my experience
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {averageRating && (
+              <div className="grid gap-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm sm:grid-cols-3">
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Average rating
+                  </span>
+                  <div className="mt-2 flex items-baseline gap-2 text-3xl font-semibold text-gray-900">
+                    {averageRating.value.toFixed(1)}
+                    <span className="text-sm font-medium text-gray-500">/ 5</span>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">{averageRating.count} verified reviews</p>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Filter by rating
+                  </span>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRatingFilter('all')}
+                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                        ratingFilter === 'all'
+                          ? 'bg-primary-100 text-primary-700'
+                          : 'bg-gray-100 text-gray-600 hover:bg-primary-50 hover:text-primary-600'
+                      }`}
+                    >
+                      All ({averageRating.count})
+                    </button>
+                    {[5, 4, 3, 2, 1].map((score) => (
+                      <button
+                        key={score}
+                        type="button"
+                        onClick={() => setRatingFilter(score)}
+                        className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                          ratingFilter === score
+                            ? 'bg-primary-500 text-white shadow-sm'
+                            : 'bg-gray-100 text-gray-600 hover:bg-primary-50 hover:text-primary-600'
+                        }`}
+                      >
+                        <Star className={`h-3.5 w-3.5 ${ratingFilter === score ? 'fill-current' : ''}`} />
+                        {score}
+                        <span className="text-[11px] text-gray-400">
+                          ({ratingBuckets[score as 1 | 2 | 3 | 4 | 5] || 0})
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {reviewsError && (
+              <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {reviewsError}
+              </div>
+            )}
+
+            {loadingReviews ? (
+              <div className="flex min-h-[120px] items-center justify-center text-gray-500">
+                <div className="flex items-center gap-2">
+                  <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-primary-600" />
+                  <span>Loading reviews...</span>
+                </div>
+              </div>
+            ) : courseReviews.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+                No published reviews yet. Once learners start sharing their stories, you&apos;ll see them here.
+              </div>
+            ) : filteredCourseReviews.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+                No reviews match this filter yet.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredCourseReviews.map((review) => (
+                  <article
+                    key={review.id}
+                    className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm transition hover:shadow-md"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-amber-500 flex items-center gap-1">
+                          {Array.from({ length: review.rating || 0 }).map((_, index) => (
+                            <Star key={index} className="h-4 w-4 fill-current" />
+                          ))}
+                          {(!review.rating || review.rating === 0) && (
+                            <span className="text-xs uppercase tracking-wide text-gray-400">No rating</span>
+                          )}
+                        </div>
+                        <h3 className="mt-2 text-lg font-semibold text-gray-900">
+                          {review.title || 'Course feedback'}
+                        </h3>
+                      </div>
+                    </div>
+                    <div className="mt-2 text-xs uppercase tracking-wide text-gray-500">
+                      {review.user?.name || review.user?.email || 'Learner'} •{' '}
+                      {new Date(review.created_at).toLocaleDateString()}
+                    </div>
+                    <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-gray-700">
+                      {review.body}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      case 'discussion':
+        return (
+          <div className="p-4 sm:p-6 space-y-4">
+            <h2 className="text-xl font-semibold text-gray-900">Discussion</h2>
+            <p className="text-gray-600">
+              Learner-to-learner discussion features are coming soon. Stay tuned!
+            </p>
+          </div>
+        );
+      case 'notes':
+        return (
+          <div className="p-4 sm:p-6 space-y-4">
+            <h2 className="text-xl font-semibold text-gray-900">Notes</h2>
+            <p className="text-gray-600">
+              Personal note taking will be available in a future update. For now, keep track of key insights in your preferred note app.
+            </p>
+          </div>
+        );
+      case 'tools':
+        return (
+          <div className="p-4 sm:p-6 space-y-6">
+            <h2 className="text-xl font-semibold text-gray-900">Learning Tools</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex items-start gap-3 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <Settings className="text-primary-600 mt-1" size={20} />
+                <div>
+                  <h3 className="font-medium text-gray-900">Resources</h3>
+                  <p className="text-sm text-gray-600">
+                    Downloadable materials and helpful links will appear here when provided by the instructor.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <Settings className="text-primary-600 mt-1" size={20} />
+                <div>
+                  <h3 className="font-medium text-gray-900">Practice Tools</h3>
+                  <p className="text-sm text-gray-600">
+                    Interactive practice and sandbox environments will be surfaced here in upcoming releases.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -1036,6 +1905,26 @@ const StudentLessonViewer: React.FC = () => {
 
   return (
     <>
+      {isStudentContext && resolvedCourseId && (
+        <div className="group fixed bottom-10 right-0 z-40 pr-2">
+          <button
+            type="button"
+            onClick={handleReviewModalManualOpen}
+            className="inline-flex translate-x-[85%] items-center gap-2 rounded-lg border border-transparent bg-primary-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition-all duration-200 ease-out group-hover:translate-x-0 group-hover:border-primary-500/70 group-hover:bg-white/10 group-hover:text-primary-700 group-hover:backdrop-blur-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+            aria-label="Share a course review"
+          >
+            <Star size={16} />
+            Share Review
+          </button>
+        </div>
+      )}
+      <CourseReviewPromptModal
+        open={Boolean(showReviewModal && resolvedCourseId)}
+        courseId={resolvedCourseId ?? ''}
+        courseTitle={course?.title}
+        onSubmitted={handleReviewModalSubmitted}
+        onClose={handleReviewModalClose}
+      />
       {/* Celebration Modal */}
       <CelebrationModal
         isOpen={celebrationModal.isOpen}
@@ -1046,6 +1935,7 @@ const StudentLessonViewer: React.FC = () => {
         onNext={celebrationModal.type === 'course' ? navigateToCertificates : (celebrationModal.hasNextModule ? goToNextModule : undefined)}
         onGoToDashboard={celebrationModal.type === 'course' ? () => navigate('/student/dashboard') : undefined}
         nextButtonText={celebrationModal.type === 'course' ? 'View Certificate' : (celebrationModal.hasNextModule ? 'Start Next Module' : undefined)}
+        onTriggerReview={isStudentContext ? handleReviewModalManualOpen : undefined}
       />
 
       <PageLayout
@@ -1082,7 +1972,7 @@ const StudentLessonViewer: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Mobile sidebar overlay */}
         <div 
-          className={`fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden transition-opacity duration-300 ${
+          className={`fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden transition-opacity duration-300 ${
             isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
           onClick={() => setIsSidebarOpen(false)}
@@ -1091,8 +1981,8 @@ const StudentLessonViewer: React.FC = () => {
         {/* Sidebar - Course Structure */}
         <div className={`lg:col-span-1 ${
           isSidebarOpen 
-            ? 'fixed inset-y-0 left-0 w-80 bg-white shadow-xl z-50 lg:relative lg:shadow-sm lg:inset-auto lg:w-auto transform transition-transform duration-300 ease-in-out translate-x-0' 
-            : 'fixed inset-y-0 left-0 w-80 bg-white shadow-xl z-50 lg:relative lg:shadow-sm lg:inset-auto lg:w-auto transform transition-transform duration-300 ease-in-out -translate-x-full lg:translate-x-0 lg:block'
+            ? 'fixed inset-y-0 left-0 w-80 bg-white shadow-xl z-40 lg:relative lg:z-auto lg:shadow-sm lg:inset-auto lg:w-auto transform transition-transform duration-300 ease-in-out translate-x-0' 
+            : 'fixed inset-y-0 left-0 w-80 bg-white shadow-xl z-40 lg:relative lg:z-auto lg:shadow-sm lg:inset-auto lg:w-auto transform transition-transform duration-300 ease-in-out -translate-x-full lg:translate-x-0 lg:block'
         }`}>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sticky top-4 h-full lg:h-auto overflow-y-auto">
             {/* Mobile close button */}
@@ -1137,12 +2027,11 @@ const StudentLessonViewer: React.FC = () => {
                       <span>Overall Progress</span>
                       <span className="font-medium">{progressPercentage}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${progressPercentage}%` }}
-                      />
-                    </div>
+                    <progress
+                      value={progressPercentage}
+                      max={100}
+                      className="w-full h-2 overflow-hidden rounded-full bg-gray-200 [&::-webkit-progress-bar]:bg-gray-200 [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-value]:bg-primary-600 [&::-webkit-progress-value]:rounded-full [&::-moz-progress-bar]:bg-primary-600"
+                    />
                     <div className="text-xs text-gray-500 mt-1">
                       {enrollmentProgress > 0 ? 'Enrollment Progress' : `${completedContent} of ${totalContent} content items completed`}
                     </div>
@@ -1209,93 +2098,118 @@ const StudentLessonViewer: React.FC = () => {
         {/* Main Content - Lesson Viewer */}
         <div className="col-span-1 lg:col-span-3">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            {/* Content Header */}
-            <div className="p-4 sm:p-6 border-b border-gray-200">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                <div className="flex-1">
-                  <div className="text-sm text-gray-500 mb-1">
-                    {currentLesson?.module_title || currentQuiz?.module_title}
-                  </div>
-                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex flex-col sm:flex-row sm:items-center gap-2">
-                    {currentQuiz && <span className="text-sm bg-primary-100 text-primary-600 px-2 py-1 rounded self-start">Quiz</span>}
-                    <span className="break-words">{currentLesson?.title || currentQuiz?.title}</span>
-                  </h1>
-                  {(currentLesson?.estimated_duration_minutes || currentQuiz?.time_limit_minutes) && (
-                    <div className="flex items-center text-sm text-gray-600 mt-2">
-                      <Clock size={14} className="mr-1" />
-                      {currentLesson?.estimated_duration_minutes || currentQuiz?.time_limit_minutes} minutes
-                    </div>
-                  )}
-                </div>
-                {(currentLesson || (currentQuiz && shouldShowQuizCompleteButton())) && (
+            <div className="border-b border-gray-200">
+              <nav className="flex overflow-x-auto">
+                {lessonTabs.map((tab) => (
                   <button
-                    onClick={() => handleToggleComplete()}
-                    className={`flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-colors w-full sm:w-auto ${
-                      isCompleted
-                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                        : 'bg-primary-600 text-white hover:bg-primary-700'
+                    key={tab.value}
+                    type="button"
+                    onClick={() => setActiveTab(tab.value)}
+                    className={`px-4 sm:px-6 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                      activeTab === tab.value
+                        ? 'border-primary-600 text-primary-700'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
                     }`}
-                    disabled={isCompleting}
                   >
-                    <CheckCircle size={18} className="mr-2" />
-                    <span className="hidden sm:inline">
-                      {isCompleting ? (isCompleted ? 'Updating...' : 'Completing...') : (isCompleted ? 'Completed' : 'Mark as Complete')}
-                    </span>
-                    <span className="sm:hidden">
-                      {isCompleting ? (isCompleted ? 'Updating...' : 'Completing...') : (isCompleted ? 'Done' : 'Complete')}
-                    </span>
+                    {tab.label}
                   </button>
-                )}
-              </div>
+                ))}
+              </nav>
             </div>
 
-            {/* Content */}
-            <div className="p-4 sm:p-6">
-              {currentLesson && renderLessonContent()}
-              {currentQuiz && renderQuizContent()}
-            </div>
-
-            {/* Navigation */}
-            <div className="p-4 sm:p-6 border-t border-gray-200">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <button
-                  onClick={goToPreviousContent}
-                  disabled={getCurrentContentIndex() === 0}
-                  className="flex items-center justify-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
-                >
-                  <ChevronLeft size={18} className="mr-1" />
-                  Previous
-                </button>
-
-                <div className="text-sm text-gray-600 text-center order-first sm:order-none">
-                  {currentLesson ? 'Lesson' : currentQuiz ? 'Quiz' : 'Item'} {getCurrentContentIndex() + 1} of {allContent.length}
+            {activeTab === 'lesson' ? (
+              <>
+                {/* Content Header */}
+                <div className="p-4 sm:p-6 border-b border-gray-200">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="text-sm text-gray-500 mb-1">
+                        {currentLesson?.module_title || currentQuiz?.module_title}
+                      </div>
+                      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex flex-col sm:flex-row sm:items-center gap-2">
+                        {currentQuiz && <span className="text-sm bg-primary-100 text-primary-600 px-2 py-1 rounded self-start">Quiz</span>}
+                        <span className="break-words">{currentLesson?.title || currentQuiz?.title}</span>
+                      </h1>
+                      {(currentLesson?.estimated_duration_minutes || currentQuiz?.time_limit_minutes) && (
+                        <div className="flex items-center text-sm text-gray-600 mt-2">
+                          <Clock size={14} className="mr-1" />
+                          {currentLesson?.estimated_duration_minutes || currentQuiz?.time_limit_minutes} minutes
+                        </div>
+                      )}
+                    </div>
+                    {(currentLesson || (currentQuiz && shouldShowQuizCompleteButton())) && (
+                      <button
+                        onClick={() => handleToggleComplete()}
+                        className={`flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-colors w-full sm:w-auto ${
+                          isCompleted
+                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                            : 'bg-primary-600 text-white hover:bg-primary-700'
+                        }`}
+                        disabled={isCompleting}
+                      >
+                        <CheckCircle size={18} className="mr-2" />
+                        <span className="hidden sm:inline">
+                          {isCompleting ? (isCompleted ? 'Updating...' : 'Completing...') : (isCompleted ? 'Completed' : 'Mark as Complete')}
+                        </span>
+                        <span className="sm:hidden">
+                          {isCompleting ? (isCompleted ? 'Updating...' : 'Completing...') : (isCompleted ? 'Done' : 'Complete')}
+                        </span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                {getCurrentContentIndex() === allContent.length - 1 ? (
-                  <button
-                    onClick={isCourseFullyCompleted() ? navigateToCertificates : attemptCompleteCourse}
-                    className="flex items-center justify-center px-4 py-2 text-white bg-primary-600 rounded-lg hover:bg-primary-700 w-full sm:w-auto"
-                  >
-                    <span className="hidden sm:inline">
-                      {isCourseFullyCompleted() ? 'View Certificate' : 'Complete Course'}
-                    </span>
-                    <span className="sm:hidden">
-                      {isCourseFullyCompleted() ? 'Certificate' : 'Complete'}
-                    </span>
-                    <ChevronRight size={18} className="ml-1" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleNextContentClick}
-                    disabled={getCurrentContentIndex() === allContent.length - 1 || isNavigatingNext}
-                    className="flex items-center justify-center px-4 py-2 text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
-                  >
-                    {isNavigatingNext ? 'Loading...' : 'Next'}
-                    <ChevronRight size={18} className="ml-1" />
-                  </button>
-                )}
-              </div>
-            </div>
+                {/* Content */}
+                <div className="p-4 sm:p-6">
+                  {currentLesson && renderLessonContent()}
+                  {currentQuiz && renderQuizContent()}
+                </div>
+
+                {/* Navigation */}
+                <div className="p-4 sm:p-6 border-t border-gray-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <button
+                      onClick={goToPreviousContent}
+                      disabled={getCurrentContentIndex() === 0}
+                      className="flex items-center justify-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                    >
+                      <ChevronLeft size={18} className="mr-1" />
+                      Previous
+                    </button>
+
+                    <div className="text-sm text-gray-600 text-center order-first sm:order-none">
+                      {currentLesson ? 'Lesson' : currentQuiz ? 'Quiz' : 'Item'} {getCurrentContentIndex() + 1} of {allContent.length}
+                    </div>
+
+                    {getCurrentContentIndex() === allContent.length - 1 ? (
+                      <button
+                        onClick={isCourseFullyCompleted() ? navigateToCertificates : attemptCompleteCourse}
+                        className="flex items-center justify-center px-4 py-2 text-white bg-primary-600 rounded-lg hover:bg-primary-700 w-full sm:w-auto"
+                      >
+                        <span className="hidden sm:inline">
+                          {isCourseFullyCompleted() ? 'View Certificate' : 'Complete Course'}
+                        </span>
+                        <span className="sm:hidden">
+                          {isCourseFullyCompleted() ? 'Certificate' : 'Complete'}
+                        </span>
+                        <ChevronRight size={18} className="ml-1" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleNextContentClick}
+                        disabled={getCurrentContentIndex() === allContent.length - 1 || isNavigatingNext}
+                        className="flex items-center justify-center px-4 py-2 text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                      >
+                        {isNavigatingNext ? 'Loading...' : 'Next'}
+                        <ChevronRight size={18} className="ml-1" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              renderNonLessonTabContent()
+            )}
           </div>
         </div>
       </div>
