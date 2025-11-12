@@ -1325,13 +1325,13 @@ const CourseSupportTab: React.FC<CourseSupportTabProps> = ({ courseId, currentLe
       {/* Intro Section */}
       <div className="bg-gradient-to-r from-primary-50 to-primary-100 rounded-lg p-6 border border-primary-200">
         <div className="flex items-start gap-4">
-          <div className="flex-shrink-0">
+          <div className="flex-1">
+          <div className="flex items-center gap-2 flex-shrink-0 mb-4">
             <div className="w-12 h-12 bg-primary-600 rounded-lg flex items-center justify-center">
               <MessageSquare className="text-white" size={24} />
             </div>
-          </div>
-          <div className="flex-1">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Course Support</h2>
+          </div>
             <p className="text-gray-700 mb-4">
               Have a question about the course content, certificates, resources, or anything else?
               Ask your instructors and fellow students for help. Our community is here to support
@@ -1437,7 +1437,7 @@ const CourseSupportTab: React.FC<CourseSupportTabProps> = ({ courseId, currentLe
                     <p className="text-sm text-gray-600 line-clamp-2 mb-3">{question.body}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 text-xs text-gray-500">
+                <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
                   <span className="flex items-center gap-1">
                     <User size={12} />
                     {getAuthorName(question.author)}
