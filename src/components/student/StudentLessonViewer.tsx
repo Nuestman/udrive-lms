@@ -127,6 +127,13 @@ const StudentLessonViewer: React.FC = () => {
   const [announcementsError, setAnnouncementsError] = useState<string | null>(null);
   const markedAnnouncementsRef = useRef<Set<string>>(new Set());
 
+  // Calculate unread announcements count for badge
+  const unreadAnnouncementsCount = useMemo(() => {
+    return courseAnnouncements.filter(
+      (announcement) => !announcement.isRead && !markedAnnouncementsRef.current.has(announcement.id)
+    ).length;
+  }, [courseAnnouncements]);
+
   const isStudentContext = useMemo(
     () =>
       Boolean(
@@ -2109,20 +2116,28 @@ const StudentLessonViewer: React.FC = () => {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="border-b border-gray-200">
               <nav className="flex overflow-x-auto">
-                {lessonTabs.map((tab) => (
-                  <button
-                    key={tab.value}
-                    type="button"
-                    onClick={() => setActiveTab(tab.value)}
-                    className={`px-4 sm:px-6 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                      activeTab === tab.value
-                        ? 'border-primary-600 text-primary-700'
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+                {lessonTabs.map((tab) => {
+                  const showBadge = tab.value === 'announcements' && unreadAnnouncementsCount > 0;
+                  return (
+                    <button
+                      key={tab.value}
+                      type="button"
+                      onClick={() => setActiveTab(tab.value)}
+                      className={`relative px-4 sm:px-6 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                        activeTab === tab.value
+                          ? 'border-primary-600 text-primary-700'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      {tab.label}
+                      {showBadge && (
+                        <span className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-xs font-semibold text-white">
+                          {unreadAnnouncementsCount > 9 ? '9+' : unreadAnnouncementsCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </nav>
             </div>
 

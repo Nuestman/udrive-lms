@@ -39,6 +39,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const { profile, signOut } = useAuth();
   const [unreadContactMessages, setUnreadContactMessages] = useState(0);
   const [unreadAnnouncements, setUnreadAnnouncements] = useState(0);
+  const [pendingReviews, setPendingReviews] = useState(0);
   const navigate = useNavigate();
   const routerLocation = useLocation();
   const location = routerLocation.pathname; // current path
@@ -98,7 +99,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         if (response.ok) {
           const data = await response.json();
           const items = Array.isArray(data?.data) ? data.data : [];
-          const unreadCount = items.filter((item: any) => item && item.is_read === false).length;
+          const unreadCount = items.filter((item: { is_read?: boolean }) => item && item.is_read === false).length;
           setUnreadAnnouncements(unreadCount);
         }
       } catch (error) {
@@ -108,6 +109,40 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
     fetchUnreadAnnouncements();
     const interval = setInterval(fetchUnreadAnnouncements, 30000);
+    return () => clearInterval(interval);
+  }, [role]);
+
+  // Fetch pending reviews count for admins
+  useEffect(() => {
+    const rolesWithReviews = ['super_admin', 'school_admin'];
+    if (!rolesWithReviews.includes(role)) {
+      return;
+    }
+
+    const fetchPendingReviews = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        const params = new URLSearchParams({
+          status: 'pending',
+          limit: '100',
+        });
+
+        const response = await fetch(`${API_URL}/reviews?${params.toString()}`, {
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const items = Array.isArray(data?.data) ? data.data : [];
+          setPendingReviews(items.length);
+        }
+      } catch (error) {
+        console.error('Failed to fetch pending reviews count:', error);
+      }
+    };
+
+    fetchPendingReviews();
+    const interval = setInterval(fetchPendingReviews, 30000);
     return () => clearInterval(interval);
   }, [role]);
 
@@ -188,7 +223,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             icon: <Star size={20} />,
             label: 'Reviews Moderation',
             href: '/admin/reviews',
-            isActive: location === '/admin/reviews'
+            isActive: location === '/admin/reviews',
+            badge: pendingReviews > 0 ? pendingReviews : undefined,
           },
           { 
             icon: <Settings size={20} />, 
@@ -286,7 +322,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             icon: <Star size={20} />,
             label: 'Reviews Moderation',
             href: '/school/reviews',
-            isActive: location === '/school/reviews'
+            isActive: location === '/school/reviews',
+            badge: pendingReviews > 0 ? pendingReviews : undefined,
           },
           { 
             icon: <Settings size={20} />, 

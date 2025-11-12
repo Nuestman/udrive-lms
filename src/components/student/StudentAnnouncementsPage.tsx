@@ -176,6 +176,15 @@ const StudentAnnouncementsPage: React.FC = () => {
                           {announcement.contextType}
                         </span>
                       )}
+                      {announcement.author && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white/70 px-2 py-1 font-semibold text-gray-700">
+                          Posted by {announcement.author.fullName || 
+                            `${announcement.author.firstName || ''} ${announcement.author.lastName || ''}`.trim() || 
+                            announcement.author.email || 
+                            announcement.authorRole || 
+                            'Unknown'}
+                        </span>
+                      )}
                       <span className="text-gray-500">
                         Published {publishedLabel}
                       </span>
