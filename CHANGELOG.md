@@ -5,6 +5,184 @@ All notable changes to SunLMS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2025-11-12
+
+### 🎓 Course Support System & Announcements Platform
+
+This release introduces a comprehensive course support system for student-instructor collaboration, a full-featured announcements platform, and significant improvements to the review prompt system. These features enhance communication, engagement, and feedback collection across the learning platform.
+
+### ✨ Added
+
+#### Course Support System
+- **Question & Answer Platform**: Full-featured Q&A system for course-related support
+  - Students can ask questions with categories (course content, certificates, resources, technical, other)
+  - Lesson context linking for course content questions
+  - File attachments support for questions and replies
+  - Reply system with instructor and peer responses
+  - Mark replies as accepted answers
+  - Question status management (open, answered, resolved, closed)
+  - View count tracking and reply count updates
+- **Edit/Delete Functionality**: Original posters can edit and delete their questions and replies
+  - Edit modals with full form support including attachments
+  - Delete confirmation modals
+  - Ownership verification on backend
+- **Support Tab**: Replaced "Discussions" tab with "Support" in lesson viewer
+  - Compelling intro section
+  - Advanced filtering (category, status, search)
+  - Support count badge for open questions
+  - Question detail view with replies and attachments
+  - Instructor actions (mark as answer, update status)
+
+#### Announcements System
+- **Tenant-Isolated Announcements**: High-level broadcast messaging system separate from notifications
+  - Global announcements from super admins
+  - Tenant-wide announcements from school admins
+  - Course/module/lesson/quiz-scoped announcements
+  - Rich HTML content with TinyMCE editor
+  - Media attachments (images, documents, videos) via Vercel Blob
+  - Email delivery with branded templates
+  - Read tracking and unread badges
+- **Announcement Management**: Comprehensive CRUD interface for all roles
+  - Super admin: Full access to all announcements (immutable by others)
+  - School admins/Instructors: Create and manage their own announcements
+  - Course-specific announcement creation in course editing interface
+  - 3-column card layout with notification-style design
+  - Status management (draft, scheduled, published, archived)
+  - Audience scope selection with dynamic dropdowns
+- **Announcement Display**: Multiple viewing surfaces
+  - Student lesson viewer announcements tab
+  - Dedicated student announcements page
+  - Course details page announcements panel
+  - Unread announcement count badges
+  - Course-scoped filtering for relevant announcements
+
+#### Review Prompt System
+- **Progress-Based Triggers**: Automatic review prompts based on course completion percentage
+  - Configurable threshold (default 60%)
+  - Cooldown period to prevent spam
+  - Local storage tracking of prompt history
+- **Manual Triggers**: Student-initiated review prompts
+  - Floating review button (peek-and-reveal design) in lesson viewer
+  - Review button in module completion modal
+  - Review button in course completion modal
+  - Works for elevated roles in student context
+- **Review Settings**: Per-course configuration
+  - Progress percentage threshold
+  - Lesson count threshold
+  - Manual trigger option
+  - Metadata normalization (JSONB handling)
+
+#### File Storage Improvements
+- **Human-Readable Paths**: Context-aware file organization
+  - Files stored in tenant/course/module/lesson-specific directories
+  - Uses course names, lesson names instead of UUIDs for readability
+  - Organized by context (announcements, support, assignments, etc.)
+- **Filename Sanitization**: URL-safe filename handling
+  - Automatic sanitization of all uploaded filenames
+  - Preserves original filename in metadata
+  - Prevents path traversal and special character issues
+
+### 🔄 Changed
+
+#### CORS Configuration
+- **Vercel Preview Support**: Updated CORS to allow Vercel preview deployments
+  - Added support for `*.vercel.app` domains
+  - Maintains security for development and production
+  - Allows testing on preview deployments without CORS errors
+
+#### API Client
+- **Delete Method**: Fixed delete operations to use `api.del` instead of `api.delete`
+  - Resolves "delete is not a function" errors
+  - Consistent with API client implementation
+
+#### Course Details Page
+- **Layout Improvements**: Responsive 2-column layout
+  - Announcements panel and review prompt settings side-by-side
+  - Better use of screen space
+  - Improved visual hierarchy
+
+#### Student Lesson Viewer
+- **Tab Organization**: Enhanced tab system
+  - Renamed "Discussions" to "Support"
+  - Added badges for unread announcements and open support questions
+  - Improved badge positioning to prevent clipping
+
+### 🐛 Fixed
+
+#### Announcements System
+- **Course-Scoped Filtering**: Fixed announcement fetching to show only relevant course announcements
+  - Student lesson viewer now filters correctly
+  - Course details page shows only course-specific announcements
+  - Excludes global announcements with general context type
+- **Metadata Handling**: Fixed JSONB vs text errors in review prompt settings
+  - Normalized metadata to always be an object
+  - Proper parsing on load and stringification on save
+- **File Size Constraint**: Fixed null file_size constraint violations
+  - Ensures file_size is always provided during media upload
+  - Falls back to buffer length if Vercel Blob doesn't provide size
+
+#### Review Prompt System
+- **Role Context Detection**: Fixed review prompts for elevated roles in student context
+  - Added `isStudentContext` helper function
+  - Checks both `profile.role` and `profile.active_role`
+  - Floating button and completion modal triggers now work correctly
+
+#### Support System
+- **API Response Unwrapping**: Fixed question/reply fetching
+  - Corrected response structure handling
+  - Proper array vs single-item checks
+- **Attachment Constraints**: Fixed database constraint violations
+  - Reply attachments now correctly set `question_id` to NULL
+  - Satisfies CHECK constraint requirements
+
+### 📚 Documentation
+
+#### New Documentation
+- **Announcement System**: Comprehensive documentation (`docs/announcement-system.md`)
+  - System architecture and database schema
+  - API endpoints with examples
+  - Permission rules and tenant isolation
+  - Email delivery configuration
+  - Troubleshooting guide
+
+#### Updated Documentation
+- **Course Support System**: Database migration documentation
+- **File Storage**: Updated storage path documentation with human-readable paths
+
+### 🔒 Security
+
+#### Access Control
+- **Announcement Immutability**: Super admin announcements are read-only for other roles
+- **Ownership Verification**: Edit/delete operations verify original poster ownership
+- **Tenant Isolation**: Strict tenant scoping for all announcements and support questions
+- **Role-Based Permissions**: Proper RBAC enforcement across all new features
+
+### 🗃️ Database Changes
+
+#### New Tables
+- `announcements`: Stores announcement content, metadata, and scheduling
+- `announcement_media`: Links media files to announcements
+- `announcement_reads`: Tracks read status per user
+- `course_support_questions`: Stores student questions with categories and status
+- `course_support_replies`: Stores replies to questions with answer marking
+- `course_support_attachments`: Stores file attachments for questions and replies
+
+#### Indexes
+- Announcement filtering and search indexes
+- Support question category and status indexes
+- Read tracking indexes
+- Performance optimization indexes
+
+### 📋 Migration Required
+
+#### Database Migrations
+- Run migration: `database/migrations/20251113_create_announcements_system.sql`
+- Run migration: `database/migrations/20251114_create_course_support_system.sql`
+- Both migrations create tables, indexes, and triggers
+- No data migration required (new features)
+
+---
+
 ## [2.4.0] - 2025-11-06
 
 ### 📬 Contact Messages System
