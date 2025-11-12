@@ -12,6 +12,7 @@ We now treat feedback, reviews, and testimonials as distinct but connected chann
 
 - `platform_feedback` — structured scores (1–5), comments, and role context for internal analysis.
 - `reviews` — stores course/school reviews with `status`, `visibility` (`private`, `public`), and light metadata. Platform submissions are now routed through `platform_feedback`.
+- `review_comments` — public comments from instructors/admins on reviews, allowing them to thank users or address concerns. Includes `review_id`, `author_id`, `body`, `is_internal` flag, and timestamps.
 - `testimonials` — curated quotes referencing a `review_id`, `feedback_id`, or standalone copy. Includes placement metadata and featured flag.
 - `course_review_settings` — per-course configuration for triggering review prompts (percentage, lesson count, or manual).
 - `course_review_prompt_history` — tracks prompts per learner, preventing duplicates and respecting cooldowns.
@@ -31,6 +32,8 @@ All tables include `updated_at` triggers and tenant-aware constraints.
 | `GET /api/reviews` | Super/school admin | Moderation queue with `status`, `type`, `visibility`, search and pagination. |
 | `PUT /api/reviews/:id/status` | Super/school admin | Approve/reject review (records moderator + timestamp). |
 | `PUT /api/reviews/:id/visibility` | Super/school admin | Toggle `public` / `private` visibility after moderation. |
+| `POST /api/reviews/:id/comments` | Instructor/School Admin | Add a public comment to a review (for thanking users or addressing concerns). |
+| `GET /api/reviews/:id/comments` | Authenticated | List all public comments for a review. |
 | `GET /api/testimonials/public` | Public | Fetch curated testimonials by placement/featured flag. |
 | `GET/POST/PUT/DELETE /api/testimonials` | Super/school admin | Manage curated marketing stories. |
 | `GET/PUT /api/review-settings/:courseId` | Auth roles that can edit a course | Configure prompt rules and guidance copy for a course. |
@@ -44,6 +47,7 @@ All tables include `updated_at` triggers and tenant-aware constraints.
   - `StudentLessonViewer` shows a reviews tab with course-specific sentiment and a modal to submit a review.
   - In-course prompts respect `course_review_settings`; current hook exposes a manual launch button with history tracking ready for future automation.
   - `/admin/reviews` & `/school/reviews` allow moderation, status, and visibility management.
+  - Review comments: Instructors and admins can post public comments on reviews to thank users or address concerns. Comments are displayed inline with reviews in both the student lesson viewer and moderation pages.
 - **Testimonials**
   - `/admin/testimonials` lets admins curate/publish stories and flag featured placements.
   - `GET /api/testimonials/public` feeds landing-page hero/testimonial components.
@@ -62,11 +66,27 @@ All tables include `updated_at` triggers and tenant-aware constraints.
 - Existing platform reviews remain but should be migrated to platform feedback if encountered.
 - When porting legacy testimonials, hydrate `testimonials` with `status='published'` and optionally link back to `reviews` or `platform_feedback`.
 
+## Email Notifications
+
+The system automatically sends email notifications to course creators/instructors when:
+
+- **New Review Submitted**: When a student submits a review for a course, the course creator receives an email with:
+  - Reviewer name
+  - Course name and rating (if provided)
+  - Review title and body preview
+  - Direct link to view the review in the moderation console
+- **New Comment on Review**: When an instructor/admin posts a comment on a review, the review author receives an email with:
+  - Comment author name and role
+  - Comment body
+  - Review context and direct link
+
+Email notifications use branded templates with TinyMCE-styled formatting and include direct links to view the review/comment. Notifications are only sent to course creators (users who created the course) and review authors, and only if email is configured in the system.
+
 ## Future Touchpoints
 
 - Courses dashboard: surface approved course reviews alongside curriculum metrics.
 - School insights: display sentiment trends for school admins (aggregate rating averages per tenant).
-- Notifications: send moderators a digest when new reviews arrive (hook into `createReview`).
+- Email notification preferences per instructor.
 
 [^1]: https://feedcheck.co/blog/the-differences-between-reviews-and-testimonials/
 [^2]: https://remotevideotestimonials.com/testimonials-vs-reviews

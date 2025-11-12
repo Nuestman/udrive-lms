@@ -331,7 +331,7 @@ const CourseDetailsPage: React.FC = () => {
         lockedCourseId={resolvedCourseId || ''}
         disableAudienceSelection
       />
-      <PageLayout
+    <PageLayout
       title={course.title}
       breadcrumbs={[
         { 
@@ -535,175 +535,175 @@ const CourseDetailsPage: React.FC = () => {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
-                <MessageSquareHeart size={14} />
-                Review Prompt Settings
-              </div>
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">
+              <MessageSquareHeart size={14} />
+              Review Prompt Settings
+            </div>
               <h2 className="mt-2 text-xl font-semibold text-gray-900">
                 Control how and when students are prompted
               </h2>
-              <p className="mt-1 text-sm text-gray-600">
+            <p className="mt-1 text-sm text-gray-600">
                 Configure the cadence for in-course review requests. Encourage timely feedback without disrupting learners.
-              </p>
-            </div>
-            <button
-              onClick={loadReviewSettings}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:text-gray-900"
+            </p>
+          </div>
+          <button
+            onClick={loadReviewSettings}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:text-gray-900"
+          >
+            <Sparkles className="h-4 w-4" />
+            Reset draft
+          </button>
+        </div>
+
+        {settingsError && (
+          <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {settingsError}
+          </div>
+        )}
+
+        <form onSubmit={handleSaveReviewSettings} className="mt-6 grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Prompt trigger</label>
+            <select
+              value={settingsDraft.trigger_type}
+            onChange={(event) => {
+              const nextType = event.target.value as 'percentage' | 'lesson_count' | 'manual';
+              setSettingsDraft((prev) => ({
+                ...prev,
+                trigger_type: nextType,
+                trigger_value:
+                  nextType === 'manual'
+                    ? null
+                    : prev.trigger_value ?? (nextType === 'percentage' ? 20 : 3),
+              }));
+            }}
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+              disabled={settingsLoading || settingsSaving}
             >
-              <Sparkles className="h-4 w-4" />
-              Reset draft
-            </button>
+              <option value="percentage">Percentage of course progress</option>
+              <option value="lesson_count">After completing N lessons</option>
+              <option value="manual">Manual only</option>
+            </select>
           </div>
 
-          {settingsError && (
-            <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-              {settingsError}
-            </div>
-          )}
-
-          <form onSubmit={handleSaveReviewSettings} className="mt-6 grid gap-4 md:grid-cols-2">
+          {settingsDraft.trigger_type !== 'manual' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700">Prompt trigger</label>
-              <select
-                value={settingsDraft.trigger_type}
-                onChange={(event) => {
-                  const nextType = event.target.value as 'percentage' | 'lesson_count' | 'manual';
-                  setSettingsDraft((prev) => ({
-                    ...prev,
-                    trigger_type: nextType,
-                    trigger_value:
-                      nextType === 'manual'
-                        ? null
-                        : prev.trigger_value ?? (nextType === 'percentage' ? 20 : 3),
-                  }));
-                }}
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
-                disabled={settingsLoading || settingsSaving}
-              >
-                <option value="percentage">Percentage of course progress</option>
-                <option value="lesson_count">After completing N lessons</option>
-                <option value="manual">Manual only</option>
-              </select>
-            </div>
-
-            {settingsDraft.trigger_type !== 'manual' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700">
                   {settingsDraft.trigger_type === 'percentage'
                     ? 'Progress percentage'
                     : 'Lessons completed'}
-                </label>
-                <input
-                  type="number"
-                  min={settingsDraft.trigger_type === 'percentage' ? 1 : 1}
-                  max={settingsDraft.trigger_type === 'percentage' ? 100 : undefined}
-                  value={settingsDraft.trigger_value ?? ''}
-                  onChange={(event) =>
-                    setSettingsDraft((prev) => ({
-                      ...prev,
-                      trigger_value: event.target.value ? Number(event.target.value) : null,
-                    }))
-                  }
-                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
-                  disabled={settingsLoading || settingsSaving}
-                  placeholder={settingsDraft.trigger_type === 'percentage' ? 'e.g. 20' : 'e.g. 3'}
-                />
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Prompt cooldown (days)</label>
+              </label>
               <input
                 type="number"
-                min={0}
-                value={settingsDraft.cooldown_days}
+                min={settingsDraft.trigger_type === 'percentage' ? 1 : 1}
+                max={settingsDraft.trigger_type === 'percentage' ? 100 : undefined}
+                value={settingsDraft.trigger_value ?? ''}
                 onChange={(event) =>
                   setSettingsDraft((prev) => ({
                     ...prev,
-                    cooldown_days: Number(event.target.value),
+                    trigger_value: event.target.value ? Number(event.target.value) : null,
                   }))
                 }
                 className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
                 disabled={settingsLoading || settingsSaving}
-                placeholder="30"
+                placeholder={settingsDraft.trigger_type === 'percentage' ? 'e.g. 20' : 'e.g. 3'}
               />
             </div>
+          )}
 
-            <div className="flex items-center gap-2 pt-6">
-              <input
-                id="allow-multiple"
-                type="checkbox"
-                checked={settingsDraft.allow_multiple}
-                onChange={(event) =>
-                  setSettingsDraft((prev) => ({ ...prev, allow_multiple: event.target.checked }))
-                }
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                disabled={settingsLoading || settingsSaving}
-              />
-              <label htmlFor="allow-multiple" className="text-sm text-gray-700">
-                Allow learners to submit multiple reviews over time
-              </label>
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Prompt cooldown (days)</label>
+            <input
+              type="number"
+              min={0}
+              value={settingsDraft.cooldown_days}
+              onChange={(event) =>
+                setSettingsDraft((prev) => ({
+                  ...prev,
+                  cooldown_days: Number(event.target.value),
+                }))
+              }
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+              disabled={settingsLoading || settingsSaving}
+              placeholder="30"
+            />
+          </div>
 
-            <div className="flex items-center gap-2">
-              <input
-                id="manual-trigger"
-                type="checkbox"
-                checked={settingsDraft.manual_trigger_enabled}
-                onChange={(event) =>
-                  setSettingsDraft((prev) => ({
-                    ...prev,
-                    manual_trigger_enabled: event.target.checked,
-                  }))
-                }
-                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                disabled={settingsLoading || settingsSaving}
-              />
-              <label htmlFor="manual-trigger" className="text-sm text-gray-700">
-                Allow instructors to trigger prompts manually
-              </label>
-            </div>
+          <div className="flex items-center gap-2 pt-6">
+            <input
+              id="allow-multiple"
+              type="checkbox"
+              checked={settingsDraft.allow_multiple}
+              onChange={(event) =>
+                setSettingsDraft((prev) => ({ ...prev, allow_multiple: event.target.checked }))
+              }
+              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              disabled={settingsLoading || settingsSaving}
+            />
+            <label htmlFor="allow-multiple" className="text-sm text-gray-700">
+              Allow learners to submit multiple reviews over time
+            </label>
+          </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Optional message displayed in the prompt
-              </label>
-              <textarea
-                rows={3}
-                value={settingsDraft.prompt_message || ''}
-                onChange={(event) =>
-                  setSettingsDraft((prev) => ({ ...prev, prompt_message: event.target.value }))
-                }
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
-                placeholder="Share any context or highlight the type of feedback you’re hoping for."
-                disabled={settingsLoading || settingsSaving}
-              />
-            </div>
+          <div className="flex items-center gap-2">
+            <input
+              id="manual-trigger"
+              type="checkbox"
+              checked={settingsDraft.manual_trigger_enabled}
+              onChange={(event) =>
+                setSettingsDraft((prev) => ({
+                  ...prev,
+                  manual_trigger_enabled: event.target.checked,
+                }))
+              }
+              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              disabled={settingsLoading || settingsSaving}
+            />
+            <label htmlFor="manual-trigger" className="text-sm text-gray-700">
+              Allow instructors to trigger prompts manually
+            </label>
+          </div>
 
-            <div className="md:col-span-2 flex items-center justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={loadReviewSettings}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:border-gray-300 hover:bg-gray-50"
-              >
-                Reset
-              </button>
-              <button
-                type="submit"
-                disabled={settingsLoading || settingsSaving}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-gray-300"
-              >
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Optional message displayed in the prompt
+            </label>
+            <textarea
+              rows={3}
+              value={settingsDraft.prompt_message || ''}
+              onChange={(event) =>
+                setSettingsDraft((prev) => ({ ...prev, prompt_message: event.target.value }))
+              }
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+              placeholder="Share any context or highlight the type of feedback you’re hoping for."
+              disabled={settingsLoading || settingsSaving}
+            />
+          </div>
+
+          <div className="md:col-span-2 flex items-center justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={loadReviewSettings}
+              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+            >
+              Reset
+            </button>
+            <button
+              type="submit"
+              disabled={settingsLoading || settingsSaving}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+            >
                 {settingsSaving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <CheckCircle2 className="h-4 w-4" />
                 )}
-                {settingsSaving ? 'Saving...' : 'Save settings'}
-              </button>
-            </div>
-          </form>
+              {settingsSaving ? 'Saving...' : 'Save settings'}
+            </button>
+          </div>
+        </form>
         </div>
       </div>
 
@@ -775,7 +775,7 @@ const CourseDetailsPage: React.FC = () => {
           </div>
         )}
       </div>
-      </PageLayout>
+    </PageLayout>
     </>
   );
 };

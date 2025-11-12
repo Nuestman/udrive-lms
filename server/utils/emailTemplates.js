@@ -35,6 +35,15 @@ function toText(html) {
     .trim();
 }
 
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const templates = {
   password_reset: ({ appName = DEFAULT_APP_NAME, resetUrl, frontendUrl = DEFAULT_FRONTEND_URL, brandLogoCid, brandLogoUrl }) => {
     const url = resetUrl || `${frontendUrl}/reset-password`;
@@ -391,6 +400,234 @@ const templates = {
       subject: `${appName} — ${title}`,
       html,
       text: toText(`${title} ${announcementSummary || ''}`),
+    };
+  },
+
+  support_question_notification: ({
+    appName = DEFAULT_APP_NAME,
+    recipientName,
+    courseTitle,
+    questionTitle,
+    questionCategory,
+    questionBody,
+    questionAuthor,
+    attachmentsCount = 0,
+    supportUrl,
+    brandLogoCid,
+    brandLogoUrl,
+  }) => {
+    const title = `New support question in ${courseTitle || 'your course'}`;
+    const safeBody = escapeHtml(questionBody || '');
+    const categoryLabel = questionCategory
+      ? questionCategory
+          .split('_')
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(' ')
+      : null;
+
+    const bodyHtml = `
+      <p>${recipientName ? `Hi ${escapeHtml(recipientName)},` : 'Hello,'}</p>
+      <p><strong>${escapeHtml(questionAuthor || 'A learner')}</strong> posted a new support question in <strong>${escapeHtml(courseTitle || 'your course')}</strong>.</p>
+      ${
+        categoryLabel
+          ? `<p style="margin:0 0 8px 0;color:#475569;">Category: <strong>${escapeHtml(
+              categoryLabel
+            )}</strong></p>`
+          : ''
+      }
+      <p style="margin:16px 0 8px 0;font-weight:600;color:#0f172a;">${escapeHtml(
+        questionTitle || 'Support Question'
+      )}</p>
+      ${
+        safeBody
+          ? `<div style="margin:0 0 16px 0;color:#334155;background:#f8fafc;padding:16px;border-radius:10px;border:1px solid #e2e8f0;">${safeBody}</div>`
+          : ''
+      }
+      ${
+        attachmentsCount > 0
+          ? `<p style="margin:0 0 16px 0;color:#475569;">Attachments: <strong>${attachmentsCount}</strong></p>`
+          : ''
+      }
+      ${
+        supportUrl
+          ? `<p style="margin:24px 0 0;">
+              <a href="${supportUrl}"
+                 style="display:inline-block;background:#2563eb;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600;">
+                Open Support Thread
+              </a>
+            </p>`
+          : ''
+      }
+      <p style="margin:24px 0 0;color:#64748b;font-size:14px;">Please log in to SunLMS to reply and keep the learner moving forward.</p>
+    `;
+
+    const html = layout({ title, bodyHtml, appName, brandLogoCid, brandLogoUrl });
+    return {
+      subject: `${appName} — New support question: ${questionTitle || courseTitle || ''}`.trim(),
+      html,
+      text: toText(`${title} ${questionTitle || ''} ${supportUrl || ''}`),
+    };
+  },
+
+  support_reply_notification: ({
+    appName = DEFAULT_APP_NAME,
+    recipientName,
+    courseTitle,
+    questionTitle,
+    questionAuthor,
+    replyAuthor,
+    replyBody,
+    attachmentsCount = 0,
+    supportUrl,
+    brandLogoCid,
+    brandLogoUrl,
+  }) => {
+    const title = `New reply on a support question`;
+    const safeBody = escapeHtml(replyBody || '');
+
+    const bodyHtml = `
+      <p>${recipientName ? `Hi ${escapeHtml(recipientName)},` : 'Hello,'}</p>
+      <p><strong>${escapeHtml(replyAuthor || 'A user')}</strong> replied to the support question <strong>${escapeHtml(
+        questionTitle || 'Support Question'
+      )}</strong> in <strong>${escapeHtml(courseTitle || 'your course')}</strong>.</p>
+      <p style="margin:12px 0 4px 0;color:#475569;">Original asker: ${escapeHtml(questionAuthor || 'Learner')}</p>
+      ${
+        safeBody
+          ? `<div style="margin:8px 0 16px 0;color:#334155;background:#f8fafc;padding:16px;border-radius:10px;border:1px solid #e2e8f0;">${safeBody}</div>`
+          : ''
+      }
+      ${
+        attachmentsCount > 0
+          ? `<p style="margin:0 0 16px 0;color:#475569;">Attachments: <strong>${attachmentsCount}</strong></p>`
+          : ''
+      }
+      ${
+        supportUrl
+          ? `<p style="margin:24px 0 0;">
+              <a href="${supportUrl}"
+                 style="display:inline-block;background:#2563eb;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600;">
+                View Reply
+              </a>
+            </p>`
+          : ''
+      }
+      <p style="margin:24px 0 0;color:#64748b;font-size:14px;">Respond in SunLMS to keep the conversation moving.</p>
+    `;
+
+    const html = layout({ title, bodyHtml, appName, brandLogoCid, brandLogoUrl });
+    return {
+      subject: `${appName} — New support reply: ${questionTitle || courseTitle || ''}`.trim(),
+      html,
+      text: toText(`${title} ${questionTitle || ''} ${supportUrl || ''}`),
+    };
+  },
+
+  review_submitted_notification: ({
+    appName = DEFAULT_APP_NAME,
+    recipientName,
+    courseTitle,
+    reviewerName,
+    reviewTitle,
+    reviewBody,
+    rating,
+    reviewUrl,
+    brandLogoCid,
+    brandLogoUrl,
+  }) => {
+    const title = `New course review submitted`;
+    const safeBody = escapeHtml(reviewBody || '');
+    const bodyHtml = `
+      <p>${recipientName ? `Hi ${escapeHtml(recipientName)},` : 'Hello,'}</p>
+      <p><strong>${escapeHtml(reviewerName || 'A learner')}</strong> shared a new review for <strong>${escapeHtml(
+        courseTitle || 'your course'
+      )}</strong>. It is awaiting moderation.</p>
+      ${
+        typeof rating === 'number'
+          ? `<p style="margin:12px 0;color:#475569;">Rating: <strong>${rating}/5</strong></p>`
+          : ''
+      }
+      ${
+        reviewTitle
+          ? `<p style="margin:12px 0 4px 0;font-weight:600;color:#0f172a;">${escapeHtml(reviewTitle)}</p>`
+          : ''
+      }
+      ${
+        safeBody
+          ? `<div style="margin:0 0 16px 0;color:#334155;background:#f8fafc;padding:16px;border-radius:10px;border:1px solid #e2e8f0;">${safeBody}</div>`
+          : ''
+      }
+      ${
+        reviewUrl
+          ? `<p style="margin:24px 0 0;">
+              <a href="${reviewUrl}"
+                 style="display:inline-block;background:#2563eb;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600;">
+                Review & Moderate
+              </a>
+            </p>`
+          : ''
+      }
+      <p style="margin:24px 0 0;color:#64748b;font-size:14px;">Remember to moderate the review to make it visible.</p>
+    `;
+
+    const html = layout({ title, bodyHtml, appName, brandLogoCid, brandLogoUrl });
+    return {
+      subject: `${appName} — New review for ${courseTitle || 'your course'}`,
+      html,
+      text: toText(`${title} ${courseTitle || ''} ${reviewUrl || ''}`),
+    };
+  },
+
+  review_comment_notification: ({
+    appName = DEFAULT_APP_NAME,
+    recipientName,
+    courseTitle,
+    commentAuthor,
+    reviewBody,
+    commentBody,
+    reviewUrl,
+    brandLogoCid,
+    brandLogoUrl,
+  }) => {
+    const title = `New comment on a course review`;
+    const safeReview = escapeHtml(reviewBody || '');
+    const safeComment = escapeHtml(commentBody || '');
+    const bodyHtml = `
+      <p>${recipientName ? `Hi ${escapeHtml(recipientName)},` : 'Hello,'}</p>
+      <p><strong>${escapeHtml(commentAuthor || 'A team member')}</strong> responded to a review for <strong>${escapeHtml(courseTitle || 'your course')}</strong>.</p>
+      ${
+        safeReview
+          ? `<div style="margin:16px 0;color:#475569;font-size:13px;">
+               <div style="font-weight:600;margin-bottom:6px;">Learner said:</div>
+               <div style="background:#f8fafc;padding:14px;border-radius:10px;border:1px solid #e2e8f0;">${safeReview}</div>
+             </div>`
+          : ''
+      }
+      ${
+        safeComment
+          ? `<div style="margin:16px 0;color:#1f2937;font-size:13px;">
+               <div style="font-weight:600;margin-bottom:6px;">Response:</div>
+               <div style="background:#ecfdf5;padding:14px;border-radius:10px;border:1px solid #bbf7d0;">${safeComment}</div>
+             </div>`
+          : ''
+      }
+      ${
+        reviewUrl
+          ? `<p style="margin:24px 0 0;">
+              <a href="${reviewUrl}"
+                 style="display:inline-block;background:#2563eb;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600;">
+                View Conversation
+              </a>
+            </p>`
+          : ''
+      }
+      <p style="margin:24px 0 0;color:#64748b;font-size:14px;">Continue the dialogue to keep learners supported.</p>
+    `;
+
+    const html = layout({ title, bodyHtml, appName, brandLogoCid, brandLogoUrl });
+    return {
+      subject: `${appName} — New comment on review`,
+      html,
+      text: toText(`${title} ${courseTitle || ''} ${reviewUrl || ''}`),
     };
   },
 };

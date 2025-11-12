@@ -10,6 +10,7 @@ import {
   updateReviewStatus,
   updateReviewVisibility,
   getPublicReviews,
+  createReviewComment,
 } from '../services/reviews.service.js';
 
 const router = express.Router();
@@ -76,6 +77,26 @@ router.get(
     res.json({
       success: true,
       data: reviews,
+    });
+  })
+);
+
+/**
+ * POST /api/reviews/:id/comments
+ * Allow authorized staff to respond to reviews
+ */
+router.post(
+  '/:id/comments',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { body } = req.body;
+
+    const comment = await createReviewComment(req.params.id, body, req.user);
+
+    res.status(201).json({
+      success: true,
+      data: comment,
+      message: 'Comment added successfully',
     });
   })
 );

@@ -2,7 +2,7 @@
 // Student Lesson Viewer - View and complete lessons
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, Circle, ChevronLeft, ChevronRight, Clock, Menu, X, Settings, Star, Pin } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Circle, ChevronLeft, ChevronRight, Clock, Menu, X, Settings, Star, Pin, Loader2 } from 'lucide-react';
 import { formatDistanceToNow, differenceInCalendarDays } from 'date-fns';
 import { useProgress } from '../../hooks/useProgress';
 import { useAuth } from '../../contexts/AuthContext';
@@ -13,7 +13,7 @@ import PageLayout from '../ui/PageLayout';
 import { cleanLessonContent, convertYouTubeUrls, fixIframeAttributes } from '../../utils/htmlUtils';
 import CelebrationModal from '../ui/CelebrationModal';
 import QuizEngine from '../quiz/QuizEngine';
-import { fetchPublicReviews, Review } from '../../services/reviews.service';
+import { fetchPublicReviews, createReviewComment, Review } from '../../services/reviews.service';
 import { fetchAnnouncements, markAnnouncementAsRead, type Announcement } from '../../services/announcements.service';
 import { getCourseReviewSettings, type CourseReviewSettings } from '../../services/reviewSettings.service';
 import { fetchQuestions } from '../../services/courseSupport.service';
@@ -89,6 +89,8 @@ const StudentLessonViewer: React.FC = () => {
   const [reviewsError, setReviewsError] = useState<string | null>(null);
   const [ratingFilter, setRatingFilter] = useState<'all' | number>('all');
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewCommentDrafts, setReviewCommentDrafts] = useState<Record<string, string>>({});
+  const [reviewCommentSubmitting, setReviewCommentSubmitting] = useState<string | null>(null);
   const [reviewSettings, setReviewSettings] = useState<CourseReviewSettings | null>(null);
   const [reviewSettingsLoaded, setReviewSettingsLoaded] = useState(false);
   const [hasAutoPrompted, setHasAutoPrompted] = useState(false);
@@ -123,7 +125,7 @@ const StudentLessonViewer: React.FC = () => {
     return `${REVIEW_PROMPT_STORAGE_PREFIX}:${profile.id}:${resolvedCourseId}`;
   }, [profile?.id, resolvedCourseId]);
   const { enrollments, refreshEnrollments } = useEnrollments(enrollmentFilters as any);
-  const { info, success, error } = useToast();
+  const { info, success, error: errorToast } = useToast();
   const [courseAnnouncements, setCourseAnnouncements] = useState<Announcement[]>([]);
   const [announcementsLoading, setAnnouncementsLoading] = useState(false);
   const [announcementsError, setAnnouncementsError] = useState<string | null>(null);
@@ -154,6 +156,17 @@ const StudentLessonViewer: React.FC = () => {
     [profile]
   );
 
+  const canRespondToReviews = useMemo(() => {
+    const roles = new Set<string>();
+    if (profile?.role) roles.add(profile.role);
+    if (profile?.active_role) roles.add(profile.active_role);
+    return (
+      roles.has('super_admin') ||
+      roles.has('school_admin') ||
+      roles.has('instructor')
+    );
+  }, [profile?.role, profile?.active_role]);
+
   const lessonTabs = useMemo(
     () => [
       { label: 'Overview', value: 'overview' as const },
@@ -171,7 +184,7 @@ const StudentLessonViewer: React.FC = () => {
     if (!promptStorageKey || typeof window === 'undefined') {
       setPromptState({ promptCount: 0 });
       return;
-    }
+      }
 
     try {
       const raw = localStorage.getItem(promptStorageKey);
@@ -208,7 +221,7 @@ const StudentLessonViewer: React.FC = () => {
           console.warn('Failed to persist review prompt state', storageError);
         }
         return next;
-      });
+    });
     },
     [promptStorageKey]
   );
@@ -400,7 +413,11 @@ const StudentLessonViewer: React.FC = () => {
         reviewable_id: resolvedCourseId,
         limit: 50,
       });
-      setCourseReviews(data);
+      const normalized = (data || []).map((review) => ({
+        ...review,
+        comments: review.comments || [],
+      }));
+      setCourseReviews(normalized);
     } catch (err: any) {
       console.error('Failed to load course reviews:', err);
       setReviewsError(err.message || 'Unable to load course reviews right now.');
@@ -422,6 +439,46 @@ const StudentLessonViewer: React.FC = () => {
   useEffect(() => {
     setHasAutoPrompted(false);
   }, [resolvedCourseId]);
+
+  const handleReviewCommentChange = useCallback((reviewId: string, value: string) => {
+    setReviewCommentDrafts((prev) => ({
+      ...prev,
+      [reviewId]: value,
+    }));
+  }, []);
+
+  const handleReviewCommentSubmit = useCallback(
+    async (reviewId: string) => {
+      const draft = reviewCommentDrafts[reviewId]?.trim();
+      if (!draft) return;
+
+      try {
+        setReviewCommentSubmitting(reviewId);
+        const comment = await createReviewComment(reviewId, draft);
+        setCourseReviews((prev) =>
+          prev.map((item) =>
+            item.id === reviewId
+              ? {
+                  ...item,
+                  comments: [...(item.comments || []), comment],
+                }
+              : item
+          )
+        );
+        setReviewCommentDrafts((prev) => ({
+          ...prev,
+          [reviewId]: '',
+        }));
+        success('Comment posted');
+      } catch (err: any) {
+        console.error('Failed to post review comment:', err);
+        errorToast(err?.message || 'Unable to post comment.');
+      } finally {
+        setReviewCommentSubmitting(null);
+      }
+    },
+    [reviewCommentDrafts, success, errorToast]
+  );
 
   const averageRating = useMemo(() => {
     const rated = courseReviews.filter((review) => review.rating && review.rating > 0);
@@ -795,7 +852,7 @@ const StudentLessonViewer: React.FC = () => {
         }
       }
     } catch (err: any) {
-      error(err.message || 'Failed to update progress');
+      errorToast(err.message || 'Failed to update progress');
     } finally {
       setIsCompleting(false);
     }
@@ -876,61 +933,61 @@ const StudentLessonViewer: React.FC = () => {
 
   const isContentCompleted = useCallback(
     (contentId: string) => {
-      // Since the overall progress is working correctly (88%), let's use a simpler approach
-      // Check if this is a quiz first
+    // Since the overall progress is working correctly (88%), let's use a simpler approach
+    // Check if this is a quiz first
       const isQuiz = allQuizzes.some((quiz) => quiz.id === contentId);
-
-      if (isQuiz) {
-        // For quizzes, check cached completion status
-        const cachedStatus = quizCompletionStatus[contentId];
-        if (cachedStatus) {
-          console.log(`[Completion Check] Quiz ${contentId} completed (cached): ${cachedStatus}`);
-          return true;
-        }
+    
+    if (isQuiz) {
+      // For quizzes, check cached completion status
+      const cachedStatus = quizCompletionStatus[contentId];
+      if (cachedStatus) {
+        console.log(`[Completion Check] Quiz ${contentId} completed (cached): ${cachedStatus}`);
+        return true;
       }
-
-      // For lessons, check the progress data
-      if (!progress) {
-        console.log(`[Completion Check] No progress data available for ${contentId}`);
-        return false;
-      }
-
-      // Look through all modules for the lesson
-      for (const module of progress) {
+    }
+    
+    // For lessons, check the progress data
+    if (!progress) {
+      console.log(`[Completion Check] No progress data available for ${contentId}`);
+      return false;
+    }
+    
+    // Look through all modules for the lesson
+    for (const module of progress) {
         console.log(
           `[Completion Check] Checking module ${module.module_title} for content ${contentId}`
         );
-
-        // Check legacy lessons array (this is what's working)
-        const lessons = module.lessons || [];
+      
+      // Check legacy lessons array (this is what's working)
+      const lessons = module.lessons || [];
         console.log(
           `[Completion Check] Module has ${lessons.length} lessons:`,
           lessons.map((l: any) => ({ id: l.lesson_id, title: l.title, completed: l.completed }))
         );
-
-        const lesson = lessons.find((l: any) => l.lesson_id === contentId);
-        if (lesson?.completed) {
-          console.log(`[Completion Check] Lesson ${contentId} completed: ${lesson.completed}`);
-          return true;
-        }
-
-        // Check unified content array if available
-        if (module.content && Array.isArray(module.content)) {
-          const contentItem = module.content.find((item: any) => {
+      
+      const lesson = lessons.find((l: any) => l.lesson_id === contentId);
+      if (lesson?.completed) {
+        console.log(`[Completion Check] Lesson ${contentId} completed: ${lesson.completed}`);
+        return true;
+      }
+      
+      // Check unified content array if available
+      if (module.content && Array.isArray(module.content)) {
+        const contentItem = module.content.find((item: any) => {
             return item.lesson_id === contentId || item.quiz_id === contentId;
-          });
-
-          if (contentItem?.completed) {
+        });
+        
+        if (contentItem?.completed) {
             console.log(
               `[Completion Check] ${contentItem.type} ${contentId} completed: ${contentItem.completed}`
             );
-            return true;
-          }
+          return true;
         }
       }
-
-      console.log(`[Completion Check] Content ${contentId} not completed`);
-      return false;
+    }
+    
+    console.log(`[Completion Check] Content ${contentId} not completed`);
+    return false;
     },
     [allQuizzes, progress, quizCompletionStatus]
   );
@@ -1253,7 +1310,7 @@ const StudentLessonViewer: React.FC = () => {
           // User must click "Mark as Complete" button to complete the quiz
         }
       } catch (error: any) {
-        error(error.message || 'Failed to submit quiz');
+        errorToast(error.message || 'Failed to submit quiz');
       }
     };
 
@@ -1860,6 +1917,61 @@ const StudentLessonViewer: React.FC = () => {
                     <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-gray-700">
                       {review.body}
                     </p>
+                    {review.comments && review.comments.length > 0 && (
+                      <div className="mt-5 space-y-3">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Instructor Responses
+                        </div>
+                        {review.comments.map((comment) => (
+                          <div
+                            key={comment.id}
+                            className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm text-gray-700"
+                          >
+                            <div className="mb-1 flex items-center justify-between text-[11px] text-gray-500">
+                              <span className="font-medium text-gray-600">
+                                {comment.author?.fullName ||
+                                  comment.author?.firstName ||
+                                  comment.author?.email ||
+                                  'Team member'}
+                              </span>
+                              <span>{new Date(comment.created_at).toLocaleString()}</span>
+                            </div>
+                            <p className="whitespace-pre-line text-sm text-gray-700">{comment.body}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {canRespondToReviews && (
+                      <div className="mt-5 space-y-2">
+                        <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Reply to this review
+                        </label>
+                        <textarea
+                          value={reviewCommentDrafts[review.id] || ''}
+                          onChange={(event) =>
+                            handleReviewCommentChange(review.id, event.target.value)
+                          }
+                          rows={3}
+                          placeholder="Thank the reviewer or share next steps..."
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                        />
+                        <div className="flex justify-end">
+                          <button
+                            onClick={() => handleReviewCommentSubmit(review.id)}
+                            disabled={
+                              reviewCommentSubmitting === review.id ||
+                              !(reviewCommentDrafts[review.id] && reviewCommentDrafts[review.id].trim().length > 0)
+                            }
+                            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-primary-300"
+                          >
+                            {reviewCommentSubmitting === review.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : null}
+                            {reviewCommentSubmitting === review.id ? 'Posting...' : 'Post Comment'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </article>
                 ))}
               </div>
@@ -2164,23 +2276,23 @@ const StudentLessonViewer: React.FC = () => {
                   const showBadge = showAnnouncementsBadge || showSupportBadge;
                   const badgeCount = showAnnouncementsBadge ? unreadAnnouncementsCount : (showSupportBadge ? openSupportQuestionsCount : 0);
                   return (
-                    <button
-                      key={tab.value}
-                      type="button"
-                      onClick={() => setActiveTab(tab.value)}
+                  <button
+                    key={tab.value}
+                    type="button"
+                    onClick={() => setActiveTab(tab.value)}
                       className={`relative px-4 sm:px-6 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                        activeTab === tab.value
-                          ? 'border-primary-600 text-primary-700'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      {tab.label}
+                      activeTab === tab.value
+                        ? 'border-primary-600 text-primary-700'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {tab.label}
                       {showBadge && (
                         <span className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-xs font-semibold text-white">
                           {badgeCount > 9 ? '9+' : badgeCount}
                         </span>
                       )}
-                    </button>
+                  </button>
                   );
                 })}
               </nav>

@@ -19,6 +19,7 @@ import {
   fetchReviews,
   updateReviewStatus,
   updateReviewVisibility,
+  createReviewComment,
 } from '../../../services/reviews.service';
 
 type StatusFilter = ReviewStatus | 'all';
@@ -45,6 +46,8 @@ const ReviewsModerationPage: React.FC = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [commentSubmitting, setCommentSubmitting] = useState<string | null>(null);
 
   const loadReviews = useCallback(async () => {
     setLoading(true);
@@ -64,7 +67,11 @@ const ReviewsModerationPage: React.FC = () => {
         params.search = search.trim();
       }
       const data = await fetchReviews(params);
-      setReviews(data);
+      const normalized = (data || []).map((review) => ({
+        ...review,
+        comments: review.comments || [],
+      }));
+      setReviews(normalized);
     } catch (err: any) {
       console.error('Failed to load reviews:', err);
       setError(err.message || 'Failed to load reviews');
@@ -88,6 +95,42 @@ const ReviewsModerationPage: React.FC = () => {
       setError(err.message || 'Failed to update review status');
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  const handleCommentDraftChange = (reviewId: string, value: string) => {
+    setCommentDrafts((prev) => ({
+      ...prev,
+      [reviewId]: value,
+    }));
+  };
+
+  const handleSubmitComment = async (reviewId: string) => {
+    const value = commentDrafts[reviewId]?.trim();
+    if (!value) return;
+
+    try {
+      setCommentSubmitting(reviewId);
+      const comment = await createReviewComment(reviewId, value);
+      setReviews((prev) =>
+        prev.map((item) =>
+          item.id === reviewId
+            ? {
+                ...item,
+                comments: [...(item.comments || []), comment],
+              }
+            : item
+        )
+      );
+      setCommentDrafts((prev) => ({
+        ...prev,
+        [reviewId]: '',
+      }));
+    } catch (err: any) {
+      console.error('Failed to submit review comment:', err);
+      setError(err?.message || 'Failed to submit review comment.');
+    } finally {
+      setCommentSubmitting(null);
     }
   };
 
@@ -347,6 +390,59 @@ const ReviewsModerationPage: React.FC = () => {
                       <p className="max-w-xs whitespace-pre-line text-gray-700">
                         {review.body}
                       </p>
+                      {review.comments && review.comments.length > 0 && (
+                        <div className="mt-4 space-y-3">
+                          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Staff Responses
+                          </div>
+                          {review.comments.map((comment) => (
+                            <div
+                              key={comment.id}
+                              className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm text-gray-700"
+                            >
+                              <div className="mb-1 flex items-center justify-between text-[11px] text-gray-500">
+                                <span className="font-medium text-gray-600">
+                                  {comment.author?.fullName ||
+                                    comment.author?.firstName ||
+                                    comment.author?.email ||
+                                    'Team member'}
+                                </span>
+                                <span>{new Date(comment.created_at).toLocaleString()}</span>
+                              </div>
+                              <p className="whitespace-pre-line text-sm text-gray-700">{comment.body}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {review.reviewable_type === 'course' && (
+                        <div className="mt-4 space-y-2">
+                          <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Add Comment
+                          </label>
+                          <textarea
+                            value={commentDrafts[review.id] || ''}
+                            onChange={(event) => handleCommentDraftChange(review.id, event.target.value)}
+                            rows={2}
+                            placeholder="Reply to this review..."
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                          />
+                          <div className="flex justify-end">
+                            <button
+                              onClick={() => handleSubmitComment(review.id)}
+                              disabled={
+                                commentSubmitting === review.id ||
+                                !(commentDrafts[review.id] && commentDrafts[review.id].trim().length > 0)
+                              }
+                              className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-primary-300"
+                            >
+                              {commentSubmitting === review.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : null}
+                              {commentSubmitting === review.id ? 'Posting...' : 'Post Comment'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500">
                       <span

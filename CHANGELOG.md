@@ -5,6 +5,70 @@ All notable changes to SunLMS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2025-11-15
+
+### 📧 Email Notifications & Review Comments
+
+This release adds comprehensive email notification support for course support and reviews, plus a new review comments feature that allows instructors and admins to publicly respond to student reviews.
+
+### ✨ Added
+
+#### Email Notifications
+- **Course Support Email Notifications**: Automatic email alerts to course creators/instructors
+  - New question notifications with question details, student name, course context, and direct links
+  - New reply notifications with reply author info, body preview, and question context
+  - Branded email templates with TinyMCE-styled formatting
+  - Context-aware links to view questions/replies in the lesson viewer
+  - Only sent to course creators (users who created the course)
+- **Review Email Notifications**: Automatic email alerts for review-related events
+  - New review submission notifications to course creators with reviewer info, rating, and review preview
+  - New comment notifications to review authors when instructors/admins post comments
+  - Branded email templates with direct links to moderation console
+  - Only sent when email is configured in the system
+
+#### Review Comments System
+- **Public Review Comments**: Instructors and admins can now comment on reviews
+  - New `review_comments` table with `review_id`, `author_id`, `body`, `is_internal` flag
+  - Public comments displayed inline with reviews in student lesson viewer
+  - Comments visible in moderation console for admins
+  - API endpoints: `POST /api/reviews/:id/comments` and `GET /api/reviews/:id/comments`
+  - Frontend integration in `StudentLessonViewer` and `ReviewsModerationPage`
+  - Email notifications sent to review authors when comments are posted
+- **Review Comments UI**: Inline comment display and posting interface
+  - Comment form in moderation page for admins/instructors
+  - Comment display in student lesson viewer reviews tab
+  - Author information and timestamps for all comments
+  - Optimistic UI updates for better user experience
+
+### 🔄 Changed
+
+#### Email Templates
+- Added `support_question_notification` template for new support questions
+- Added `support_reply_notification` template for new support replies
+- Added `review_submitted_notification` template for new review submissions
+- Added `review_comment_notification` template for new review comments
+- All templates use branded styling with TinyMCE formatting support
+
+#### Database Schema
+- New migration: `20251115_add_review_comments.sql`
+  - Creates `review_comments` table with proper indexes and constraints
+  - Adds comment aggregation to review queries
+  - Includes `is_internal` flag for future internal note support
+
+### 📝 Documentation
+
+- Updated `docs/course-support-system.md` with email notification details
+- Updated `docs/reviews-system.md` with review comments and email notification information
+- Added API endpoint documentation for review comments
+
+### 🐛 Fixed
+
+- Email notification delivery respects course creator relationships
+- Review comment permissions properly enforce instructor/admin roles
+- Email templates handle missing optional fields gracefully
+
+---
+
 ## [2.5.0] - 2025-11-12
 
 ### 🎓 Course Support System & Announcements Platform

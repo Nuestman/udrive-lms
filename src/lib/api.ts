@@ -516,6 +516,8 @@ export const reviewsApi = {
       `/reviews/public${queryString ? `?${queryString}` : ''}`
     );
   },
+  comment: (reviewId: string, data: { body: string }) =>
+    post<{ success: boolean; data: any; message: string }>(`/reviews/${reviewId}/comments`, data),
 };
 
 /**

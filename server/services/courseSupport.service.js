@@ -4,6 +4,8 @@
  */
 
 import { query, getClient } from '../lib/db.js';
+import { APP_CONFIG } from '../config/app.js';
+import { isEmailConfigured, sendTemplatedEmail } from '../utils/mailer.js';
 
 /**
  * Map database row to question object
@@ -67,6 +69,165 @@ function mapReplyRow(row) {
     updatedAt: row.updated_at,
     author,
   };
+}
+
+const FRONTEND_URL =
+  APP_CONFIG?.FRONTEND_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
+
+function buildSupportUrl(course, question) {
+  const base = FRONTEND_URL.replace(/\/$/, '');
+  if (!course?.id) {
+    return base;
+  }
+
+  const courseSegment = course.slug || course.id;
+  const lessonSegment = question?.lessonId || '';
+
+  if (lessonSegment) {
+    return `${base}/student/courses/${courseSegment}/lessons/${lessonSegment}?tab=support`;
+  }
+
+  return `${base}/student/courses/${courseSegment}?tab=support`;
+}
+
+function formatDisplayName(person = {}) {
+  if (!person) return '';
+  if (person.fullName && person.fullName.trim().length > 0) return person.fullName;
+  if (person.firstName || person.lastName) {
+    return `${person.firstName || ''} ${person.lastName || ''}`.trim();
+  }
+  if (person.email) return person.email;
+  return '';
+}
+
+async function getCourseSupportNotificationContext(courseId) {
+  if (!courseId) return null;
+
+  const { rows } = await query(
+    `
+      SELECT
+        c.id,
+        c.slug,
+        c.title,
+        c.tenant_id,
+        u.id AS owner_id,
+        u.email AS owner_email,
+        COALESCE(
+          NULLIF(TRIM(CONCAT(up.first_name, ' ', up.last_name)), ''),
+          u.email
+        ) AS owner_name,
+        up.first_name AS owner_first_name
+      FROM courses c
+      LEFT JOIN users u ON u.id = c.created_by
+      LEFT JOIN user_profiles up ON up.user_id = u.id
+      WHERE c.id = $1
+        AND (u.id IS NULL OR u.is_active = TRUE)
+    `,
+    [courseId]
+  );
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const row = rows[0];
+  const owners = [];
+  if (row.owner_id && row.owner_email) {
+    owners.push({
+      id: row.owner_id,
+      email: row.owner_email,
+      name: row.owner_name || row.owner_email,
+      firstName: row.owner_first_name,
+    });
+  }
+
+  return {
+    course: {
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      tenantId: row.tenant_id,
+    },
+    owners,
+  };
+}
+
+async function sendSupportNotificationEmail({
+  eventType,
+  courseId,
+  question,
+  reply = null,
+}) {
+  if (!isEmailConfigured()) {
+    return;
+  }
+
+  const context = await getCourseSupportNotificationContext(courseId);
+  if (!context || !context.owners || context.owners.length === 0) {
+    return;
+  }
+
+  const supportUrl = buildSupportUrl(context.course, question);
+  const questionAuthorName = formatDisplayName(question?.author);
+  const questionBody = (question?.body || '').trim();
+  const questionSnippet =
+    questionBody.length > 400 ? `${questionBody.slice(0, 397)}…` : questionBody;
+  const attachmentsCount = Array.isArray(question?.attachments)
+    ? question.attachments.length
+    : 0;
+
+  const replyBody = reply?.body?.trim?.() || '';
+  const replySnippet =
+    replyBody.length > 400 ? `${replyBody.slice(0, 397)}…` : replyBody;
+  const replyAuthorName = reply ? formatDisplayName(reply.author) : '';
+  const replyAttachmentsCount = Array.isArray(reply?.attachments)
+    ? reply.attachments.length
+    : 0;
+
+  await Promise.all(
+    context.owners
+      .filter((owner) => {
+        if (!owner?.email) return false;
+        if (eventType === 'question' && owner.id === question?.studentId) return false;
+        if (eventType === 'reply' && owner.id === reply?.userId) return false;
+        return true;
+      })
+      .map(async (owner) => {
+        try {
+          if (eventType === 'question') {
+            await sendTemplatedEmail('support_question_notification', {
+              to: owner.email,
+              variables: {
+                recipientName: owner.firstName || owner.name || owner.email,
+                courseTitle: context.course?.title || 'Course',
+                questionTitle: question?.title || 'Support Question',
+                questionCategory: question?.category,
+                questionBody: questionSnippet,
+                questionAuthor: questionAuthorName || 'A student',
+                attachmentsCount,
+                supportUrl,
+              },
+            });
+          } else if (eventType === 'reply') {
+            await sendTemplatedEmail('support_reply_notification', {
+              to: owner.email,
+              variables: {
+                recipientName: owner.firstName || owner.name || owner.email,
+                courseTitle: context.course?.title || 'Course',
+                questionTitle: question?.title || 'Support Question',
+                questionAuthor: questionAuthorName || 'A student',
+                replyAuthor: replyAuthorName || 'A user',
+                replyBody: replySnippet,
+                attachmentsCount: replyAttachmentsCount,
+                supportUrl,
+              },
+            });
+          }
+        } catch (error) {
+          console.error('[Support] Failed to send notification email:', error);
+        }
+      })
+  );
 }
 
 /**
@@ -143,7 +304,19 @@ export async function createQuestion(payload, { studentId, courseId }) {
 
     await client.query('COMMIT');
 
-    return await getQuestionById(questionId, studentId);
+    const createdQuestion = await getQuestionById(questionId, studentId);
+
+    try {
+      await sendSupportNotificationEmail({
+        eventType: 'question',
+        courseId,
+        question: createdQuestion,
+      });
+    } catch (error) {
+      console.error('[Support] Question email notification failed:', error);
+    }
+
+    return createdQuestion;
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -374,7 +547,21 @@ export async function createReply(payload, { userId, questionId, isInstructor = 
 
     await client.query('COMMIT');
 
-    return await getReplyById(replyId);
+    const replyData = await getReplyById(replyId);
+    const questionData = await getQuestionById(questionId);
+
+    try {
+      await sendSupportNotificationEmail({
+        eventType: 'reply',
+        courseId: question.course_id,
+        question: questionData,
+        reply: replyData,
+      });
+    } catch (error) {
+      console.error('[Support] Reply email notification failed:', error);
+    }
+
+    return replyData;
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

@@ -24,6 +24,26 @@ export interface ReviewSchoolSummary {
   subdomain?: string | null;
 }
 
+export interface ReviewCommentAuthor {
+  id: string;
+  email?: string | null;
+  role?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  fullName?: string | null;
+}
+
+export interface ReviewComment {
+  id: string;
+  review_id: string;
+  author_id: string;
+  body: string;
+  is_internal?: boolean;
+  created_at: string;
+  updated_at: string;
+  author?: ReviewCommentAuthor;
+}
+
 export interface Review {
   id: string;
   user_id: string;
@@ -42,6 +62,7 @@ export interface Review {
   user?: ReviewUserSummary;
   course?: ReviewCourseSummary;
   school?: ReviewSchoolSummary;
+  comments?: ReviewComment[];
 }
 
 export interface SubmitReviewPayload {
@@ -103,6 +124,11 @@ export async function fetchPublicReviews(params?: {
   return (response.data as Review[]) || [];
 }
 
+export async function createReviewComment(reviewId: string, body: string): Promise<ReviewComment> {
+  const response = await reviewsApi.comment(reviewId, { body });
+  return response.data as ReviewComment;
+}
+
 export default {
   submitReview,
   fetchMyReviews,
@@ -110,6 +136,7 @@ export default {
   updateReviewStatus,
   updateReviewVisibility,
   fetchPublicReviews,
+  createReviewComment,
 };
 
 
