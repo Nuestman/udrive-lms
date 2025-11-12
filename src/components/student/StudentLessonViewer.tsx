@@ -16,7 +16,9 @@ import QuizEngine from '../quiz/QuizEngine';
 import { fetchPublicReviews, Review } from '../../services/reviews.service';
 import { fetchAnnouncements, markAnnouncementAsRead, type Announcement } from '../../services/announcements.service';
 import { getCourseReviewSettings, type CourseReviewSettings } from '../../services/reviewSettings.service';
+import { fetchQuestions } from '../../services/courseSupport.service';
 import CourseReviewPromptModal from './CourseReviewPromptModal';
+import CourseSupportTab from './CourseSupportTab';
 
 const getLessonAnnouncementStyles = (announcement: Announcement) => {
   if (announcement.isPinned) {
@@ -75,7 +77,7 @@ const StudentLessonViewer: React.FC = () => {
   const [resolvedCourseId, setResolvedCourseId] = useState<string | null>(null);
   const [resolvedLessonId, setResolvedLessonId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'lesson' | 'discussion' | 'notes' | 'announcements' | 'reviews' | 'tools'>('lesson');
+  const [activeTab, setActiveTab] = useState<'overview' | 'lesson' | 'support' | 'notes' | 'announcements' | 'reviews' | 'tools'>('lesson');
   
   // Quiz state
   const [quizStarted, setQuizStarted] = useState(false);
@@ -127,12 +129,20 @@ const StudentLessonViewer: React.FC = () => {
   const [announcementsError, setAnnouncementsError] = useState<string | null>(null);
   const markedAnnouncementsRef = useRef<Set<string>>(new Set());
 
+  // Support questions state
+  const [supportQuestions, setSupportQuestions] = useState<any[]>([]);
+
   // Calculate unread announcements count for badge
   const unreadAnnouncementsCount = useMemo(() => {
     return courseAnnouncements.filter(
       (announcement) => !announcement.isRead && !markedAnnouncementsRef.current.has(announcement.id)
     ).length;
   }, [courseAnnouncements]);
+
+  // Calculate open support questions count for badge
+  const openSupportQuestionsCount = useMemo(() => {
+    return supportQuestions.filter((q) => q.status === 'open').length;
+  }, [supportQuestions]);
 
   const isStudentContext = useMemo(
     () =>
@@ -148,7 +158,7 @@ const StudentLessonViewer: React.FC = () => {
     () => [
       { label: 'Overview', value: 'overview' as const },
       { label: 'Lesson', value: 'lesson' as const },
-      { label: 'Discussion', value: 'discussion' as const },
+      { label: 'Support', value: 'support' as const },
       { label: 'Notes', value: 'notes' as const },
       { label: 'Announcements', value: 'announcements' as const },
       { label: 'Reviews', value: 'reviews' as const },
@@ -248,6 +258,39 @@ const StudentLessonViewer: React.FC = () => {
 
     return () => {
       isCancelled = true;
+    };
+  }, [resolvedCourseId]);
+
+  // Load support questions for badge count
+  useEffect(() => {
+    if (!resolvedCourseId) {
+      setSupportQuestions([]);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadSupportQuestions = async () => {
+      try {
+        const data = await fetchQuestions({
+          course_id: resolvedCourseId,
+          limit: 100,
+        });
+        if (!isCancelled) {
+          setSupportQuestions(data || []);
+        }
+      } catch (err: any) {
+        if (!isCancelled) {
+          console.error('Failed to load support questions:', err);
+        }
+      }
+    };
+
+    loadSupportQuestions();
+    const interval = setInterval(loadSupportQuestions, 30000); // Poll every 30 seconds
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
     };
   }, [resolvedCourseId]);
 
@@ -1823,13 +1866,12 @@ const StudentLessonViewer: React.FC = () => {
             )}
           </div>
         );
-      case 'discussion':
-        return (
+      case 'support':
+        return resolvedCourseId ? (
+          <CourseSupportTab courseId={resolvedCourseId} currentLessonId={resolvedLessonId} />
+        ) : (
           <div className="p-4 sm:p-6 space-y-4">
-            <h2 className="text-xl font-semibold text-gray-900">Discussion</h2>
-            <p className="text-gray-600">
-              Learner-to-learner discussion features are coming soon. Stay tuned!
-            </p>
+            <p className="text-gray-600">Loading course support...</p>
           </div>
         );
       case 'notes':
@@ -2117,7 +2159,10 @@ const StudentLessonViewer: React.FC = () => {
             <div className="border-b border-gray-200">
               <nav className="flex overflow-x-auto">
                 {lessonTabs.map((tab) => {
-                  const showBadge = tab.value === 'announcements' && unreadAnnouncementsCount > 0;
+                  const showAnnouncementsBadge = tab.value === 'announcements' && unreadAnnouncementsCount > 0;
+                  const showSupportBadge = tab.value === 'support' && openSupportQuestionsCount > 0;
+                  const showBadge = showAnnouncementsBadge || showSupportBadge;
+                  const badgeCount = showAnnouncementsBadge ? unreadAnnouncementsCount : (showSupportBadge ? openSupportQuestionsCount : 0);
                   return (
                     <button
                       key={tab.value}
@@ -2132,7 +2177,7 @@ const StudentLessonViewer: React.FC = () => {
                       {tab.label}
                       {showBadge && (
                         <span className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-xs font-semibold text-white">
-                          {unreadAnnouncementsCount > 9 ? '9+' : unreadAnnouncementsCount}
+                          {badgeCount > 9 ? '9+' : badgeCount}
                         </span>
                       )}
                     </button>

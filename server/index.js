@@ -29,6 +29,7 @@ import announcementsRoutes from './routes/announcements.js';
 import feedbackRoutes from './routes/feedback.js';
 import testimonialsRoutes from './routes/testimonials.js';
 import reviewSettingsRoutes from './routes/reviewSettings.js';
+import courseSupportRoutes from './routes/courseSupport.js';
 import { pool } from './lib/db.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { APP_CONFIG, validateConfig } from './config/app.js';
@@ -260,6 +261,7 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/testimonials', testimonialsRoutes);
 app.use('/api/review-settings', reviewSettingsRoutes);
 app.use('/api/announcements', announcementsRoutes);
+app.use('/api/course-support', courseSupportRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -26,11 +26,11 @@ export const APP_CONFIG = {
   // CORS settings
   CORS_OPTIONS: {
     origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
       // In development, allow localhost and local network IPs
       if (process.env.NODE_ENV === 'development') {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-        
         // Allow localhost on any port
         if (origin.match(/^http:\/\/localhost(:\d+)?$/)) {
           return callback(null, true);
@@ -42,9 +42,21 @@ export const APP_CONFIG = {
         }
       }
       
-      // In production, use the configured frontend URL
+      // In production, allow configured frontend URL and Vercel preview deployments
       const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
+      
+      // Allow exact match
       if (origin === allowedOrigin) {
+        return callback(null, true);
+      }
+      
+      // Allow Vercel preview deployments (e.g., https://project-name-*.vercel.app)
+      if (origin.match(/^https:\/\/.*\.vercel\.app$/)) {
+        return callback(null, true);
+      }
+      
+      // Allow Vercel production deployments (if using vercel.app domain)
+      if (origin.match(/^https:\/\/.*-.*\.vercel\.app$/)) {
         return callback(null, true);
       }
       

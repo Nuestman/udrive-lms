@@ -251,6 +251,10 @@ export function buildStoragePath(category, context = {}) {
       parts.push('logos');
       break;
 
+    case 'course-support':
+      parts.push('courses', getCourseDir(), 'support');
+      break;
+
     case 'media-library-image':
       parts.push('media-library', 'images');
       break;
