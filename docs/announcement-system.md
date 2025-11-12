@@ -140,6 +140,8 @@ Enforcement highlights (`server/services/announcements.service.js`):
 - `createAnnouncement` – resolves hierarchy, defaults context, saves media, auto-publishes, dispatches email.
 - `updateAnnouncement` – enforces immutability rules, updates media, re-dispatches email if needed.
 - `listAnnouncements` / `fetchAnnouncements` – builds dynamic SQL with scoped filters, status, search, expiry, viewer role.
+  - When `includeGlobal: false` and `courseId` is provided, backend returns announcements matching the course.
+  - **Frontend filtering required**: Client-side filtering ensures only course-specific announcements (`audienceScope === 'course'` and `contextType !== 'general'`) are displayed in course views.
 - `archiveAnnouncement`, `deleteAnnouncement`, `markAnnouncementRead`.
 - `dispatchAnnouncementEmails` – loads branding, selects recipients, sends `announcement_broadcast` template.
 
@@ -167,12 +169,18 @@ Enforcement highlights (`server/services/announcements.service.js`):
 - Creation button opens editor; success reloads list.
 
 ### Course Detail Panel (`src/components/courses/CourseDetailsPage.tsx`)
-- “Course Announcements” section surfaces only `audience_scope = 'course'` records for the course.
+- "Course Announcements" section surfaces only course-specific announcements.
+- **Filtering logic**: Fetches with `includeGlobal: false`, then filters to ensure:
+  - `courseId` matches the current course
+  - `audienceScope === 'course'`
+  - `contextType !== 'general'` (excludes global/general announcements)
 - Uses shared editor with locked scope/course ID.
 - Displays attachments, metadata chips, CTA links.
 
 ### Student Experiences
-- `StudentLessonViewer.tsx`: Announcements tab loads course-specific items, marks unread announcements as read on tab focus.
+- `StudentLessonViewer.tsx`: Announcements tab loads course-specific items only.
+  - **Filtering logic**: Same as Course Detail Panel - excludes global announcements and requires `contextType !== 'general'`.
+  - Marks unread announcements as read on tab focus.
 - `StudentAnnouncementsPage.tsx`: search + include global toggle, two-column layout mirroring notifications.
 
 ### Navigation & Badges
@@ -182,10 +190,26 @@ Enforcement highlights (`server/services/announcements.service.js`):
 ## API Usage Examples
 
 ```typescript
-// List announcements for a course (student)
+// List announcements for a course (course-specific only)
+// Note: includeGlobal: false prevents fetching global announcements
 const data = await fetchAnnouncements({
   courseId: courseId,
-  includeGlobal: true,
+  includeGlobal: false,  // Excludes global announcements
+  status: 'all',
+  includeExpired: true,
+});
+
+// Filter to ensure only course-specific announcements
+const courseAnnouncements = (data || []).filter(
+  (announcement) =>
+    announcement.courseId === courseId &&
+    announcement.audienceScope === 'course' &&
+    announcement.contextType !== 'general'  // Excludes global/general announcements
+);
+
+// List all announcements (including global) for student announcements page
+const allData = await fetchAnnouncements({
+  includeGlobal: true,  // Includes global announcements
   limit: 50,
 });
 
@@ -243,12 +267,16 @@ await updateAnnouncementRequest(announcementId, {
 
 ### Course-Specific Workflow
 1. Visit `/school/courses/:id`.
-2. “New Course Announcement” auto-locks scope to course and preselects course ID.
+2. "New Course Announcement" auto-locks scope to course and preselects course ID.
 3. Learners see published announcements inside lesson viewer tab for that course only.
+4. **Filtering**: Course-specific views exclude:
+   - Global announcements (`audience_scope = 'global'`)
+   - General context announcements (`context_type = 'general'`)
+   - Announcements not matching the current course ID
 
 ### Student Experience
-- Lesson viewer tab autoloads course announcements and marks them read upon entry.
-- `/student/announcements` aggregates global + tenant + scoped announcements relevant to the student.
+- Lesson viewer tab autoloads course announcements (course-specific only, excludes global/general) and marks them read upon entry.
+- `/student/announcements` aggregates global + tenant + scoped announcements relevant to the student (includes global when `includeGlobal: true`).
 
 ### Unread Badges
 - Sidebar fetch counts per role using `/api/announcements` filters.

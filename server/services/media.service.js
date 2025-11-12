@@ -5,13 +5,41 @@
  */
 
 import { query } from '../lib/db.js';
-import { uploadFile, deleteFile, listFiles, getFileCategory } from '../utils/storage.js';
+import {
+  uploadFile,
+  deleteFile,
+  listFiles,
+  getFileCategory,
+  sanitizeFilename,
+} from '../utils/storage.js';
+
+const slugify = (value) =>
+  (value || '')
+    .toString()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .substring(0, 80);
 
 /**
  * Upload a file to storage and save metadata to database
  */
 export async function uploadMediaFile(fileBuffer, originalFilename, mimetype, category, context) {
-  const { tenantId, userId, courseId, lessonId, assignmentId, tags = [] } = context;
+  const {
+    tenantId,
+    userId,
+    courseId,
+    moduleId,
+    lessonId,
+    quizId,
+    assignmentId,
+    announcementId,
+    audienceScope,
+    tags = [],
+    fileSize,
+    courseSlug: providedCourseSlug,
+    fileCategory,
+  } = context;
   
   try {
     // Get tenant name for organized storage
@@ -21,6 +49,46 @@ export async function uploadMediaFile(fileBuffer, originalFilename, mimetype, ca
       tenantName = tenantResult.rows[0]?.name || tenantId;
     }
     
+    // Fetch course name/slug if courseId is provided
+    let courseName = context.courseName;
+    let courseSlug = providedCourseSlug;
+    if (courseId && !courseName) {
+      const courseResult = await query('SELECT title, slug FROM courses WHERE id = $1', [courseId]);
+      const courseRow = courseResult.rows[0];
+      if (courseRow) {
+        courseName = courseRow.title;
+        courseSlug = courseRow.slug || slugify(courseRow.title);
+      }
+    }
+
+    // Fetch module name if moduleId is provided
+    let moduleName = context.moduleName;
+    if (moduleId && !moduleName) {
+      const moduleResult = await query('SELECT title FROM modules WHERE id = $1', [moduleId]);
+      moduleName = moduleResult.rows[0]?.title;
+    }
+
+    // Fetch lesson name if lessonId is provided
+    let lessonName = context.lessonName;
+    if (lessonId && !lessonName) {
+      const lessonResult = await query('SELECT title FROM lessons WHERE id = $1', [lessonId]);
+      lessonName = lessonResult.rows[0]?.title;
+    }
+
+    // Fetch quiz name if quizId is provided
+    let quizName = context.quizName;
+    if (quizId && !quizName) {
+      const quizResult = await query('SELECT title FROM quizzes WHERE id = $1', [quizId]);
+      quizName = quizResult.rows[0]?.title;
+    }
+
+    // Fetch assignment name if assignmentId is provided
+    let assignmentName = context.assignmentName;
+    if (assignmentId && !assignmentName) {
+      const assignmentResult = await query('SELECT title FROM assignments WHERE id = $1', [assignmentId]);
+      assignmentName = assignmentResult.rows[0]?.title;
+    }
+
     // Upload to Vercel Blob
     const uploadResult = await uploadFile(
       fileBuffer,
@@ -31,15 +99,41 @@ export async function uploadMediaFile(fileBuffer, originalFilename, mimetype, ca
         tenantName,
         userId,
         courseId,
+        courseName,
+        courseSlug,
+        moduleId,
+        moduleName,
         lessonId,
-        assignmentId
+        lessonName,
+        quizId,
+        quizName,
+        assignmentId,
+        assignmentName,
+        announcementId,
       },
       {
         contentType: mimetype
       }
     );
     
+    const sanitizedOriginalName = sanitizeFilename(
+      originalFilename || `upload-${Date.now()}`
+    );
+
     // Save metadata to database
+    const mediaFileSize =
+      typeof uploadResult.size === 'number' && !Number.isNaN(uploadResult.size)
+        ? uploadResult.size
+        : typeof fileSize === 'number' && !Number.isNaN(fileSize)
+        ? fileSize
+        : Buffer.isBuffer(fileBuffer)
+        ? fileBuffer.length
+        : null;
+
+    if (mediaFileSize == null) {
+      throw new Error('Unable to determine uploaded file size');
+    }
+
     const result = await query(`
       INSERT INTO media_files (
         tenant_id,
@@ -59,16 +153,37 @@ export async function uploadMediaFile(fileBuffer, originalFilename, mimetype, ca
       tenantId,
       userId,
       uploadResult.filename,
-      originalFilename,
+      sanitizedOriginalName,
       getFileCategory(mimetype),
-      uploadResult.size,
+      mediaFileSize,
       mimetype,
       uploadResult.url,
-      JSON.stringify({
-        pathname: uploadResult.pathname,
-        uploadedAt: uploadResult.uploadedAt,
-        category
-      }),
+      JSON.stringify(
+        Object.fromEntries(
+          Object.entries({
+            pathname: uploadResult.pathname,
+            uploadedAt: uploadResult.uploadedAt,
+            storageCategory: category,
+            fileCategory: fileCategory || getFileCategory(mimetype),
+            audienceScope: audienceScope || null,
+            courseId: courseId || null,
+            courseName: courseName || null,
+            courseSlug: courseSlug || null,
+            moduleId: moduleId || null,
+            moduleName: moduleName || null,
+            lessonId: lessonId || null,
+            lessonName: lessonName || null,
+            quizId: quizId || null,
+            quizName: quizName || null,
+            assignmentId: assignmentId || null,
+            assignmentName: assignmentName || null,
+            announcementId: announcementId || null,
+            originalFilename,
+            sanitizedOriginalName,
+            uploader: userId || null,
+          }).filter(([, value]) => value !== null && value !== undefined && value !== '')
+        )
+      ),
       tags
     ]);
     
@@ -89,7 +204,10 @@ export async function uploadMultipleFiles(files, category, context) {
       file.originalname,
       file.mimetype,
       category,
-      context
+      {
+        ...context,
+        fileSize: typeof file.size === 'number' ? file.size : undefined,
+      }
     )
   );
   
@@ -284,11 +402,22 @@ export async function uploadCourseThumbnail(fileBuffer, originalFilename, mimety
   const tenantResult = await query('SELECT name FROM tenants WHERE id = $1', [tenantId]);
   const tenantName = tenantResult.rows[0]?.name || tenantId;
   
+  // Fetch course name/slug
+  let courseName, courseSlug;
+  if (courseId) {
+    const courseResult = await query('SELECT title, slug FROM courses WHERE id = $1', [courseId]);
+    const courseRow = courseResult.rows[0];
+    if (courseRow) {
+      courseName = courseRow.title;
+      courseSlug = courseRow.slug || slugify(courseRow.title);
+    }
+  }
+  
   const uploadResult = await uploadFile(
     fileBuffer,
     originalFilename,
     'course-thumbnail',
-    { tenantId, tenantName, courseId, userId },
+    { tenantId, tenantName, courseId, courseName, courseSlug, userId },
     { contentType: mimetype }
   );
   
@@ -309,12 +438,19 @@ export async function uploadAssignmentFiles(files, assignmentId, studentId, tena
   const tenantResult = await query('SELECT name FROM tenants WHERE id = $1', [tenantId]);
   const tenantName = tenantResult.rows[0]?.name || tenantId;
   
+  // Fetch assignment name
+  let assignmentName;
+  if (assignmentId) {
+    const assignmentResult = await query('SELECT title FROM assignments WHERE id = $1', [assignmentId]);
+    assignmentName = assignmentResult.rows[0]?.title;
+  }
+  
   const uploadPromises = files.map(file => 
     uploadFile(
       file.buffer,
       file.originalname,
       'assignment-submission',
-      { tenantId, tenantName, assignmentId, userId: studentId },
+      { tenantId, tenantName, assignmentId, assignmentName, userId: studentId },
       { contentType: file.mimetype }
     )
   );

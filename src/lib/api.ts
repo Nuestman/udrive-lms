@@ -1,5 +1,29 @@
 // API Client for Frontend
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Automatically detect if we should use relative URLs
+// When accessed from external device (non-localhost) or through browser-sync, use relative URLs
+const envApiUrl = import.meta.env.VITE_API_URL;
+const isBrowserSync = typeof window !== 'undefined' && window.location.port === '3000';
+const isExternalAccess = typeof window !== 'undefined' && 
+  window.location.hostname !== 'localhost' && 
+  window.location.hostname !== '127.0.0.1';
+
+// Use relative URL if:
+// 1. VITE_API_URL starts with '/' (explicitly set for proxy)
+// 2. We're accessing through browser-sync (port 3000)
+// 3. We're accessing from an external device (non-localhost) - Vite will proxy it
+// Otherwise use the configured URL or default to localhost
+const API_URL = (envApiUrl?.startsWith('/') || isBrowserSync || isExternalAccess)
+  ? '/api'
+  : (envApiUrl || 'http://localhost:5000/api');
+
+// Log API URL configuration for debugging
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
+  console.log('[API Client] API URL:', API_URL);
+  console.log('[API Client] Hostname:', window.location.hostname);
+  console.log('[API Client] Port:', window.location.port);
+  console.log('[API Client] Browser-sync detected:', isBrowserSync);
+  console.log('[API Client] External access detected:', isExternalAccess);
+}
 
 // Store active role for API requests
 let activeRole: string | null = null;
@@ -56,15 +80,45 @@ async function request<T = any>(
 
   try {
     const response = await fetch(url, config);
-    const data = await response.json();
-
+    
+    // Check if response is ok before trying to parse JSON
     if (!response.ok) {
-      throw new Error(data.error || `HTTP error ${response.status}`);
+      // Try to parse error message from JSON, but handle non-JSON responses
+      let errorMessage = `HTTP error ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorData.message || errorMessage;
+      } catch (e) {
+        // If response is not JSON, use status text
+        errorMessage = response.statusText || errorMessage;
+      }
+      throw new Error(errorMessage);
+    }
+
+    // Parse JSON response
+    let data;
+    try {
+      data = await response.json();
+    } catch (e) {
+      // If response is not JSON, throw a more helpful error
+      throw new Error('Invalid response format from server');
     }
 
     return data;
   } catch (error: any) {
-    console.error('API Error:', error);
+    // Enhanced error logging
+    console.error('API Error:', {
+      url,
+      method: config.method || 'GET',
+      error: error.message,
+      stack: error.stack
+    });
+    
+    // Provide more helpful error messages
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      throw new Error('Unable to connect to server. Please check if the backend is running and accessible.');
+    }
+    
     throw error;
   }
 }

@@ -36,6 +36,20 @@ import path from 'path';
  */
 
 /**
+ * Sanitize a name for use in directory paths
+ * Converts to lowercase, replaces special chars with hyphens, limits length
+ */
+export function sanitizeDirectoryName(name, maxLength = 80) {
+  if (!name) return '';
+  return name
+    .toString()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')  // Replace non-alphanumeric with hyphens
+    .replace(/^-+|-+$/g, '')      // Remove leading/trailing hyphens
+    .substring(0, maxLength);
+}
+
+/**
  * Sanitize filename to be URL-safe and human-readable
  */
 export function sanitizeFilename(filename) {
@@ -129,68 +143,134 @@ export function generateFilename(originalFilename, context = {}) {
  * Example: tenants/elite-driving/logos/
  */
 export function buildStoragePath(category, context = {}) {
-  const { tenantName, tenantId, courseId, lessonId, assignmentId } = context;
-  
-  // Sanitize tenant name for directory use
+  const {
+    tenantName,
+    tenantId,
+    courseId,
+    courseName,
+    courseSlug,
+    moduleId,
+    moduleName,
+    lessonId,
+    lessonName,
+    quizId,
+    quizName,
+    assignmentId,
+    assignmentName,
+    announcementId,
+  } = context;
+
   const sanitizedTenantName = tenantName
-    ? tenantName.toLowerCase()
-        .replace(/[^a-z0-9]/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '')
-        .substring(0, 50)
+    ? sanitizeDirectoryName(tenantName, 50)
     : (tenantId || 'default');
-  
+
   const parts = ['tenants', sanitizedTenantName];
-  
+
+  // Helper to get course directory name (prefer name, fallback to slug, then ID)
+  const getCourseDir = () => {
+    if (courseName) return sanitizeDirectoryName(courseName, 80);
+    if (courseSlug) return sanitizeDirectoryName(courseSlug, 80);
+    if (courseId) return sanitizeDirectoryName(courseId, 36);
+    return 'general';
+  };
+
+  // Helper to get module directory name
+  const getModuleDir = () => {
+    if (moduleName) return sanitizeDirectoryName(moduleName, 80);
+    if (moduleId) return sanitizeDirectoryName(moduleId, 36);
+    return 'general';
+  };
+
+  // Helper to get lesson directory name
+  const getLessonDir = () => {
+    if (lessonName) return sanitizeDirectoryName(lessonName, 80);
+    if (lessonId) return sanitizeDirectoryName(lessonId, 36);
+    return 'general';
+  };
+
+  // Helper to get quiz directory name
+  const getQuizDir = () => {
+    if (quizName) return sanitizeDirectoryName(quizName, 80);
+    if (quizId) return sanitizeDirectoryName(quizId, 36);
+    return 'general';
+  };
+
+  // Helper to get assignment directory name
+  const getAssignmentDir = () => {
+    if (assignmentName) return sanitizeDirectoryName(assignmentName, 80);
+    if (assignmentId) return sanitizeDirectoryName(assignmentId, 36);
+    return 'general';
+  };
+
   switch (category) {
     case 'avatar':
       parts.push('avatars');
       break;
-      
+
     case 'course-thumbnail':
       parts.push('courses', 'thumbnails');
       break;
-      
+
+    case 'course-announcement':
+      parts.push('courses', getCourseDir(), 'announcements');
+      break;
+
+    case 'module-announcement':
+      parts.push('courses', getCourseDir(), 'modules', getModuleDir(), 'announcements');
+      break;
+
+    case 'lesson-announcement':
+      parts.push('courses', getCourseDir(), 'lessons', getLessonDir(), 'announcements');
+      break;
+
+    case 'quiz-announcement':
+      parts.push('courses', getCourseDir(), 'quizzes', getQuizDir(), 'announcements');
+      break;
+
+    case 'announcement':
+      parts.push('announcements', announcementId || getCourseDir() || 'general');
+      break;
+
     case 'course-media':
-      parts.push('courses', courseId || 'general');
+      parts.push('courses', getCourseDir());
       break;
-      
+
     case 'lesson-media':
-      parts.push('lessons', lessonId || 'general');
+      parts.push('lessons', getLessonDir());
       break;
-      
+
     case 'assignment-submission':
-      parts.push('assignments', assignmentId || 'general');
+      parts.push('assignments', getAssignmentDir());
       break;
-      
+
     case 'certificate':
       parts.push('certificates');
       break;
-      
+
     case 'tenant-logo':
       parts.push('logos');
       break;
-      
+
     case 'media-library-image':
       parts.push('media-library', 'images');
       break;
-      
+
     case 'media-library-video':
       parts.push('media-library', 'videos');
       break;
-      
+
     case 'media-library-audio':
       parts.push('media-library', 'audio');
       break;
-      
+
     case 'media-library-document':
       parts.push('media-library', 'documents');
       break;
-      
+
     default:
       parts.push('misc');
   }
-  
+
   return parts.join('/');
 }
 
@@ -363,6 +443,7 @@ export default {
   deleteFile,
   listFiles,
   sanitizeFilename,
+  sanitizeDirectoryName,
   generateFilename,
   buildStoragePath,
   validateFileType,

@@ -9,6 +9,8 @@
     "client": "vite",
     "dev:server": "nodemon server/index.js",
     "dev:client": "vite",
+    "sync": "browser-sync start --config bs-config.js",
+    "dev:external": "concurrently \"npm run server\" \"npm run client\" \"npm run sync\"",
     "build": "vite build",
     "vercel-build": "vite build",
     "lint": "eslint .",

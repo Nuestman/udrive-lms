@@ -179,7 +179,7 @@ const StudentCoursesPage: React.FC = () => {
   return (
     <PageLayout
       title="Browse Courses"
-      description="Discover and enroll in driving courses"
+      description="Discover and enroll in our courses tailormade for you"
       breadcrumbs={breadcrumbs}
     >
       <div className="space-y-6">

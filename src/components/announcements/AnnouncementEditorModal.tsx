@@ -356,7 +356,7 @@ const AnnouncementEditorModal: React.FC<AnnouncementEditorModalProps> = ({
     setAttachments((prev) => (prev.length === 1 ? prev : prev.filter((_, idx) => idx !== index)));
   };
 
-  const mediaTypeCategoryMap: Record<string, string> = {
+const mediaTypeCategoryMap: Record<string, string> = {
     image: 'image',
     video: 'video',
     audio: 'audio',
@@ -372,6 +372,31 @@ const AnnouncementEditorModal: React.FC<AnnouncementEditorModalProps> = ({
   };
 
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+  const slugify = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .substring(0, 80);
+
+  const getSelectedCourse = (id: string | undefined) =>
+    courses.find((course) => course.id === id);
+
+  const resolveStorageCategory = () => {
+    switch (audienceScope) {
+      case 'course':
+        return 'course-announcement';
+      case 'module':
+        return 'module-announcement';
+      case 'lesson':
+        return 'lesson-announcement';
+      case 'quiz':
+        return 'quiz-announcement';
+      default:
+        return 'announcement';
+    }
+  };
 
   const handleAttachmentFileSelect = async (index: number, file: File | null) => {
     if (!file) return;
@@ -391,13 +416,44 @@ const AnnouncementEditorModal: React.FC<AnnouncementEditorModalProps> = ({
 
     const categoryKey = attachments[index]?.mediaType || 'document';
     const category = mediaTypeCategoryMap[categoryKey] || 'document';
+    const storageCategory = resolveStorageCategory();
+    const resolvedCourseId = lockedCourseId || courseId || undefined;
+    const courseRecord = resolvedCourseId ? getSelectedCourse(resolvedCourseId) : undefined;
+    const derivedCourseSlug =
+      courseRecord?.slug ||
+      (courseRecord?.title ? slugify(courseRecord.title) : undefined);
 
     try {
+      const uploadPayload: Record<string, string> = {
+        category,
+        storageCategory,
+        audienceScope,
+      };
+
+      if (resolvedCourseId) {
+        uploadPayload.courseId = resolvedCourseId;
+      }
+      if (derivedCourseSlug) {
+        uploadPayload.courseSlug = derivedCourseSlug;
+      }
+      if (moduleId) {
+        uploadPayload.moduleId = moduleId;
+      }
+      if (lessonId) {
+        uploadPayload.lessonId = lessonId;
+      }
+      if (quizId) {
+        uploadPayload.quizId = quizId;
+      }
+      if (initialAnnouncement?.id) {
+        uploadPayload.announcementId = initialAnnouncement.id;
+      }
+
       const response = await uploadFileWithProgress(
         file,
         `${API_BASE}/media/upload`,
         'files',
-        { category },
+        uploadPayload,
         (progress) => {
           setAttachments((prev) =>
             prev.map((item, idx) =>

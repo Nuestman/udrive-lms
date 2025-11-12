@@ -29,26 +29,70 @@ router.post('/upload',
   handleUploadError,
   async (req, res) => {
     try {
-      const { tags = [] } = req.body;
+      const {
+        tags: tagsRaw = [],
+        audienceScope,
+        storageCategory: requestedStorageCategory,
+        courseId,
+        courseSlug,
+        moduleId,
+        lessonId,
+        quizId,
+        announcementId,
+      } = req.body;
       const files = req.files;
-      
+
       if (!files || files.length === 0) {
         return res.status(400).json({
           success: false,
           message: 'No files provided'
         });
       }
-      
-      const category = `media-library-${req.body.category || 'document'}`;
-      
+
+      const parsedTags = Array.isArray(tagsRaw)
+        ? tagsRaw
+        : typeof tagsRaw === 'string' && tagsRaw.length > 0
+        ? tagsRaw.split(',').map((tag) => tag.trim()).filter(Boolean)
+        : [];
+
+      const fileCategory = req.body.category || 'document';
+
+      let storageCategory = requestedStorageCategory;
+      if (!storageCategory) {
+        switch (audienceScope) {
+          case 'course':
+            storageCategory = 'course-announcement';
+            break;
+          case 'module':
+            storageCategory = 'module-announcement';
+            break;
+          case 'lesson':
+            storageCategory = 'lesson-announcement';
+            break;
+          case 'quiz':
+            storageCategory = 'quiz-announcement';
+            break;
+          default:
+            storageCategory = `media-library-${fileCategory || 'document'}`;
+        }
+      }
+
       const uploadedFiles = await mediaService.uploadMultipleFiles(
         files,
-        category,
+        storageCategory,
         {
           tenantId: req.tenantId,
           userId: req.user.id,
           userName: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim(),
-          tags: tags.split ? tags.split(',') : tags
+          tags: parsedTags,
+          audienceScope,
+          courseId: courseId || undefined,
+          courseSlug: courseSlug || undefined,
+          moduleId: moduleId || undefined,
+          lessonId: lessonId || undefined,
+          quizId: quizId || undefined,
+          announcementId: announcementId || undefined,
+          fileCategory,
         }
       );
       

@@ -330,7 +330,7 @@ CREATE TABLE IF NOT EXISTS media_files (
     filename TEXT NOT NULL,
     original_filename TEXT NOT NULL,
     file_type TEXT NOT NULL,
-    file_size INTEGER NOT NULL,
+    file_size BIGINT NOT NULL,
     mime_type TEXT NOT NULL,
     file_url TEXT NOT NULL,
     thumbnail_url TEXT,

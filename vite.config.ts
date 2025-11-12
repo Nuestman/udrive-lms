@@ -20,6 +20,16 @@ export default defineConfig({
     },
   ],
   server: {
+    host: true, // Allow external connections (0.0.0.0)
+    port: 5173,
+    proxy: {
+      // Proxy API requests to backend server
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
     watch: {
       // Ignore the Next.js scaffold to avoid Vite dev server interference
       ignored: ['**/sunlms-next/**'],

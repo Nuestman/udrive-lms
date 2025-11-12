@@ -248,8 +248,11 @@ async function fetchAnnouncements({
 
   whereClauses.push(`(${scopeConditions.join(' OR ')})`);
 
-  if (!isSuperAdmin && viewerRole) {
-    const viewerParam = addParam(viewerRole);
+  const shouldFilterByRole =
+    !isSuperAdmin && typeof viewerRole === 'string' && viewerRole.toLowerCase() === 'student';
+
+  if (shouldFilterByRole) {
+    const viewerParam = addParam(viewerRole.toLowerCase());
     whereClauses.push(`(a.target_roles && ARRAY[${viewerParam}]::TEXT[])`);
   }
 

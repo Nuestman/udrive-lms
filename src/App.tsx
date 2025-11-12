@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo } from 'react';
 import {
   BrowserRouter as Router,
   Routes,
@@ -12,7 +12,7 @@ import { SettingsProvider } from './contexts/SettingsContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
-import { WhiteLabelProvider } from './contexts/WhiteLabelContext';
+import { WhiteLabelProvider, useWhiteLabel } from './contexts/WhiteLabelContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { TimezoneProvider } from './contexts/TimezoneContext';
 import { CompactModeProvider } from './contexts/CompactModeContext';
@@ -104,6 +104,96 @@ function ScrollToTop() {
   return null;
 }
 
+interface RouteTitleMatcher {
+  pattern: RegExp;
+  title: string;
+}
+
+const routeTitleMatchers: RouteTitleMatcher[] = [
+  { pattern: /^\/$/, title: 'Welcome' },
+  { pattern: /^\/docs\/implementation-progress$/, title: 'Implementation Progress' },
+  { pattern: /^\/docs(?:\/.*)?$/, title: 'Documentation' },
+  { pattern: /^\/privacy$/, title: 'Privacy Policy' },
+  { pattern: /^\/terms$/, title: 'Terms of Service' },
+  { pattern: /^\/contact$/, title: 'Contact Us' },
+  { pattern: /^\/verify\/[^/]+$/, title: 'Verify Certificate' },
+  { pattern: /^\/login$/, title: 'Log In' },
+  { pattern: /^\/signup\/super-admin$/, title: 'Super Admin Sign Up' },
+  { pattern: /^\/signup\/school$/, title: 'School Sign Up' },
+  { pattern: /^\/signup$/, title: 'Create Account' },
+  { pattern: /^\/forgot-password$/, title: 'Forgot Password' },
+  { pattern: /^\/reset-password$/, title: 'Reset Password' },
+  { pattern: /^\/school\/dashboard$/, title: 'School Dashboard' },
+  { pattern: /^\/school\/courses\/[^/]+$/, title: 'Course Details' },
+  { pattern: /^\/school\/courses$/, title: 'Manage Courses' },
+  { pattern: /^\/school\/students$/, title: 'Student Directory' },
+  { pattern: /^\/school\/instructors$/, title: 'Instructor Directory' },
+  { pattern: /^\/school\/enrollments$/, title: 'Enrollment Management' },
+  { pattern: /^\/school\/analytics$/, title: 'School Analytics' },
+  { pattern: /^\/school\/settings$/, title: 'School Settings' },
+  { pattern: /^\/school\/certificates$/, title: 'Certificate Management' },
+  { pattern: /^\/school\/announcements$/, title: 'Announcements' },
+  { pattern: /^\/school\/reviews$/, title: 'Reviews Moderation' },
+  { pattern: /^\/school\/feedback-insights$/, title: 'Feedback Insights' },
+  { pattern: /^\/school\/profile$/, title: 'Profile Settings' },
+  { pattern: /^\/media-library$/, title: 'Media Library' },
+  { pattern: /^\/admin\/dashboard$/, title: 'Super Admin Dashboard' },
+  { pattern: /^\/admin\/schools$/, title: 'Schools' },
+  { pattern: /^\/admin\/users$/, title: 'User Management' },
+  { pattern: /^\/admin\/instructors$/, title: 'Instructor Management' },
+  { pattern: /^\/admin\/analytics$/, title: 'Platform Analytics' },
+  { pattern: /^\/admin\/settings$/, title: 'Platform Settings' },
+  { pattern: /^\/admin\/certificates$/, title: 'Certificate Management' },
+  { pattern: /^\/admin\/contact-messages$/, title: 'Contact Messages' },
+  { pattern: /^\/admin\/reviews$/, title: 'Reviews Moderation' },
+  { pattern: /^\/admin\/feedback-insights$/, title: 'Feedback Insights' },
+  { pattern: /^\/admin\/announcements$/, title: 'Announcements' },
+  { pattern: /^\/admin\/testimonials$/, title: 'Testimonials Manager' },
+  { pattern: /^\/admin\/profile$/, title: 'Profile Settings' },
+  { pattern: /^\/instructor\/dashboard$/, title: 'Instructor Dashboard' },
+  { pattern: /^\/instructor\/courses$/, title: 'Instructor Courses' },
+  { pattern: /^\/instructor\/certificates$/, title: 'Certificate Management' },
+  { pattern: /^\/instructor\/announcements$/, title: 'Announcements' },
+  { pattern: /^\/instructor\/profile$/, title: 'Profile Settings' },
+  { pattern: /^\/student\/courses\/[^/]+\/lessons\/[^/]+$/, title: 'Lesson Viewer' },
+  { pattern: /^\/student\/dashboard$/, title: 'Student Dashboard' },
+  { pattern: /^\/student\/progress$/, title: 'Progress Overview' },
+  { pattern: /^\/student\/courses$/, title: 'My Courses' },
+  { pattern: /^\/student\/certificates\/[^/]+$/, title: 'Certificate Viewer' },
+  { pattern: /^\/student\/certificates$/, title: 'My Certificates' },
+  { pattern: /^\/student\/announcements$/, title: 'Announcements' },
+  { pattern: /^\/student\/profile$/, title: 'Profile Settings' },
+  { pattern: /^\/feedback$/, title: 'Feedback' },
+  { pattern: /^\/notifications$/, title: 'Notifications' },
+  { pattern: /^\/help$/, title: 'Help Center' },
+];
+
+const resolvePageTitle = (pathname: string) => {
+  for (const matcher of routeTitleMatchers) {
+    if (matcher.pattern.test(pathname)) {
+      return matcher.title;
+    }
+  }
+  if (/^\/(app|dashboard)/.test(pathname)) {
+    return 'Dashboard';
+  }
+  return null;
+};
+
+const RouteTitleUpdater: React.FC = () => {
+  const location = useLocation();
+  const { getBrandingConfig } = useWhiteLabel();
+  const brandingConfig = useMemo(() => getBrandingConfig(), [getBrandingConfig]);
+  const companyName = brandingConfig.companyName || 'SunLMS';
+
+  useEffect(() => {
+    const pageTitle = resolvePageTitle(location.pathname);
+    document.title = pageTitle ? `${pageTitle} | ${companyName}` : companyName;
+  }, [location.pathname, companyName]);
+
+  return null;
+};
+
 interface AuthenticatedProvidersProps {
   profile: {
     role: UserRole;
@@ -172,6 +262,7 @@ function App() {
       <ThemeProvider>
         <Router>
           <ScrollToTop />
+          <RouteTitleUpdater />
           <Suspense fallback={<LoadingScreen message="Loading..." />}>
           <Routes>
             {/* Public marketing and informational pages */}

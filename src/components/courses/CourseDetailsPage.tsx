@@ -240,7 +240,10 @@ const CourseDetailsPage: React.FC = () => {
         includeExpired: true,
       });
       const relevant = (data || []).filter(
-        (announcement) => announcement.courseId === courseUuid && announcement.audienceScope === 'course'
+        (announcement) =>
+          announcement.courseId === courseUuid &&
+          announcement.audienceScope === 'course' &&
+          announcement.contextType !== 'general'
       );
       setCourseAnnouncements(relevant);
     } catch (err: any) {

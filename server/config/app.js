@@ -25,7 +25,31 @@ export const APP_CONFIG = {
   
   // CORS settings
   CORS_OPTIONS: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: function (origin, callback) {
+      // In development, allow localhost and local network IPs
+      if (process.env.NODE_ENV === 'development') {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        // Allow localhost on any port
+        if (origin.match(/^http:\/\/localhost(:\d+)?$/)) {
+          return callback(null, true);
+        }
+        
+        // Allow local network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+        if (origin.match(/^http:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/)) {
+          return callback(null, true);
+        }
+      }
+      
+      // In production, use the configured frontend URL
+      const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
+      if (origin === allowedOrigin) {
+        return callback(null, true);
+      }
+      
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true
   },
   

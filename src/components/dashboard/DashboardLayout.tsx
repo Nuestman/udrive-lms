@@ -319,7 +319,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           },
           { 
             icon: <BookOpen size={20} />, 
-            label: 'My Courses', 
+            label: 'Courses', 
             href: '/instructor/courses',
             isActive: location.startsWith('/instructor/courses')
           },
@@ -367,7 +367,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           },
           { 
             icon: <BookOpen size={20} />, 
-            label: 'My Courses', 
+            label: 'Courses', 
             href: '/student/courses',
             isActive: location.startsWith('/student/courses')
           },

@@ -210,11 +210,20 @@ const StudentLessonViewer: React.FC = () => {
         setAnnouncementsError(null);
         const data = await fetchAnnouncements({
           courseId: resolvedCourseId,
-          includeGlobal: true,
-          limit: 50,
+          includeGlobal: false,
+          status: 'all',
+          includeExpired: true,
         });
         if (!isCancelled) {
-          setCourseAnnouncements(Array.isArray(data) ? data : []);
+          // Filter to only show announcements for this specific course
+          // Must have matching courseId, audienceScope must be 'course', and contextType should be 'course' (not 'general')
+          const relevant = (data || []).filter(
+            (announcement) =>
+              announcement.courseId === resolvedCourseId &&
+              announcement.audienceScope === 'course' &&
+              announcement.contextType !== 'general'
+          );
+          setCourseAnnouncements(relevant);
         }
       } catch (err: any) {
         if (!isCancelled) {
