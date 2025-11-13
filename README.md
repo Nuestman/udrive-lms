@@ -154,8 +154,9 @@ Enroll → View Courses → Start Lesson → Complete Lesson
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/Nuestman/udrive-lms.git
-   cd udrive-lms
+   git clone https://github.com/Nuestman/sunlms.git
+   cd sunlms
+   git checkout dev
    ```
 
 2. **Install dependencies**
@@ -387,7 +388,7 @@ DELETE /enrollments/:id        - Unenroll student
 ## 📁 Project Structure
 
 ```
-udrive-lms/
+sunlms/
 ├── src/                          # Frontend source
 │   ├── components/              # React components
 │   │   ├── admin/              # Admin dashboards
@@ -501,6 +502,7 @@ Contributions are welcome! Please follow these steps:
 - Write clear commit messages
 - Add comments for complex logic
 - Update documentation as needed
+- Base all feature work from the `dev` branch and open pull requests targeting `dev`
 
 ## 🐛 Known Issues
 
@@ -514,7 +516,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Nuestman**
 - GitHub: [@Nuestman](https://github.com/Nuestman)
-- Repository: [udrive-lms](https://github.com/Nuestman/udrive-lms)
+- Repository: [sunlms](https://github.com/Nuestman/sunlms)
 
 ## 🙏 Acknowledgments
 
