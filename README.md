@@ -321,6 +321,22 @@ The SunLMS platform includes extensive documentation covering all aspects of the
 - **[First Steps](docs/student-user-guide.md)** - Getting started as a student
 - **[Admin Setup](docs/admin-guide.md)** - Initial administrative configuration
 
+## 🚀 Deployment
+
+### Vercel Deployment
+
+SunLMS is configured for easy deployment to Vercel. See [Vercel Deployment Guide](docs/vercel-deployment.md) for detailed instructions.
+
+**Quick Setup:**
+1. Connect your GitHub repository to Vercel
+2. Configure environment variables in Vercel dashboard
+3. Set `DATABASE_URL` to your Supabase production connection string
+4. Deploy!
+
+**Important**: 
+- Production uses Supabase database (set `DATABASE_URL` in Vercel)
+- Local development uses local PostgreSQL (comment out `DATABASE_URL` in `.env`)
+
 ## 📡 API Documentation
 
 ### Base URL

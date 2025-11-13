@@ -38,66 +38,167 @@ cd ..
 
 ### 3. Database Setup
 
-#### Option A: Local PostgreSQL
-```bash
-# Install PostgreSQL (Ubuntu/Debian)
-sudo apt update
-sudo apt install postgresql postgresql-contrib
+SunLMS supports two database configurations:
+- **Local PostgreSQL** (Recommended for development)
+- **Supabase** (Used for production/preview environments)
 
-# Install PostgreSQL (macOS)
-brew install postgresql
-brew services start postgresql
+> **📚 Migrating from Supabase?** See the [Supabase Migration Guide](./supabase-migration.md) for detailed instructions on dumping schema and data from Supabase to your local database.
 
-# Install PostgreSQL (Windows)
-# Download from https://www.postgresql.org/download/windows/
-```
+#### Option A: Local PostgreSQL (Recommended for Development)
 
-#### Option B: Docker PostgreSQL
-```bash
-# Run PostgreSQL in Docker
-docker run --name udrive-postgres \
-  -e POSTGRES_PASSWORD=password \
-  -e POSTGRES_DB=udrive_lms \
-  -p 5432:5432 \
-  -d postgres:15
-```
+1. **Install PostgreSQL** (if not already installed):
+   ```bash
+   # Ubuntu/Debian
+   sudo apt update
+   sudo apt install postgresql postgresql-contrib
 
-### 4. Database Configuration
-```bash
-# Connect to PostgreSQL
-psql -U postgres
+   # macOS
+   brew install postgresql
+   brew services start postgresql
 
-# Create database
-CREATE DATABASE sunlms;
-CREATE USER sunlms_user WITH PASSWORD 'your_password';
-GRANT ALL PRIVILEGES ON DATABASE sunlms TO sunlms_user;
+   # Windows
+   # Download from https://www.postgresql.org/download/windows/
+   ```
 
-# Exit psql
-\q
-```
+2. **Create the database** (using pgAdmin or command line):
+   ```bash
+   # Connect to PostgreSQL
+   psql -U postgres
+
+   # Create database
+   CREATE DATABASE sunlms;
+
+   # Exit psql
+   \q
+   ```
+
+3. **Configure environment variables** in `.env`:
+   ```bash
+   # Comment out DATABASE_URL to use local PostgreSQL
+   # DATABASE_URL=...
+
+   # Use individual parameters for local development
+   DATABASE_HOST=localhost
+   DATABASE_PORT=5432
+   DATABASE_NAME=sunlms
+   DATABASE_USER=postgres
+   DATABASE_PASSWORD=your_local_postgres_password
+   ```
+
+4. **Run the setup script** to initialize the database:
+   ```bash
+   node database/setup-local-db.js
+   ```
+
+5. **Seed the database** (choose one option):
+
+   **Option A: Use Supabase data as seed** (Recommended if you have existing data):
+   ```bash
+   # First, dump data from Supabase
+   node database/dump-supabase-data.js
+   
+   # Then import it to local database
+   node database/import-supabase-data.js
+   ```
+
+   **Option B: Use default seed data**:
+   ```bash
+   node database/run-seed.js
+   ```
+
+#### Option B: Supabase (Production/Preview)
+
+1. **Configure environment variables** in `.env`:
+   ```bash
+   # Use connection string for Supabase
+   DATABASE_URL=postgresql://postgres.zrwrdfkntrfqarbidtou:[YOUR-PASSWORD]@aws-0-eu-west-2.pooler.supabase.com:5432/postgres
+
+   # Comment out individual parameters
+   # DATABASE_HOST=...
+   # DATABASE_PORT=...
+   # DATABASE_NAME=...
+   # DATABASE_USER=...
+   # DATABASE_PASSWORD=...
+   ```
+
+2. **Run the schema** (if needed):
+   ```bash
+   node database/run-schema.js
+   ```
+
+**Note**: The system automatically detects which configuration to use based on whether `DATABASE_URL` is set. If `DATABASE_URL` is present, it uses Supabase/Production mode. Otherwise, it uses the individual parameters for local PostgreSQL.
+
+### 4. Migrating Data from Supabase to Local
+
+If you have existing data in Supabase that you want to use for local development:
+
+1. **Ensure Supabase connection is configured** in `.env`:
+   ```bash
+   DATABASE_URL=postgresql://postgres.zrwrdfkntrfqarbidtou:[YOUR-PASSWORD]@aws-0-eu-west-2.pooler.supabase.com:5432/postgres
+   ```
+
+2. **Dump all data from Supabase**:
+   ```bash
+   node database/dump-supabase-data.js
+   ```
+   This creates `database/supabase-data-dump.sql` with all your data.
+
+3. **Switch to local database configuration** in `.env`:
+   ```bash
+   # Comment out DATABASE_URL
+   # DATABASE_URL=...
+   
+   # Use local parameters
+   DATABASE_HOST=localhost
+   DATABASE_PORT=5432
+   DATABASE_NAME=sunlms
+   DATABASE_USER=postgres
+   DATABASE_PASSWORD=your_local_password
+   ```
+
+4. **Import data to local database**:
+   ```bash
+   node database/import-supabase-data.js
+   ```
+
+5. **Clean Supabase production** (optional, after verifying local import):
+   ```bash
+   # WARNING: This deletes ALL data from Supabase!
+   # Only run after you've verified the local import is successful
+   node database/clean-supabase-production.js
+   ```
+
+**Important**: Always verify your local database has all the data before cleaning Supabase!
 
 ### 5. Environment Configuration
-Create environment files:
 
-#### Frontend (.env.local)
+Copy the example environment file and configure it:
+
 ```bash
-# API Configuration
-VITE_API_BASE_URL=http://localhost:3001/api
-VITE_APP_NAME=UDrive LMS
-VITE_APP_VERSION=2.0.0
-
-# File Storage
-VITE_BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
+cp env.example .env
 ```
 
-#### Backend (.env)
-```bash
-# Database Configuration
-DATABASE_URL=postgresql://sunlms_user:your_password@localhost:5432/sunlms
+Edit `.env` and configure:
 
+#### Database Configuration
+- **For Local Development**: Comment out `DATABASE_URL` and configure individual parameters
+- **For Supabase/Production**: Uncomment and configure `DATABASE_URL`
+
+#### Other Required Variables
+```bash
 # JWT Configuration
 JWT_SECRET=your-super-secret-jwt-key-here
-JWT_EXPIRES_IN=24h
+JWT_EXPIRES_IN=7d
+
+# Server Configuration
+PORT=5000
+FRONTEND_URL=http://localhost:5173
+
+# API Configuration
+VITE_API_URL=http://localhost:5000/api
+
+# TinyMCE (Rich Text Editor)
+VITE_TINYMCE_API_KEY=your-tinymce-api-key-here
 
 # File Storage
 BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
@@ -117,17 +218,17 @@ NODE_ENV=development
 ```bash
 # Run database migrations
 cd database
-psql -U udrive_user -d udrive_lms -f schema.sql
+psql -U sunlms_user -d sunlms -f schema.sql
 
 # Run additional migrations if needed
-psql -U udrive_user -d udrive_lms -f create_unified_progress_table.sql
-psql -U udrive_user -d udrive_lms -f user-profiles-migration.sql
+psql -U sunlms_user -d sunlms -f create_unified_progress_table.sql
+psql -U sunlms_user -d sunlms -f user-profiles-migration.sql
 ```
 
 ### 7. Seed Data (Optional)
 ```bash
 # Add sample data for development
-psql -U udrive_user -d udrive_lms -f seed.sql
+psql -U sunlms_user -d sunlms -f seed.sql
 ```
 
 ## Development Workflow
@@ -187,7 +288,7 @@ npm test
 ## Project Structure
 
 ```
-udrive-lms/
+sunlms/
 ├── src/                    # Frontend source code
 │   ├── components/         # Reusable UI components
 │   ├── pages/             # Page components
@@ -216,25 +317,25 @@ udrive-lms/
 
 #### Connect to Database
 ```bash
-psql -U udrive_user -d udrive_lms
+psql -U sunlms_user -d sunlms
 ```
 
 #### Backup Database
 ```bash
-pg_dump -U udrive_user -d udrive_lms > backup.sql
+pg_dump -U sunlms_user -d sunlms > backup.sql
 ```
 
 #### Restore Database
 ```bash
-psql -U udrive_user -d udrive_lms < backup.sql
+psql -U sunlms_user -d sunlms < backup.sql
 ```
 
 #### Reset Database
 ```bash
 # Drop and recreate database
-dropdb -U udrive_user udrive_lms
-createdb -U udrive_user udrive_lms
-psql -U udrive_user -d udrive_lms -f schema.sql
+dropdb -U sunlms_user sunlms
+createdb -U sunlms_user sunlms
+psql -U sunlms_user -d sunlms -f schema.sql
 ```
 
 ### Database Migrations
@@ -256,11 +357,11 @@ echo "-- Migration: Description
 #### Running Migrations
 ```bash
 # Run specific migration
-psql -U udrive_user -d udrive_lms -f database/migrations/YYYY-MM-DD_description.sql
+psql -U sunlms_user -d sunlms -f database/migrations/YYYY-MM-DD_description.sql
 
 # Run all migrations
 for file in database/migrations/*.sql; do
-  psql -U udrive_user -d udrive_lms -f "$file"
+  psql -U sunlms_user -d sunlms -f "$file"
 done
 ```
 
@@ -387,7 +488,7 @@ curl -X GET http://localhost:3001/api/courses \
 sudo systemctl status postgresql
 
 # Check connection
-psql -U udrive_user -d udrive_lms -c "SELECT 1;"
+psql -U sunlms_user -d sunlms -c "SELECT 1;"
 
 # Check database exists
 psql -U postgres -c "\l"
