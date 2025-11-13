@@ -218,6 +218,8 @@ Once `dev` is validated (tests passed, QA sign-off):
    git pull origin dev
    ```
 
+- Automatic sync: whenever a commit lands on `main`, the GitHub Actions workflow at `.github/workflows/sync-dev.yml` attempts a fast-forward merge of `main` into `dev`. If the branches diverge, the workflow logs a warning and you must reconcile manually (rebase or merge locally). Monitor the workflow runs to ensure the sync succeeds after every release.
+
 ---
 
 ## 10. Common Tasks & Commands

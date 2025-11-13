@@ -1,0 +1,43 @@
+name: Sync Dev with Main
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: Merge main into dev
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch dev branch
+        run: |
+          git fetch origin dev:dev || echo "dev branch not found on remote"
+
+      - name: Fast-forward dev with main
+        run: |
+          if git show-ref --verify --quiet refs/heads/dev; then
+            git checkout dev
+            if git merge --ff-only origin/main; then
+              git push origin dev
+              echo "Dev branch synced with main."
+            else
+              echo "Dev branch has diverged from main. Manual intervention required."
+            fi
+          else
+            echo "Dev branch does not exist locally; skipping sync."
+          fi
+
