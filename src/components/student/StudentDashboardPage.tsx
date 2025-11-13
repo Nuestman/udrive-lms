@@ -5,7 +5,8 @@ import { BookOpen, Clock, TrendingUp, Award, Play, CheckCircle, X } from 'lucide
 import { useAuth } from '../../contexts/AuthContext';
 import { useEnrollments } from '../../hooks/useEnrollments';
 import { useToast } from '../../contexts/ToastContext';
-import api from '../../lib/api';
+import api, { quizzesApi } from '../../lib/api';
+import { useProgress } from '../../hooks/useProgress';
 import ConfirmationModal from '../ui/ConfirmationModal';
 
 const StudentDashboardPage: React.FC = () => {

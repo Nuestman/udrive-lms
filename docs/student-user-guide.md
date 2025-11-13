@@ -51,7 +51,7 @@ Lessons contain rich educational content including:
 #### Completing Lessons
 1. Read through the lesson content
 2. Take your time to understand the material
-3. Click "Mark as Complete" when finished
+3. Click "Mark as Complete" when finished (you can always click "Mark as Incomplete" later if you want to revisit)
 4. Your progress will be automatically updated
 
 ### 2. Quizzes
@@ -67,13 +67,14 @@ Quizzes test your understanding of the material with:
 3. Use "Previous" and "Next" buttons to navigate
 4. Click "Submit Quiz" when finished
 5. Review your results and score
-6. If you passed, click "Mark as Complete" to update your progress
+6. If you passed, click "Mark as Complete" to update your progress (the button will switch to "Mark as Incomplete" if you need to undo it)
 
 #### Quiz Features
 - **Time Limits**: Some quizzes have time constraints
 - **Multiple Attempts**: You may retake quizzes (if allowed)
 - **Passing Scores**: You must meet the minimum score to pass
 - **Feedback**: Review correct answers and explanations
+- **Completion Toggle**: After passing, switch between `Mark as Complete` and `Mark as Incomplete` to control progress
 
 ## Progress Tracking
 

@@ -117,7 +117,7 @@ const AnnouncementEditorModal: React.FC<AnnouncementEditorModalProps> = ({
   const [lessonId, setLessonId] = useState<string>('');
   const [quizId, setQuizId] = useState<string>('');
   const [ctaUrl, setCtaUrl] = useState<string>('');
-  const [attachments, setAttachments] = useState<AttachmentInput[]>([defaultAttachment()]);
+  const [attachments, setAttachments] = useState<AttachmentInput[]>([]);
   const [error, setError] = useState<string>('');
 
   const scopeOptions =
@@ -191,7 +191,7 @@ const AnnouncementEditorModal: React.FC<AnnouncementEditorModalProps> = ({
               uploadProgress: item.url ? 100 : 0,
               uploadError: undefined,
             }))
-          : [defaultAttachment()]
+          : []
       );
     } else {
       setTitle('');
@@ -210,7 +210,7 @@ const AnnouncementEditorModal: React.FC<AnnouncementEditorModalProps> = ({
       setLessonId('');
       setQuizId('');
       setCtaUrl('');
-      setAttachments([defaultAttachment()]);
+      setAttachments([]);
     }
     setError('');
   }, [open, initialAnnouncement, lockedAudienceScope, lockedCourseId]);
@@ -353,7 +353,7 @@ const AnnouncementEditorModal: React.FC<AnnouncementEditorModalProps> = ({
   };
 
   const handleRemoveAttachment = (index: number) => {
-    setAttachments((prev) => (prev.length === 1 ? prev : prev.filter((_, idx) => idx !== index)));
+    setAttachments((prev) => prev.filter((_, idx) => idx !== index));
   };
 
 const mediaTypeCategoryMap: Record<string, string> = {
@@ -1009,8 +1009,15 @@ const mediaTypeCategoryMap: Record<string, string> = {
               </button>
             </header>
 
-            <div className="space-y-4">
-              {attachments.map((attachment, index) => (
+            {attachments.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center">
+                <p className="text-sm text-gray-500">
+                  No attachments yet. Click "Add attachment" to add media files or links.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {attachments.map((attachment, index) => (
                 <div
                   key={`attachment-${index}`}
                   className="space-y-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
@@ -1022,8 +1029,7 @@ const mediaTypeCategoryMap: Record<string, string> = {
                     <button
                       type="button"
                       onClick={() => handleRemoveAttachment(index)}
-                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-50 disabled:opacity-40"
-                      disabled={attachments.length === 1}
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-50"
                     >
                       <Trash2 size={14} />
                       Remove
@@ -1153,8 +1159,9 @@ const mediaTypeCategoryMap: Record<string, string> = {
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
 
           <div className="flex flex-col gap-2 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">

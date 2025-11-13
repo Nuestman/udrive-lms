@@ -2,7 +2,7 @@
 // Student Lesson Viewer - View and complete lessons
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, Circle, ChevronLeft, ChevronRight, Clock, Menu, X, Settings, Star, Pin, Loader2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Circle, ChevronLeft, ChevronRight, ChevronDown, Clock, Menu, X, Settings, Star, Pin, Loader2 } from 'lucide-react';
 import { formatDistanceToNow, differenceInCalendarDays } from 'date-fns';
 import { useProgress } from '../../hooks/useProgress';
 import { useAuth } from '../../contexts/AuthContext';
@@ -77,7 +77,8 @@ const StudentLessonViewer: React.FC = () => {
   const [resolvedCourseId, setResolvedCourseId] = useState<string | null>(null);
   const [resolvedLessonId, setResolvedLessonId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'lesson' | 'support' | 'notes' | 'announcements' | 'reviews' | 'tools'>('lesson');
+  const [activeTab, setActiveTab] = useState<'overview' | 'lesson' | 'support' | 'notes' | 'announcements' | 'reviews' | 'tools'>('overview');
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   
   // Quiz state
   const [quizStarted, setQuizStarted] = useState(false);
@@ -1413,6 +1414,26 @@ const StudentLessonViewer: React.FC = () => {
                 </div>
               )}
               
+              {/* Mark as Incomplete button - show if quiz is completed */}
+              {isQuizCompleted && (
+                <div>
+                  <button
+                    onClick={() => handleToggleComplete()}
+                    disabled={isCompleting}
+                    className={`px-6 py-2 rounded-lg transition-colors font-medium ${
+                      isCompleting
+                        ? 'bg-gray-400 text-white cursor-not-allowed'
+                        : 'bg-green-100 text-green-700 hover:bg-green-200'
+                    }`}
+                  >
+                    {isCompleting ? 'Marking as Incomplete...' : 'Mark as Incomplete'}
+                  </button>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Click to mark this quiz as incomplete in your progress
+                  </p>
+                </div>
+              )}
+              
               {/* Show message if not passed */}
               {!isQuizCompleted && !passed && (
                 <div className="text-center">
@@ -1553,34 +1574,157 @@ const StudentLessonViewer: React.FC = () => {
             </section>
 
             <section>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Modules</h3>
-              <ul className="space-y-3">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Course Content</h3>
                 {modules.length > 0 ? (
-                  modules.map((module) => {
-                    const moduleContentCount = allContent.filter((item) => item.module_id === module.id).length;
+                <div className="space-y-3">
+                  {modules.map((module) => {
+                    const moduleContent = allContent
+                      .filter((item) => item.module_id === module.id)
+                      .sort((a, b) => {
+                        // Sort lessons before quizzes, then by creation date
+                        const aIsQuiz = 'type' in a && a.type === 'quiz';
+                        const bIsQuiz = 'type' in b && b.type === 'quiz';
+                        if (aIsQuiz && !bIsQuiz) return 1;
+                        if (!aIsQuiz && bIsQuiz) return -1;
+                        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                      });
+                    const moduleContentCount = moduleContent.length;
+                    const completedInModule = moduleContent.filter((item) => isLessonCompleted(item.id)).length;
+                    const hasCurrentContent = moduleContent.some(item => item.id === resolvedLessonId);
+                    const isExpanded = expandedModules.has(module.id);
+                    const toggleModule = () => {
+                      setExpandedModules((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(module.id)) {
+                          next.delete(module.id);
+                        } else {
+                          next.add(module.id);
+                        }
+                        return next;
+                      });
+                    };
+
                     return (
-                      <li
+                      <div
                         key={module.id}
-                        className="p-4 border border-gray-200 rounded-lg bg-gray-50"
+                        className={`border rounded-lg overflow-hidden ${
+                          hasCurrentContent
+                            ? 'border-primary-200 bg-primary-50/30'
+                            : 'border-gray-200 bg-white'
+                        }`}
                       >
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                          <span className="font-medium text-gray-900">{module.title}</span>
-                          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                            {moduleContentCount} item{moduleContentCount === 1 ? '' : 's'}
+                        <button
+                          onClick={toggleModule}
+                          className={`w-full p-4 flex items-center justify-between gap-3 transition-colors text-left ${
+                            hasCurrentContent
+                              ? 'hover:bg-primary-50/50'
+                              : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-1">
+                              <h4 className={`font-semibold ${
+                                hasCurrentContent
+                                  ? 'text-primary-700'
+                                  : 'text-gray-900'
+                              }`}>{module.title}</h4>
+                              <span className={`text-xs font-medium ${
+                                hasCurrentContent
+                                  ? 'text-primary-600'
+                                  : 'text-gray-500'
+                              }`}>
+                                {completedInModule}/{moduleContentCount} completed
                           </span>
                         </div>
                         {module.description && (
-                          <p className="text-sm text-gray-600 mt-2">{module.description}</p>
+                              <p className={`text-sm ${
+                                hasCurrentContent
+                                  ? 'text-primary-600/80'
+                                  : 'text-gray-600'
+                              }`}>{module.description}</p>
                         )}
-                      </li>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-medium ${
+                              hasCurrentContent
+                                ? 'text-primary-600'
+                                : 'text-gray-500'
+                            }`}>
+                              {moduleContentCount} item{moduleContentCount === 1 ? '' : 's'}
+                            </span>
+                            {isExpanded ? (
+                              <ChevronDown size={20} className={hasCurrentContent ? 'text-primary-500' : 'text-gray-400'} />
+                            ) : (
+                              <ChevronRight size={20} className={hasCurrentContent ? 'text-primary-500' : 'text-gray-400'} />
+                            )}
+          </div>
+                        </button>
+
+                        {isExpanded && moduleContent.length > 0 && (
+                          <div className={`border-t ${
+                            hasCurrentContent
+                              ? 'border-primary-200 bg-primary-50/20'
+                              : 'border-gray-200 bg-gray-50'
+                          }`}>
+                            <div className="p-3 space-y-1">
+                              {moduleContent.map((content) => {
+                                const completed = isLessonCompleted(content.id);
+                                const isCurrent = content.id === resolvedLessonId;
+                                const isQuiz = content.type === 'quiz';
+
+        return (
+                                  <button
+                                    key={content.id}
+                                    onClick={() => {
+                                      const slug = (content.title || '')
+                                        .toLowerCase()
+                                        .trim()
+                                        .replace(/[^a-z0-9\s-]/g, '')
+                                        .replace(/\s+/g, '-')
+                                        .replace(/-+/g, '-');
+                                      const courseSlug = course?.slug || courseSlugOrId;
+                                      navigate(`/student/courses/${courseSlug}/lessons/${slug}-${content.id}`);
+                                      setActiveTab('lesson');
+                                    }}
+                                    className={`w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 transition-colors ${
+                                      isCurrent
+                                        ? 'bg-primary-50 text-primary-700 font-medium border border-primary-200'
+                                        : completed
+                                        ? 'text-gray-700 hover:bg-gray-100'
+                                        : 'text-gray-600 hover:bg-gray-100'
+                                    }`}
+                                  >
+                                    {completed ? (
+                                      <CheckCircle size={18} className="text-green-600 flex-shrink-0" />
+                                    ) : (
+                                      <Circle size={18} className="text-gray-400 flex-shrink-0" />
+                                    )}
+                                    <div className="flex-1 flex items-center gap-2">
+                                      {isQuiz && (
+                                        <span className="text-xs bg-primary-100 text-primary-600 px-2 py-0.5 rounded font-medium">
+                                          Quiz
+                                        </span>
+                                      )}
+                                      <span className="text-sm">{content.title}</span>
+          </div>
+                                    {isCurrent && (
+                                      <span className="text-xs text-primary-600 font-medium">Current</span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     );
-                  })
-                ) : (
-                  <li className="text-sm text-gray-500">
-                    Modules will appear here once available.
-                  </li>
-                )}
-              </ul>
+                  })}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  Modules will appear here once available.
+                </div>
+              )}
             </section>
           </div>
         );
@@ -2142,7 +2286,7 @@ const StudentLessonViewer: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Mobile sidebar overlay */}
         <div 
-          className={`fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden transition-opacity duration-300 ${
+          className={`fixed inset-0 bg-black bg-opacity-50 z-[54] lg:hidden transition-opacity duration-300 ${
             isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
           onClick={() => setIsSidebarOpen(false)}
@@ -2151,8 +2295,8 @@ const StudentLessonViewer: React.FC = () => {
         {/* Sidebar - Course Structure */}
         <div className={`lg:col-span-1 ${
           isSidebarOpen 
-            ? 'fixed inset-y-0 left-0 w-80 bg-white shadow-xl z-40 lg:relative lg:z-auto lg:shadow-sm lg:inset-auto lg:w-auto transform transition-transform duration-300 ease-in-out translate-x-0' 
-            : 'fixed inset-y-0 left-0 w-80 bg-white shadow-xl z-40 lg:relative lg:z-auto lg:shadow-sm lg:inset-auto lg:w-auto transform transition-transform duration-300 ease-in-out -translate-x-full lg:translate-x-0 lg:block'
+            ? 'fixed inset-y-0 left-0 w-80 bg-white shadow-xl z-[55] lg:relative lg:z-auto lg:shadow-sm lg:inset-auto lg:w-auto transform transition-transform duration-300 ease-in-out translate-x-0' 
+            : 'fixed inset-y-0 left-0 w-80 bg-white shadow-xl z-[55] lg:relative lg:z-auto lg:shadow-sm lg:inset-auto lg:w-auto transform transition-transform duration-300 ease-in-out -translate-x-full lg:translate-x-0 lg:block'
         }`}>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sticky top-4 h-full lg:h-auto overflow-y-auto">
             {/* Mobile close button */}
@@ -2214,10 +2358,15 @@ const StudentLessonViewer: React.FC = () => {
               {modules.map((module) => {
                 const moduleContent = allContent.filter(item => item.module_id === module.id);
                 const completedInModule = moduleContent.filter(item => isLessonCompleted(item.id)).length;
+                const hasCurrentContent = moduleContent.some(item => item.id === resolvedLessonId);
                 
                 return (
                   <div key={module.id} className="space-y-1">
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+                    <div className={`text-xs font-medium uppercase tracking-wider mb-2 px-3 py-1 rounded ${
+                      hasCurrentContent
+                        ? 'bg-primary-50 text-primary-700'
+                        : 'text-gray-500'
+                    }`}>
                       {module.title}
                     </div>
                     {moduleContent.map((content) => {
@@ -2232,6 +2381,7 @@ const StudentLessonViewer: React.FC = () => {
                             const slug = (content.title || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
                             const courseSlug = course?.slug || courseSlugOrId;
                             navigate(`/student/courses/${courseSlug}/lessons/${slug}-${content.id}`);
+                            setActiveTab('lesson');
                             // Close mobile sidebar when navigating
                             setIsSidebarOpen(false);
                           }}
@@ -2300,43 +2450,45 @@ const StudentLessonViewer: React.FC = () => {
 
             {activeTab === 'lesson' ? (
               <>
-                {/* Content Header */}
-                <div className="p-4 sm:p-6 border-b border-gray-200">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="text-sm text-gray-500 mb-1">
-                        {currentLesson?.module_title || currentQuiz?.module_title}
-                      </div>
-                      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex flex-col sm:flex-row sm:items-center gap-2">
-                        {currentQuiz && <span className="text-sm bg-primary-100 text-primary-600 px-2 py-1 rounded self-start">Quiz</span>}
-                        <span className="break-words">{currentLesson?.title || currentQuiz?.title}</span>
-                      </h1>
-                      {(currentLesson?.estimated_duration_minutes || currentQuiz?.time_limit_minutes) && (
-                        <div className="flex items-center text-sm text-gray-600 mt-2">
-                          <Clock size={14} className="mr-1" />
-                          {currentLesson?.estimated_duration_minutes || currentQuiz?.time_limit_minutes} minutes
+                {/* Content Header - Sticky */}
+                <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
+                  <div className="p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="text-sm text-gray-500 mb-1">
+                          {currentLesson?.module_title || currentQuiz?.module_title}
                         </div>
+                        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex flex-col sm:flex-row sm:items-center gap-2">
+                          {currentQuiz && <span className="text-sm bg-primary-100 text-primary-600 px-2 py-1 rounded self-start">Quiz</span>}
+                          <span className="break-words">{currentLesson?.title || currentQuiz?.title}</span>
+                        </h1>
+                        {(currentLesson?.estimated_duration_minutes || currentQuiz?.time_limit_minutes) && (
+                          <div className="flex items-center text-sm text-gray-600 mt-2">
+                            <Clock size={14} className="mr-1" />
+                            {currentLesson?.estimated_duration_minutes || currentQuiz?.time_limit_minutes} minutes
+                          </div>
+                        )}
+                      </div>
+                      {(currentLesson || (currentQuiz && shouldShowQuizCompleteButton())) && (
+                        <button
+                          onClick={() => handleToggleComplete()}
+                          className={`flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-colors w-full sm:w-auto ${
+                            isCompleted
+                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                              : 'bg-primary-600 text-white hover:bg-primary-700'
+                          }`}
+                          disabled={isCompleting}
+                        >
+                          <CheckCircle size={18} className="mr-2" />
+                          <span className="hidden sm:inline">
+                            {isCompleting ? (isCompleted ? 'Marking as Incomplete...' : 'Completing...') : (isCompleted ? 'Mark as Incomplete' : 'Mark as Complete')}
+                          </span>
+                          <span className="sm:hidden">
+                            {isCompleting ? (isCompleted ? 'Marking as Incomplete...' : 'Completing...') : (isCompleted ? 'Mark as Incomplete' : 'Mark as Complete')}
+                          </span>
+                        </button>
                       )}
                     </div>
-                    {(currentLesson || (currentQuiz && shouldShowQuizCompleteButton())) && (
-                      <button
-                        onClick={() => handleToggleComplete()}
-                        className={`flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-colors w-full sm:w-auto ${
-                          isCompleted
-                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                            : 'bg-primary-600 text-white hover:bg-primary-700'
-                        }`}
-                        disabled={isCompleting}
-                      >
-                        <CheckCircle size={18} className="mr-2" />
-                        <span className="hidden sm:inline">
-                          {isCompleting ? (isCompleted ? 'Updating...' : 'Completing...') : (isCompleted ? 'Completed' : 'Mark as Complete')}
-                        </span>
-                        <span className="sm:hidden">
-                          {isCompleting ? (isCompleted ? 'Updating...' : 'Completing...') : (isCompleted ? 'Done' : 'Complete')}
-                        </span>
-                      </button>
-                    )}
                   </div>
                 </div>
 
@@ -2348,7 +2500,7 @@ const StudentLessonViewer: React.FC = () => {
 
                 {/* Navigation */}
                 <div className="p-4 sm:p-6 border-t border-gray-200">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex  sm:items-center sm:justify-between gap-4">
                     <button
                       onClick={goToPreviousContent}
                       disabled={getCurrentContentIndex() === 0}
@@ -2358,7 +2510,7 @@ const StudentLessonViewer: React.FC = () => {
                       Previous
                     </button>
 
-                    <div className="text-sm text-gray-600 text-center order-first sm:order-none">
+                    <div className="text-sm text-gray-600 text-center">
                       {currentLesson ? 'Lesson' : currentQuiz ? 'Quiz' : 'Item'} {getCurrentContentIndex() + 1} of {allContent.length}
                     </div>
 

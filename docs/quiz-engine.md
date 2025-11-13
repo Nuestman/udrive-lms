@@ -72,7 +72,7 @@ interface QuizEngineProps {
 **Features:**
 - Unified lesson/quiz display
 - Quiz results presentation
-- "Mark as Complete" functionality
+- Completion toggle (`Mark as Complete` / `Mark as Incomplete`)
 - Retake quiz capability
 - Progress integration
 
@@ -193,8 +193,8 @@ Student → Start Quiz → Answer Questions → Submit → View Results → Mark
 4. Answers questions with navigation controls
 5. Submits quiz when complete
 6. Views detailed results and score
-7. If passing score met, "Mark as Complete" button appears
-8. Student clicks to mark quiz as completed in progress
+7. If the passing score is met, a completion toggle appears
+8. Student clicks `Mark as Complete` to record the pass (button switches to `Mark as Incomplete` for reversal)
 
 ### 3. Quiz Retake Flow
 ```

@@ -5,7 +5,31 @@ All notable changes to SunLMS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.6.0] - 2025-11-15
+## [2.6.2] - 2025-11-13
+
+### 🎓 Student Learning Experience
+
+- Student lesson viewer now opens on the `Overview` tab with collapsible modules, making long courses easier to skim.
+- Module and sidebar styling highlight the active module for both overview and lesson views.
+- Lesson sidebar z-index adjustments keep the slide-in panel visible on medium screens.
+- Completion controls now use unified `Mark as Complete` / `Mark as Incomplete` language across desktop and mobile views.
+- Passed quizzes surface the same completion toggle, letting students mark or unmark quiz completion without retaking.
+
+### 🛠️ Course Management UX
+
+- Course announcements and review prompt settings panels on `CourseDetailsPage` are collapsible, reducing scroll fatigue.
+- Announcement editor only renders attachment inputs after selecting **Add attachment**, keeping the modal compact by default.
+
+### 🐛 Fixed
+
+- Resolved overlapping sidebar layers that obscured the lesson panel on mid-sized breakpoints.
+- Ensured completion buttons clearly indicate reversible actions for quizzes and lessons.
+
+## [2.6.1] - 2025-11-12
+
+### Minor UI tweaks for the student course support tab.
+
+## [2.6.0] - 2025-11-12
 
 ### 📧 Email Notifications & Review Comments
 

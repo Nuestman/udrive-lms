@@ -1,6 +1,7 @@
 // Student Courses Page - Browse and enroll in available courses
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useProgress } from '../../hooks/useProgress';
 import { BookOpen, Clock, Users, Play, CheckCircle, X } from 'lucide-react';
 import { useCourses } from '../../hooks/useCourses';
 import { useEnrollments } from '../../hooks/useEnrollments';
@@ -16,6 +17,7 @@ const StudentCoursesPage: React.FC = () => {
   const { enrollments, loading: enrollmentsLoading, createEnrollment, refreshEnrollments } = useEnrollments(profile?.id ? { student_id: profile.id } : undefined as any);
   const { success, error: showError } = useToast();
   const navigate = useNavigate();
+  const { progress } = useProgress(profile?.id);
   const [enrollingCourseId, setEnrollingCourseId] = useState<string | null>(null);
   const [unenrollingCourseId, setUnenrollingCourseId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');

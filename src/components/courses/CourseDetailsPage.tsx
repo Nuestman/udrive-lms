@@ -64,6 +64,8 @@ const CourseDetailsPage: React.FC = () => {
   const [courseAnnouncementsLoading, setCourseAnnouncementsLoading] = useState(false);
   const [courseAnnouncementsError, setCourseAnnouncementsError] = useState<string | null>(null);
   const [courseAnnouncementSubmitting, setCourseAnnouncementSubmitting] = useState(false);
+  const [announcementsExpanded, setAnnouncementsExpanded] = useState(false);
+  const [reviewSettingsExpanded, setReviewSettingsExpanded] = useState(false);
 
   useEffect(() => {
     setSettingsDraft(buildDefaultReviewSettings(id));
@@ -390,6 +392,75 @@ const CourseDetailsPage: React.FC = () => {
         )}
       </div>
 
+      {/* Modules Section */}
+      <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">Course Modules</h2>
+          <button
+            onClick={() => setShowAddModule(!showAddModule)}
+            className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            <Plus size={18} className="mr-2" />
+            Add Module
+          </button>
+        </div>
+
+        {/* Add Module Form */}
+        {showAddModule && (
+          <form onSubmit={handleAddModule} className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <div className="flex gap-3">
+              <input
+                type="text"
+                placeholder="Module title..."
+                value={newModuleTitle}
+                onChange={(e) => setNewModuleTitle(e.target.value)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              >
+                Add
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddModule(false);
+                  setNewModuleTitle('');
+                }}
+                className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Modules List */}
+        {modulesLoading ? (
+          <div className="text-center py-8 text-gray-500">Loading modules...</div>
+        ) : modules.length === 0 ? (
+          <div className="text-center py-12">
+            <BookOpen className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <p className="text-gray-600">No modules yet. Add your first module to get started!</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {modules.map((module, index) => (
+              <ModuleWithLessons
+                key={module.id}
+                module={module}
+                index={index}
+                isExpanded={expandedModules.has(module.id)}
+                onToggle={() => toggleModule(module.id)}
+                onDelete={() => handleDeleteModule(module.id, module.title)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="grid gap-6 md:grid-cols-2 mb-6">
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -402,7 +473,7 @@ const CourseDetailsPage: React.FC = () => {
                 Keep enrolled learners in the loop
               </h2>
               <p className="mt-1 text-sm text-gray-600">
-                Publish updates inside this course’s lesson viewer. Only enrolled learners can see these messages.
+                Publish updates inside this course's lesson viewer. Only enrolled learners can see these messages.
               </p>
             </div>
             <button
@@ -415,24 +486,43 @@ const CourseDetailsPage: React.FC = () => {
             </button>
           </div>
 
-          {courseAnnouncementsError && (
-            <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-              {courseAnnouncementsError}
-            </div>
-          )}
+          <button
+            onClick={() => setAnnouncementsExpanded(!announcementsExpanded)}
+            className="mt-4 w-full flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+          >
+            {announcementsExpanded ? (
+              <>
+                <ChevronDown size={16} />
+                Hide Announcements
+              </>
+            ) : (
+              <>
+                <ChevronRight size={16} />
+                Show Announcements
+              </>
+            )}
+          </button>
 
-          {courseAnnouncementsLoading ? (
-            <div className="mt-6 flex items-center gap-3 text-sm text-gray-500">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading course announcements...
-            </div>
-          ) : sortedCourseAnnouncements.length === 0 ? (
-            <div className="mt-6 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
-              No announcements yet. Click “New Course Announcement” to publish one.
-            </div>
-          ) : (
-            <div className="mt-6 space-y-4">
-              {sortedCourseAnnouncements.map((announcement) => {
+          {announcementsExpanded && (
+            <>
+              {courseAnnouncementsError && (
+                <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  {courseAnnouncementsError}
+                </div>
+              )}
+
+              {courseAnnouncementsLoading ? (
+                <div className="mt-6 flex items-center gap-3 text-sm text-gray-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading course announcements...
+                </div>
+              ) : sortedCourseAnnouncements.length === 0 ? (
+                <div className="mt-6 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
+                  No announcements yet. Click "New Course Announcement" to publish one.
+                </div>
+              ) : (
+                <div className="mt-6 space-y-4">
+                  {sortedCourseAnnouncements.map((announcement) => {
                 const metadata = (announcement.metadata || {}) as Record<string, any>;
                 const ctaLink =
                   metadata?.ctaUrl || metadata?.cta_url || metadata?.link || undefined;
@@ -530,7 +620,9 @@ const CourseDetailsPage: React.FC = () => {
                   </article>
                 );
               })}
-            </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -557,6 +649,25 @@ const CourseDetailsPage: React.FC = () => {
           </button>
         </div>
 
+        <button
+          onClick={() => setReviewSettingsExpanded(!reviewSettingsExpanded)}
+          className="mt-4 w-full flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+        >
+          {reviewSettingsExpanded ? (
+            <>
+              <ChevronDown size={16} />
+              Hide Settings
+            </>
+          ) : (
+            <>
+              <ChevronRight size={16} />
+              Show Settings
+            </>
+          )}
+        </button>
+
+        {reviewSettingsExpanded && (
+          <>
         {settingsError && (
           <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             {settingsError}
@@ -591,9 +702,9 @@ const CourseDetailsPage: React.FC = () => {
           {settingsDraft.trigger_type !== 'manual' && (
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                  {settingsDraft.trigger_type === 'percentage'
-                    ? 'Progress percentage'
-                    : 'Lessons completed'}
+                    {settingsDraft.trigger_type === 'percentage'
+                      ? 'Progress percentage'
+                      : 'Lessons completed'}
               </label>
               <input
                 type="number"
@@ -677,7 +788,7 @@ const CourseDetailsPage: React.FC = () => {
                 setSettingsDraft((prev) => ({ ...prev, prompt_message: event.target.value }))
               }
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
-              placeholder="Share any context or highlight the type of feedback you’re hoping for."
+                  placeholder="Share any context or highlight the type of feedback you're hoping for."
               disabled={settingsLoading || settingsSaving}
             />
           </div>
@@ -695,15 +806,17 @@ const CourseDetailsPage: React.FC = () => {
               disabled={settingsLoading || settingsSaving}
               className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-gray-300"
             >
-                {settingsSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="h-4 w-4" />
-                )}
+                  {settingsSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4" />
+                  )}
               {settingsSaving ? 'Saving...' : 'Save settings'}
             </button>
           </div>
         </form>
+          </>
+        )}
         </div>
       </div>
 
