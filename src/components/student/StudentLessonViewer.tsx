@@ -20,6 +20,83 @@ import { fetchQuestions } from '../../services/courseSupport.service';
 import CourseReviewPromptModal from './CourseReviewPromptModal';
 import CourseSupportTab from './CourseSupportTab';
 
+const OFFICE_VIEWER_BASE_URL = 'https://view.officeapps.live.com/op/embed.aspx?src=';
+const OFFICE_EMBED_EXTENSIONS = new Set(['ppt', 'pptx', 'doc', 'docx']);
+
+type DocumentViewerState = 'idle' | 'loading' | 'ready' | 'error';
+
+const normalizeDocumentUrl = (url?: string | null): string | null => {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    return parsed.toString();
+  } catch {
+    // URL constructor can fail for relative paths or non-standard URLs
+    return url;
+  }
+};
+
+const getFileExtensionFromUrl = (url: string): string | null => {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    const pathname = parsed.pathname || '';
+    const match = pathname.toLowerCase().match(/\.([a-z0-9]+)$/);
+    if (match && match[1]) {
+      return match[1];
+    }
+  } catch {
+    const sanitized = url.split('?')[0] || '';
+    const match = sanitized.toLowerCase().match(/\.([a-z0-9]+)$/);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  return null;
+};
+
+const isOfficeEmbeddableDocument = (url?: string | null): boolean => {
+  if (!url) return false;
+  const extension = getFileExtensionFromUrl(url);
+  return Boolean(extension && OFFICE_EMBED_EXTENSIONS.has(extension));
+};
+
+const buildOfficeViewerUrl = (url: string): string => {
+  return `${OFFICE_VIEWER_BASE_URL}${encodeURIComponent(url)}`;
+};
+
+const isYouTubeUrl = (url?: string | null): boolean => {
+  if (!url) return false;
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return hostname.includes('youtube.com') || hostname.includes('youtu.be');
+  } catch {
+    return url.includes('youtube.com') || url.includes('youtu.be');
+  }
+};
+
+const getVideoMimeTypeFromUrl = (url?: string | null): string | undefined => {
+  if (!url) return undefined;
+  const cleanUrl = url.split('?')[0] || url;
+  const extensionMatch = cleanUrl.toLowerCase().match(/\.([a-z0-9]+)$/);
+  const extension = extensionMatch?.[1];
+  if (!extension) return undefined;
+
+  const extensionMap: Record<string, string> = {
+    mp4: 'video/mp4',
+    mpeg: 'video/mpeg',
+    mpg: 'video/mpeg',
+    mov: 'video/quicktime',
+    avi: 'video/x-msvideo',
+    wmv: 'video/x-ms-wmv',
+    webm: 'video/webm',
+    mkv: 'video/x-matroska',
+    ogv: 'video/ogg',
+  };
+
+  return extensionMap[extension];
+};
+
 const getLessonAnnouncementStyles = (announcement: Announcement) => {
   if (announcement.isPinned) {
     return {
@@ -134,6 +211,7 @@ const StudentLessonViewer: React.FC = () => {
 
   // Support questions state
   const [supportQuestions, setSupportQuestions] = useState<any[]>([]);
+  const [documentViewerState, setDocumentViewerState] = useState<DocumentViewerState>('idle');
 
   // Calculate unread announcements count for badge
   const unreadAnnouncementsCount = useMemo(() => {
@@ -146,6 +224,21 @@ const StudentLessonViewer: React.FC = () => {
   const openSupportQuestionsCount = useMemo(() => {
     return supportQuestions.filter((q) => q.status === 'open').length;
   }, [supportQuestions]);
+
+  const documentPublicUrl = useMemo(() => normalizeDocumentUrl(currentLesson?.document_url), [currentLesson?.document_url]);
+  const officeViewerUrl = useMemo(() => {
+    if (!documentPublicUrl) return null;
+    if (!isOfficeEmbeddableDocument(documentPublicUrl)) return null;
+    return buildOfficeViewerUrl(documentPublicUrl);
+  }, [documentPublicUrl]);
+
+  useEffect(() => {
+    if (officeViewerUrl) {
+      setDocumentViewerState('loading');
+    } else {
+      setDocumentViewerState('idle');
+    }
+  }, [officeViewerUrl, currentLesson?.id]);
 
   const isStudentContext = useMemo(
     () =>
@@ -1201,30 +1294,104 @@ const StudentLessonViewer: React.FC = () => {
         {/* Video Lesson */}
         {currentLesson.lesson_type === 'video' && currentLesson.video_url && (
           <div className="mb-6">
-            <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden">
-              <iframe
-                src={convertYouTubeUrls(currentLesson.video_url)}
-                className="w-full h-full"
-                frameBorder={0}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                title={currentLesson.title}
-              />
-            </div>
+            {isYouTubeUrl(currentLesson.video_url) ? (
+              <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden">
+                <iframe
+                  src={convertYouTubeUrls(currentLesson.video_url)}
+                  className="w-full h-full"
+                  frameBorder={0}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title={currentLesson.title}
+                />
+              </div>
+            ) : (
+              <div className="bg-black rounded-lg overflow-hidden">
+                <video
+                  className="w-full max-h-[70vh]"
+                  controls
+                  controlsList="nodownload"
+                  preload="metadata"
+                  playsInline
+                  src={currentLesson.video_url}
+                >
+                  <source src={currentLesson.video_url} type={getVideoMimeTypeFromUrl(currentLesson.video_url) || 'video/mp4'} />
+                  Your browser does not support the video tag.{' '}
+                  <a href={currentLesson.video_url} target="_blank" rel="noopener noreferrer" className="underline text-primary-500">
+                    Download the video instead.
+                  </a>
+                </video>
+              </div>
+            )}
+            {!isYouTubeUrl(currentLesson.video_url) && (
+              <div className="mt-3 flex flex-wrap gap-3">
+                <a
+                  href={currentLesson.video_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-lg border border-primary-200 px-4 py-2 text-sm font-medium text-primary-700 hover:bg-primary-50 transition-colors"
+                >
+                  Download Video
+                </a>
+              </div>
+            )}
           </div>
         )}
 
         {/* Document Lesson */}
-        {currentLesson.lesson_type === 'document' && currentLesson.document_url && (
-          <div className="mb-6 p-4 bg-primary-50 border border-primary-200 rounded-lg">
-            <a
-              href={currentLesson.document_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary-600 hover:text-primary-800 font-medium"
-            >
-              📄 Download/View Document →
-            </a>
+        {currentLesson.lesson_type === 'document' && documentPublicUrl && (
+          <div className="mb-6 space-y-4">
+            {officeViewerUrl ? (
+              <div className="relative h-[65vh] min-h-[420px] border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                {documentViewerState !== 'ready' && (
+                  <div
+                    className={`absolute inset-0 flex flex-col items-center justify-center gap-3 text-sm ${
+                      documentViewerState === 'error'
+                        ? 'bg-red-50/90 text-red-600'
+                        : 'bg-white/85 text-gray-700'
+                    }`}
+                  >
+                    {documentViewerState === 'error' ? (
+                      <>
+                        <span className="font-semibold">Unable to load the interactive document viewer.</span>
+                        <span>Use the download link below to open the original file.</span>
+                      </>
+                    ) : (
+                      <>
+                        <Loader2 className="h-6 w-6 animate-spin text-primary-600" />
+                        <span>Loading interactive document...</span>
+                      </>
+                    )}
+                  </div>
+                )}
+                {documentViewerState !== 'error' && (
+                  <iframe
+                    key={officeViewerUrl}
+                    src={officeViewerUrl}
+                    className="w-full h-full"
+                    title={`${currentLesson.title || 'Lesson Document'} viewer`}
+                    allowFullScreen
+                    onLoad={() => setDocumentViewerState('ready')}
+                    onError={() => setDocumentViewerState('error')}
+                  />
+                )}
+              </div>
+            ) : (
+              <div className="p-4 bg-primary-50 border border-primary-200 rounded-lg text-primary-800 text-sm">
+                Interactive previews are currently available for PowerPoint and Word files hosted via a public or signed URL. This document can still be opened using the download link below.
+              </div>
+            )}
+            <div className="p-4 bg-primary-50 border border-primary-200 rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="text-primary-700 font-medium">Need a closer look? Open the original document.</div>
+              <a
+                href={documentPublicUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors"
+              >
+                📄 Download/View Document →
+              </a>
+            </div>
           </div>
         )}
 
@@ -2451,7 +2618,7 @@ const StudentLessonViewer: React.FC = () => {
             {activeTab === 'lesson' ? (
               <>
                 {/* Content Header - Sticky */}
-                <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
+                <div className="sticky top-0 z-10 bg-white/80 border-b border-gray-200 shadow-sm">
                   <div className="p-4 sm:p-6">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                       <div className="flex-1">

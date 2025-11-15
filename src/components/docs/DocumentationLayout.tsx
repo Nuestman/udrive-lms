@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { 
   Book, 
   Code, 
@@ -23,6 +23,7 @@ import QuickStartGuide from './QuickStartGuide';
 import SystemArchitecture from './SystemArchitecture';
 import ApiReference from './ApiReference';
 import DevelopmentSetup from './DevelopmentSetup';
+import LessonMediaDocs from './LessonMediaDocs';
 import PlaceholderPage from './PlaceholderPage';
 
 interface DocumentationLayoutProps {
@@ -34,6 +35,17 @@ const DocumentationLayout: React.FC<DocumentationLayoutProps> = ({ children }) =
   const [currentSection, setCurrentSection] = useState('overview');
   const location = useLocation();
   const navigate = useNavigate();
+  const { section: routeSection } = useParams<{ section?: string }>();
+
+  useEffect(() => {
+    if (routeSection && routeSection !== currentSection) {
+      setCurrentSection(routeSection);
+      return;
+    }
+    if (!routeSection && currentSection !== 'overview') {
+      setCurrentSection('overview');
+    }
+  }, [routeSection, currentSection]);
 
   const documentationSections = [
     {
@@ -83,7 +95,8 @@ const DocumentationLayout: React.FC<DocumentationLayoutProps> = ({ children }) =
         { title: 'Student Module', section: 'student-module' },
         { title: 'Quiz Engine', section: 'quiz-engine' },
         { title: 'Progress Management', section: 'progress-management' },
-        { title: 'Certificate System', section: 'certificates' }
+        { title: 'Certificate System', section: 'certificates' },
+        { title: 'Lesson Media Pipeline', section: 'lesson-media' }
       ]
     },
     {
@@ -102,6 +115,10 @@ const DocumentationLayout: React.FC<DocumentationLayoutProps> = ({ children }) =
   };
 
   const handleSectionChange = (section: string) => {
+    const path = section === 'overview' ? '/docs' : `/docs/${section}`;
+    if (location.pathname !== path) {
+      navigate(path, { replace: false });
+    }
     setCurrentSection(section);
     setSidebarOpen(false);
   };
@@ -208,6 +225,8 @@ const DocumentationLayout: React.FC<DocumentationLayoutProps> = ({ children }) =
           description="Digital certificate generation and verification system"
           icon={<GraduationCap className="w-8 h-8" />}
         />;
+      case 'lesson-media':
+        return <LessonMediaDocs />;
       case 'business-model':
         return <PlaceholderPage 
           title="Business Model" 

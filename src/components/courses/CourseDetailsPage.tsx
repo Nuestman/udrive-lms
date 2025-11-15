@@ -455,6 +455,7 @@ const CourseDetailsPage: React.FC = () => {
                 isExpanded={expandedModules.has(module.id)}
                 onToggle={() => toggleModule(module.id)}
                 onDelete={() => handleDeleteModule(module.id, module.title)}
+                course={course}
               />
             ))}
           </div>
@@ -900,9 +901,10 @@ interface ModuleWithLessonsProps {
   isExpanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  course: any;
 }
 
-const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, isExpanded, onToggle, onDelete }) => {
+const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, isExpanded, onToggle, onDelete, course }) => {
   const { lessons, loading, createLesson, updateLesson, deleteLesson } = useLessons(isExpanded ? module.id : undefined);
   const { showToast } = useToast();
   const [showAddLesson, setShowAddLesson] = useState(false);
@@ -1257,6 +1259,12 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
               throw err;
             }
           }}
+          courseTitle={course?.title}
+          courseSlug={course?.slug}
+          courseId={course?.id}
+          tenantName={course?.tenant?.name || course?.tenant_name || course?.school?.name}
+          tenantSlug={course?.tenant?.slug || course?.tenant_slug}
+          tenantId={course?.tenant_id}
         />
       )}
 

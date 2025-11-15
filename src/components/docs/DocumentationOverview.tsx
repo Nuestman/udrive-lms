@@ -14,7 +14,8 @@ import {
   ArrowRight,
   CheckCircle,
   Clock,
-  Zap
+  Zap,
+  Video
 } from 'lucide-react';
 
 const DocumentationOverview: React.FC = () => {
@@ -136,6 +137,12 @@ const DocumentationOverview: React.FC = () => {
       description: 'Automated certificate creation and management',
       icon: <GraduationCap className="w-5 h-5" />,
       status: 'operational'
+    },
+    {
+      title: 'Interactive Lesson Media',
+      description: 'Office embeds + uploaded video playback with organized blob storage',
+      icon: <Video className="w-5 h-5" />,
+      status: 'new'
     }
   ];
 
@@ -171,6 +178,16 @@ const DocumentationOverview: React.FC = () => {
             Development Setup
           </Link>
         </div>
+      <div className="mt-6 max-w-3xl mx-auto bg-primary-50 border border-primary-200 rounded-xl p-5 text-left">
+        <p className="text-sm font-semibold text-primary-800 uppercase tracking-wide mb-2">New</p>
+        <p className="text-gray-700">
+          We just shipped inline document and video playback for lessons. Learn how uploads, storage paths, and the new viewer work in the{' '}
+          <Link to="/docs/lesson-media" className="text-primary-700 font-semibold hover:underline">
+            Lesson Media Pipeline guide
+          </Link>
+          .
+        </p>
+      </div>
       </div>
 
       {/* Quick Start Sections */}
