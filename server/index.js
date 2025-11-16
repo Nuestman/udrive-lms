@@ -54,10 +54,21 @@ process.on('unhandledRejection', (error) => {
 const app = express();
 const server = createServer(app);
 
-// Initialize Socket.IO
+// Initialize Socket.IO with permissive CORS matching app CORS options
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      // Allow no-origin (same-origin, curl, etc.)
+      if (!origin) return callback(null, true);
+      const allowedFrontend = process.env.FRONTEND_URL || "http://localhost:5173";
+      // Exact match to configured frontend
+      if (origin === allowedFrontend) return callback(null, true);
+      // Allow Vercel preview and production *.vercel.app
+      if (/^https:\/\/.*\.vercel\.app$/.test(origin)) return callback(null, true);
+      // Temporary: allow legacy domain during transition
+      if (origin === 'https://udrive-lms.vercel.app') return callback(null, true);
+      return callback(new Error('Not allowed by Socket.IO CORS'));
+    },
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -68,7 +79,7 @@ app.set('io', io);
 
 // Add basic socket server logging
 console.log('🔌 [SOCKET-SERVER] Socket.IO server initialized');
-console.log('🔌 [SOCKET-SERVER] CORS origin:', process.env.FRONTEND_URL || "http://localhost:5173");
+console.log('🔌 [SOCKET-SERVER] CORS origin:', process.env.FRONTEND_URL || "http://localhost:5173", '(plus *.vercel.app, legacy udrive-lms allowed)');
 
 // Socket.IO authentication and connection handling
 io.use(async (socket, next) => {
