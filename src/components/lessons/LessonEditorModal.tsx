@@ -8,9 +8,9 @@ import {
   validateFile,
   getFileTypeNames,
   formatFileSize,
-  FILE_SIZE_LIMITS,
-  getFileExtension
+  FILE_SIZE_LIMITS
 } from '../../utils/upload.utils';
+import { renameFileForCourse, slugifySegment } from '../../utils/storagePaths';
 
 interface LessonEditorModalProps {
   isOpen: boolean;
@@ -41,25 +41,6 @@ const DOCUMENT_ACCEPT_TYPES = [
   '.rtf'
 ].join(',');
 const VIDEO_ACCEPT_TYPES = 'video/*';
-
-const MIME_EXTENSION_MAP: Record<string, string> = {
-  'application/pdf': 'pdf',
-  'application/msword': 'doc',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-  'application/vnd.ms-powerpoint': 'ppt',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
-  'application/vnd.ms-excel': 'xls',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
-  'text/plain': 'txt',
-  'text/csv': 'csv',
-  'text/richtext': 'rtf',
-  'video/mp4': 'mp4',
-  'video/quicktime': 'mov',
-  'video/x-msvideo': 'avi',
-  'video/x-ms-wmv': 'wmv',
-  'video/mpeg': 'mpeg',
-  'video/webm': 'webm',
-};
 
 type LessonMediaMeta = {
   name?: string;
@@ -144,31 +125,6 @@ const extractLessonVideoMeta = (lesson: any): LessonMediaMeta | null => {
   return meta;
 };
 
-const buildLessonSlug = (value: string) =>
-  value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .substring(0, 80) || 'lesson';
-
-const getFileExtensionFromFile = (file: File): string => {
-  const existing = getFileExtension(file.name);
-  if (existing) return existing.toLowerCase();
-  if (file.type && MIME_EXTENSION_MAP[file.type]) {
-    return MIME_EXTENSION_MAP[file.type];
-  }
-  return '';
-};
-
-const renameFileForLesson = (file: File, lessonTitle: string, fallbackSuffix: string) => {
-  const baseSlug = buildLessonSlug(lessonTitle || fallbackSuffix);
-  const extension = getFileExtensionFromFile(file);
-  const desiredName = extension ? `${baseSlug}.${extension}` : baseSlug;
-  if (file.name === desiredName) return file;
-  return new File([file], desiredName, { type: file.type, lastModified: file.lastModified });
-};
-
 const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
   isOpen,
   lesson,
@@ -213,9 +169,9 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
   const normalizedTenantName = (tenantName?.trim() || lesson?.tenant_name?.trim() || lesson?.tenantName?.trim() || 'tenant') as string;
   const normalizedTenantSlugSource = tenantSlug?.trim() || lesson?.tenant_slug?.trim() || lesson?.tenantSlug?.trim() || normalizedTenantName;
   const resolvedCourseTitle = normalizedCourseTitle;
-  const resolvedCourseSlug = buildLessonSlug(normalizedCourseSlugSource);
+  const resolvedCourseSlug = slugifySegment(normalizedCourseSlugSource, 'course');
   const resolvedTenantName = normalizedTenantName;
-  const resolvedTenantSlug = buildLessonSlug(normalizedTenantSlugSource);
+  const resolvedTenantSlug = slugifySegment(normalizedTenantSlugSource, 'tenant');
   const resolvedCourseId = courseId || lesson?.course_id || lesson?.courseId || lesson?.module?.course_id || '';
   const resolvedTenantId = tenantId || lesson?.tenant_id || lesson?.tenantId || '';
 
@@ -233,13 +189,14 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
   };
 
   const lessonTitleForStorage = () => (title?.trim()?.length ? title.trim() : lesson?.title || 'lesson');
+  // Note: filenames will use a slugified lesson title via renameFileForCourse()
 
   const buildLessonUploadPayload = (category: 'document' | 'video') => {
     const payload: Record<string, string> = {
       category,
       storageCategory: category === 'document' ? 'lesson-document' : 'lesson-video',
       lessonTitle: lessonTitleForStorage(),
-      lessonSlug: buildLessonSlug(lessonTitleForStorage()),
+      lessonSlug: slugifySegment(lessonTitleForStorage(), 'lesson'),
       tenantName: resolvedTenantName,
       tenantSlug: resolvedTenantSlug,
       courseTitle: resolvedCourseTitle,
@@ -275,7 +232,7 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
     setPendingDocumentName(file.name);
 
     try {
-      const renamedFile = renameFileForLesson(file, lessonTitleForStorage(), 'lesson-document');
+      const renamedFile = renameFileForCourse(file, lessonTitleForStorage());
       const response = await uploadFileWithProgress(
         renamedFile,
         `${API_BASE}/media/upload`,
@@ -343,7 +300,7 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
     setPendingVideoName(file.name);
 
     try {
-      const renamedFile = renameFileForLesson(file, lessonTitleForStorage(), 'lesson-video');
+      const renamedFile = renameFileForCourse(file, lessonTitleForStorage());
       const response = await uploadFileWithProgress(
         renamedFile,
         `${API_BASE}/media/upload`,
@@ -635,6 +592,8 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
                   accept={VIDEO_ACCEPT_TYPES}
                   onChange={handleVideoFileSelect}
                   className="hidden"
+                  title="Select a video file to upload"
+                  aria-label="Select video file"
                 />
                 {videoUploading && (
                   <div className="mt-3">
@@ -728,6 +687,8 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
                 accept={DOCUMENT_ACCEPT_TYPES}
                 onChange={handleDocumentFileSelect}
                 className="hidden"
+                title="Select a document file to upload"
+                aria-label="Select document file"
               />
               {documentUploading && (
                 <div className="mt-3">

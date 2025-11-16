@@ -14,6 +14,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.7.0] - 2025-11-15
 
+## [2.7.1] - 2025-11-16
+
+### 🔧 Storage Path Corrections
+- Lesson documents/videos now save under `tenants/{tenant}/courses/{course}/lessons` instead of directly under the course.
+- Course thumbnails now save under `tenants/{tenant}/courses/{course}/thumbnails` instead of the shared `courses/thumbnails` folder.
+
+### 📝 Filename Augmentation
+- Appended lesson slug to lesson media filenames for easier identification.
+- Appended course slug to course thumbnail filenames. Path structure unchanged; only the filename is augmented.
+
+### 🪵 Observability
+- Added upload route debug logs to trace audience scope, selected storage category, and context IDs.
+- Added filename generation debug logs to show computed lesson/course slugs and inputs.
+- Warning logged when an unmapped storage category falls back to `misc/`.
+
+### 📚 Documentation
+- Added `docs/media-uploads.md` (platform-wide upload overview, directory layout, filename scheme).
+- Added `docs/lesson-media-pipeline.md` (end-to-end lesson media flow from UI to storage/DB).
+
+### 🐛 Fixes
+- Fixed frontend error by replacing missing `renameFileForLesson` with existing `renameFileForCourse` and aligning payload fields.
+
 ### ✨ Lesson Media Pipeline
 - Document lessons now stream inline via the Microsoft 365 viewer with graceful fallbacks and a persistent download button.
 - Video lessons accept either streaming URLs or uploaded media; uploaded files stream directly in the player with a dedicated download action.
