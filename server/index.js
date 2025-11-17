@@ -55,22 +55,50 @@ const app = express();
 const server = createServer(app);
 
 // Initialize Socket.IO with permissive CORS matching app CORS options
+// Socket.IO CORS: use function that returns true/false or the origin string
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
       // Allow no-origin (same-origin, curl, etc.)
-      if (!origin) return callback(null, true);
+      if (!origin) {
+        return callback(null, true);
+      }
+      
       const allowedFrontend = process.env.FRONTEND_URL || "http://localhost:5173";
+      
       // Exact match to configured frontend
-      if (origin === allowedFrontend) return callback(null, true);
-      // Allow Vercel preview and production *.vercel.app
-      if (/^https:\/\/.*\.vercel\.app$/.test(origin)) return callback(null, true);
-      // Temporary: allow legacy domain during transition
-      if (origin === 'https://udrive-lms.vercel.app') return callback(null, true);
+      if (origin === allowedFrontend) {
+        return callback(null, true);
+      }
+      
+      // Allow ALL Vercel deployments (preview, production, any subdomain)
+      // This includes: sunlms.vercel.app, udrive-lms.vercel.app, project-name-*.vercel.app, etc.
+      if (/^https:\/\/.*\.vercel\.app$/.test(origin)) {
+        return callback(null, true);
+      }
+      
+      // Also allow Vercel preview URLs with git branch names (e.g., sunlms-git-main-*.vercel.app)
+      if (/^https:\/\/.*-git-.*\.vercel\.app$/.test(origin)) {
+        return callback(null, true);
+      }
+      
+      // Temporary: explicitly allow legacy domain during transition
+      if (origin === 'https://udrive-lms.vercel.app' || origin === 'https://sunlms.vercel.app') {
+        return callback(null, true);
+      }
+      
+      // In development, allow localhost
+      if (process.env.NODE_ENV === 'development' && /^http:\/\/localhost(:\d+)?$/.test(origin)) {
+        return callback(null, true);
+      }
+      
+      console.warn('🚫 [SOCKET-CORS] Origin not allowed:', origin);
       return callback(new Error('Not allowed by Socket.IO CORS'));
     },
     methods: ["GET", "POST"],
-    credentials: true
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
+    exposedHeaders: ["Content-Type"]
   }
 });
 

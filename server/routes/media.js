@@ -29,6 +29,14 @@ router.post('/upload',
   handleUploadError,
   async (req, res) => {
     try {
+      // Debug: Log authentication status
+      console.log('📤 [MEDIA-UPLOAD] Upload request received');
+      console.log('   User authenticated:', !!req.user);
+      console.log('   User ID:', req.user?.id);
+      console.log('   Tenant ID:', req.tenantId);
+      console.log('   Origin:', req.headers.origin);
+      console.log('   Cookies:', req.headers.cookie ? 'present' : 'missing');
+      
       const {
         tags: tagsRaw = [],
         audienceScope,
