@@ -127,8 +127,56 @@ export function generateFilename(originalFilename, context = {}) {
   if (context.uniqueId) {
     parts.push(context.uniqueId.substring(0, 8));
   }
-  
-  return parts.join('_') + ext;
+
+  // NOTE: Temporary filename augmentation for easier identification in course/lesson silo.
+  // - Append lesson slug just before the extension when lesson context exists
+  // - Append course slug for course thumbnails (filename only, path already correct)
+  // This is a stopgap; we'll review directory and file naming structure later.
+  let lessonSlug = '';
+  let courseSlug = '';
+  if (context.lessonSlug && typeof context.lessonSlug === 'string') {
+    lessonSlug = context.lessonSlug.toString().toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .substring(0, 80);
+  } else if (context.lessonName && typeof context.lessonName === 'string') {
+    lessonSlug = sanitizeDirectoryName(context.lessonName, 80);
+  }
+
+  if (context.courseSlug && typeof context.courseSlug === 'string') {
+    courseSlug = context.courseSlug.toString().toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .substring(0, 80);
+  } else if (context.courseName && typeof context.courseName === 'string') {
+    courseSlug = sanitizeDirectoryName(context.courseName, 80);
+  }
+
+  // Debug: Trace filename components
+  try {
+    console.log('🧩 Filename generation:', {
+      tenantName: context.tenantName,
+      categoryLabel: context.category,
+      rawCategory: context.rawCategory,
+      uniqueId: context.uniqueId,
+      lessonName: context.lessonName,
+      lessonSlugComputed: lessonSlug,
+      courseName: context.courseName,
+      courseSlugComputed: courseSlug,
+      originalFilename
+    });
+  } catch {}
+
+  const base = parts.join('_');
+  // If this is a course thumbnail, append course slug
+  if (context.rawCategory && String(context.rawCategory).includes('course-thumbnail') && courseSlug) {
+    return `${base}_${courseSlug}` + ext;
+  }
+  // Else, for lesson media, append lesson slug when available
+  const augmented = lessonSlug ? `${base}_${lessonSlug}` : base;
+  return augmented + ext;
 }
 
 /**
@@ -207,8 +255,14 @@ export function buildStoragePath(category, context = {}) {
       parts.push('avatars');
       break;
 
+    // Ensure ALL lesson uploads (documents and videos) go into the course silo under lessons/
+    case 'lesson-document':
+    case 'lesson-video':
+      parts.push('courses', getCourseDir(), 'lessons');
+      break;
+
     case 'course-thumbnail':
-      parts.push('courses', 'thumbnails');
+      parts.push('courses', getCourseDir(), 'thumbnails');
       break;
 
     case 'course-announcement':
@@ -272,6 +326,11 @@ export function buildStoragePath(category, context = {}) {
       break;
 
     default:
+      console.warn('⚠️ Unmapped storage category, defaulting to misc:', category, {
+        tenant: sanitizedTenantName,
+        course: getCourseDir(),
+        lesson: getLessonDir()
+      });
       parts.push('misc');
   }
 
@@ -295,7 +354,15 @@ export async function uploadFile(fileData, originalFilename, category, context =
     const filename = generateFilename(originalFilename, {
       tenantName: context.tenantName,
       category: getCategoryLabel(category),
-      uniqueId: context.userId || context.courseId || context.lessonId
+      uniqueId: context.userId || context.courseId || context.lessonId,
+      // Pass through lesson identifiers so filename can include lesson slug
+      lessonName: context.lessonName,
+      lessonSlug: context.lessonSlug,
+      // Pass through course identifiers so course-thumbnail can include course slug
+      courseName: context.courseName,
+      courseSlug: context.courseSlug,
+      // Include raw category for finer-grained decisions
+      rawCategory: category
     });
     
     const fullPath = `${storagePath}/${filename}`;

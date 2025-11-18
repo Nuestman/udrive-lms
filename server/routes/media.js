@@ -29,6 +29,14 @@ router.post('/upload',
   handleUploadError,
   async (req, res) => {
     try {
+      // Debug: Log authentication status
+      console.log('📤 [MEDIA-UPLOAD] Upload request received');
+      console.log('   User authenticated:', !!req.user);
+      console.log('   User ID:', req.user?.id);
+      console.log('   Tenant ID:', req.tenantId);
+      console.log('   Origin:', req.headers.origin);
+      console.log('   Cookies:', req.headers.cookie ? 'present' : 'missing');
+      
       const {
         tags: tagsRaw = [],
         audienceScope,
@@ -37,10 +45,22 @@ router.post('/upload',
         courseSlug,
         moduleId,
         lessonId,
+        lessonTitle,
+        lessonSlug,
         quizId,
         announcementId,
       } = req.body;
       const files = req.files;
+
+      // Debug logging to trace where uploads should land
+      console.log('🔎 Upload request received:');
+      console.log('   Audience scope:', audienceScope);
+      console.log('   Requested storageCategory:', requestedStorageCategory);
+      console.log('   Context -> tenantId:', req.tenantId, '| userId:', req.user?.id);
+      console.log('   Context -> courseId:', courseId, '| courseSlug:', courseSlug);
+      console.log('   Context -> moduleId:', moduleId, '| lessonId:', lessonId, '| quizId:', quizId);
+      console.log('   Lesson -> title:', lessonTitle, '| slug:', lessonSlug);
+      console.log('   Files count:', Array.isArray(files) ? files.length : 0);
 
       if (!files || files.length === 0) {
         return res.status(400).json({
@@ -77,6 +97,13 @@ router.post('/upload',
         }
       }
 
+      // Normalize lesson uploads to course silo if client sent lesson categories
+      if (requestedStorageCategory === 'lesson-document' || requestedStorageCategory === 'lesson-video') {
+        storageCategory = requestedStorageCategory; // keep explicit so path resolver can map to course
+      }
+
+      console.log('🗂️ Final storageCategory selected:', storageCategory);
+
       const uploadedFiles = await mediaService.uploadMultipleFiles(
         files,
         storageCategory,
@@ -90,6 +117,8 @@ router.post('/upload',
           courseSlug: courseSlug || undefined,
           moduleId: moduleId || undefined,
           lessonId: lessonId || undefined,
+          lessonTitle: lessonTitle || undefined,
+          lessonSlug: lessonSlug || undefined,
           quizId: quizId || undefined,
           announcementId: announcementId || undefined,
           fileCategory,

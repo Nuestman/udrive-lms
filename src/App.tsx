@@ -268,6 +268,7 @@ function App() {
             {/* Public marketing and informational pages */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/docs" element={<DocumentationLayout />} />
+            <Route path="/docs/:section" element={<DocumentationLayout />} />
             <Route path="/docs/implementation-progress" element={<ImplementationProgressPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/terms" element={<TermsPage />} />

@@ -31,6 +31,8 @@ export async function uploadMediaFile(fileBuffer, originalFilename, mimetype, ca
     courseId,
     moduleId,
     lessonId,
+    lessonTitle,
+    lessonSlug: providedLessonSlug,
     quizId,
     assignmentId,
     announcementId,
@@ -69,11 +71,14 @@ export async function uploadMediaFile(fileBuffer, originalFilename, mimetype, ca
     }
 
     // Fetch lesson name if lessonId is provided
-    let lessonName = context.lessonName;
+  let lessonName = context.lessonName || lessonTitle;
     if (lessonId && !lessonName) {
       const lessonResult = await query('SELECT title FROM lessons WHERE id = $1', [lessonId]);
       lessonName = lessonResult.rows[0]?.title;
     }
+
+  // Derive lesson slug (prefer provided on request, else from lessonName)
+  const lessonSlug = providedLessonSlug || (lessonName ? slugify(lessonName) : undefined);
 
     // Fetch quiz name if quizId is provided
     let quizName = context.quizName;
@@ -105,6 +110,7 @@ export async function uploadMediaFile(fileBuffer, originalFilename, mimetype, ca
         moduleName,
         lessonId,
         lessonName,
+        lessonSlug,
         quizId,
         quizName,
         assignmentId,

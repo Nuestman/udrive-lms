@@ -50,13 +50,14 @@ export const APP_CONFIG = {
         return callback(null, true);
       }
       
-      // Allow Vercel preview deployments (e.g., https://project-name-*.vercel.app)
+      // Allow ALL Vercel deployments (preview, production, any subdomain)
+      // This includes: sunlms.vercel.app, udrive-lms.vercel.app, project-name-*.vercel.app, etc.
       if (origin.match(/^https:\/\/.*\.vercel\.app$/)) {
         return callback(null, true);
       }
       
-      // Allow Vercel production deployments (if using vercel.app domain)
-      if (origin.match(/^https:\/\/.*-.*\.vercel\.app$/)) {
+      // Also allow Vercel preview URLs with git branch names
+      if (origin.match(/^https:\/\/.*-git-.*\.vercel\.app$/)) {
         return callback(null, true);
       }
       

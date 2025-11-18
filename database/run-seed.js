@@ -5,19 +5,16 @@ import { fileURLToPath } from 'url';
 import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
+import { getDatabaseConfig } from '../server/config/database.js';
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const pool = new Pool({
-  host: process.env.DATABASE_HOST || 'localhost',
-  port: parseInt(process.env.DATABASE_PORT || '5432'),
-  database: process.env.DATABASE_NAME || 'udrive-from-bolt',
-  user: process.env.DATABASE_USER || 'postgres',
-  password: process.env.DATABASE_PASSWORD || 'postgres',
-});
+// Use centralized database config
+const config = getDatabaseConfig();
+const pool = new Pool(config);
 
 async function runSeed() {
   try {

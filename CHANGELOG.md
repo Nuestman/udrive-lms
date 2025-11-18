@@ -5,6 +5,54 @@ All notable changes to SunLMS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# Changelog
+
+All notable changes to SunLMS will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.7.0] - 2025-11-15
+
+## [2.7.1] - 2025-11-16
+
+### 🔧 Storage Path Corrections
+- Lesson documents/videos now save under `tenants/{tenant}/courses/{course}/lessons` instead of directly under the course.
+- Course thumbnails now save under `tenants/{tenant}/courses/{course}/thumbnails` instead of the shared `courses/thumbnails` folder.
+
+### 📝 Filename Augmentation
+- Appended lesson slug to lesson media filenames for easier identification.
+- Appended course slug to course thumbnail filenames. Path structure unchanged; only the filename is augmented.
+
+### 🪵 Observability
+- Added upload route debug logs to trace audience scope, selected storage category, and context IDs.
+- Added filename generation debug logs to show computed lesson/course slugs and inputs.
+- Warning logged when an unmapped storage category falls back to `misc/`.
+
+### 📚 Documentation
+- Added `docs/media-uploads.md` (platform-wide upload overview, directory layout, filename scheme).
+- Added `docs/lesson-media-pipeline.md` (end-to-end lesson media flow from UI to storage/DB).
+
+### 🐛 Fixes
+- Fixed frontend error by replacing missing `renameFileForLesson` with existing `renameFileForCourse` and aligning payload fields.
+
+### ✨ Lesson Media Pipeline
+- Document lessons now stream inline via the Microsoft 365 viewer with graceful fallbacks and a persistent download button.
+- Video lessons accept either streaming URLs or uploaded media; uploaded files stream directly in the player with a dedicated download action.
+- Lesson uploads use human-readable blob paths (`sunlms-blob/tenants/<tenant>/courses/<course>/lessons`) and carry tenant/course metadata for easier auditing.
+
+### 🧑‍🏫 Course Builder UX
+- Lesson editor modals pass tenant & course context everywhere, preventing blank screens when creating a new lesson.
+- Document/video uploads show progress, handle renaming automatically, and block saves while uploads finish to avoid broken lessons.
+
+### 📚 Documentation
+- Added the new **Lesson Media Pipeline** guide covering instructor workflow, storage rules, student experience, and best practices.
+- Documentation navigation now supports deep links (`/docs/:section`), allowing cards and alerts to link directly to specific guides.
+- Documentation overview highlights the new feature and system features list now tracks interactive lesson media status.
+
+### 🐛 Fixed
+- Uploaded video lessons no longer trigger forced downloads—the native player renders inline and exposes explicit download controls instead.
+
 ## [2.6.2] - 2025-11-13
 
 ### 🎓 Student Learning Experience
