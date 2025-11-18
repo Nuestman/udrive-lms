@@ -70,7 +70,7 @@ const io = new Server(server, {
       if (origin === allowedFrontend) {
         return callback(null, true);
       }
-      // Test
+      
       // Allow ALL Vercel deployments (preview, production, any subdomain)
       // This includes: sunlms.vercel.app, udrive-lms.vercel.app, project-name-*.vercel.app, etc.
       if (/^https:\/\/.*\.vercel\.app$/.test(origin)) {
