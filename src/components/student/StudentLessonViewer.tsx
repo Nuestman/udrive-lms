@@ -67,11 +67,20 @@ const buildOfficeViewerUrl = (url: string): string => {
 
 const isYouTubeUrl = (url?: string | null): boolean => {
   if (!url) return false;
+  // YouTube host whitelist
+  const allowedYouTubeHosts = new Set([
+    'youtube.com',
+    'www.youtube.com',
+    'm.youtube.com',
+    'youtu.be',
+    'www.youtu.be'
+  ]);
   try {
     const hostname = new URL(url).hostname.toLowerCase();
-    return hostname.includes('youtube.com') || hostname.includes('youtu.be');
+    return allowedYouTubeHosts.has(hostname);
   } catch {
-    return url.includes('youtube.com') || url.includes('youtu.be');
+    // Could not parse, do not trust substring match for hostname
+    return false;
   }
 };
 
