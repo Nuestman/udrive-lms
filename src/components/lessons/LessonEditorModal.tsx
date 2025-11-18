@@ -146,6 +146,17 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
   const [documentUrl, setDocumentUrl] = useState(lesson?.document_url || '');
   const [documentMeta, setDocumentMeta] = useState<LessonMediaMeta | null>(() => extractLessonDocumentMeta(lesson));
   const [videoMeta, setVideoMeta] = useState<LessonMediaMeta | null>(() => extractLessonVideoMeta(lesson));
+
+  // Only allow http/https URLs
+  const isSafeUrl = (url: string): boolean => {
+    if (!url) return false;
+    try {
+      const parsed = new URL(url, window.location.origin); // support relative URLs if needed
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
   const [documentUploading, setDocumentUploading] = useState(false);
   const [documentUploadProgress, setDocumentUploadProgress] = useState(0);
   const [documentUploadError, setDocumentUploadError] = useState<string | null>(null);
@@ -626,14 +637,16 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <a
-                        href={videoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3 py-1.5 text-sm font-medium text-primary-700 bg-white border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors"
-                      >
-                        Open
-                      </a>
+                      {isSafeUrl(videoUrl) && (
+                        <a
+                          href={videoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 text-sm font-medium text-primary-700 bg-white border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors"
+                        >
+                          Open
+                        </a>
+                      )}
                       <button
                         type="button"
                         onClick={handleRemoveUploadedVideo}
