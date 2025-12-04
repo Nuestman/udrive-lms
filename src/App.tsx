@@ -28,6 +28,8 @@ const SuperAdminDashboard = lazy(() => import('./components/dashboard/SuperAdmin
 const InstructorDashboard = lazy(() => import('./components/dashboard/InstructorDashboard'));
 const CoursesPage = lazy(() => import('./components/courses/CoursesPage'));
 const CourseDetailsPage = lazy(() => import('./components/courses/CourseDetailsPage'));
+const ScormCoursesPage = lazy(() => import('./components/courses/ScormCoursesPage'));
+const ScormCoursePlayer = lazy(() => import('./components/scorm/ScormCoursePlayer'));
 const StudentsPage = lazy(() => import('./components/students/StudentsPage'));
 const EnrollmentsPage = lazy(() => import('./components/enrollments/EnrollmentsPage'));
 const SchoolsPage = lazy(() => import('./components/schools/SchoolsPage'));
@@ -124,6 +126,7 @@ const routeTitleMatchers: RouteTitleMatcher[] = [
   { pattern: /^\/forgot-password$/, title: 'Forgot Password' },
   { pattern: /^\/reset-password$/, title: 'Reset Password' },
   { pattern: /^\/school\/dashboard$/, title: 'School Dashboard' },
+  { pattern: /^\/school\/courses\/scorm$/, title: 'SCORM Courses' },
   { pattern: /^\/school\/courses\/[^/]+$/, title: 'Course Details' },
   { pattern: /^\/school\/courses$/, title: 'Manage Courses' },
   { pattern: /^\/school\/students$/, title: 'Student Directory' },
@@ -290,6 +293,7 @@ function App() {
 
               <Route path="/school/dashboard" element={<SchoolAdminDashboard />} />
               <Route path="/school/courses" element={<CoursesPage role="school_admin" />} />
+              <Route path="/school/courses/scorm" element={<ScormCoursesPage />} />
               <Route path="/school/courses/:id" element={<CourseDetailsPage />} />
               <Route path="/school/students" element={<StudentsPage />} />
               <Route path="/school/instructors" element={<InstructorsPage />} />
@@ -326,6 +330,7 @@ function App() {
               <Route path="/student/dashboard" element={<StudentDashboardPage />} />
               <Route path="/student/progress" element={<StudentProgressPage />} />
               <Route path="/student/courses" element={<StudentCoursesPage />} />
+              <Route path="/student/courses/:courseId/scorm" element={<ScormCoursePlayer />} />
               <Route path="/student/courses/:courseId/lessons/:lessonId" element={<StudentLessonViewer />} />
               <Route path="/student/certificates" element={<CertificatesPage role="student" />} />
               <Route path="/student/certificates/:enrollmentId" element={<CertificateViewPage />} />

@@ -12,6 +12,7 @@ export interface Course {
   created_by: string;
   created_at: string;
   updated_at: string;
+  is_scorm?: boolean;
   // Computed fields from JOINs:
   instructor_name?: string;
   instructor_email?: string;
@@ -40,10 +41,17 @@ export interface Lesson {
   description?: string;
   content: any; // JSONB - block editor content
   order_index: number;
-  duration_minutes?: number;
+  // Canonical fields
+  lesson_type: 'text' | 'video' | 'document' | 'quiz' | 'scorm';
+  video_url?: string | null;
+  document_url?: string | null;
+  scorm_sco_id?: string | null;
+  estimated_duration_minutes?: number;
   status: 'draft' | 'published';
   created_at: string;
   updated_at: string;
+  // Backwards-compat: legacy duration field (not used in new code paths)
+  duration_minutes?: number;
 }
 
 export interface Enrollment {

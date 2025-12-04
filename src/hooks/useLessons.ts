@@ -62,9 +62,9 @@ export function useLessons(moduleId?: string) {
 
   const deleteLesson = async (lessonId: string) => {
     try {
-      const response = await api.delete(`/lessons/${lessonId}`);
+      const response = await api.del(`/lessons/${lessonId}`);
       
-      if (response.success) {
+      if ((response as any)?.success) {
         await fetchLessons();
       }
     } catch (err: any) {

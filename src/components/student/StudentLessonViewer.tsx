@@ -1285,6 +1285,20 @@ const StudentLessonViewer: React.FC = () => {
   const renderLessonContent = () => {
     if (!currentLesson) return null;
 
+    // SCORM Lesson: render SCORM player iframe and runtime wrapper
+    if (currentLesson.lesson_type === 'scorm') {
+      return (
+        <div className="prose max-w-none">
+          <div className="mb-4 rounded-lg bg-primary-50 border border-primary-100 px-4 py-3 text-sm text-primary-800">
+            <p className="font-medium">
+              This is a SCORM lesson. Your progress and scores will be tracked automatically while you interact with the activity below.
+            </p>
+          </div>
+          <ScormPlayer lessonId={currentLesson.id} lessonTitle={currentLesson.title} />
+        </div>
+      );
+    }
+
     // Extract and clean HTML content
     let htmlContent = cleanLessonContent(currentLesson.content);
     
@@ -2728,4 +2742,186 @@ const StudentLessonViewer: React.FC = () => {
 };
 
 export default StudentLessonViewer;
+
+type ScormPlayerProps = {
+  lessonId: string;
+  lessonTitle: string;
+};
+
+const ScormPlayer: React.FC<ScormPlayerProps> = ({ lessonId, lessonTitle }) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [launchUrl, setLaunchUrl] = useState<string | null>(null);
+  const [scoId, setScoId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadLaunchConfig = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await api.get(`/scorm/launch/${lessonId}`);
+        if (!response?.success || !response.data) {
+          throw new Error('Failed to resolve SCORM launch configuration');
+        }
+        if (isCancelled) return;
+        const cfg = response.data;
+        setLaunchUrl(cfg.launchUrl);
+        setScoId(cfg.sco?.id || null);
+      } catch (err: any) {
+        if (!isCancelled) {
+          console.error('[SCORM] Failed to load launch config:', err);
+          setError(err?.message || 'Unable to load SCORM content.');
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadLaunchConfig();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [lessonId]);
+
+  useEffect(() => {
+    if (!launchUrl || !scoId) {
+      return;
+    }
+
+    const cmi: Record<string, string> = {};
+    let initialized = false;
+    let terminated = false;
+    let lastError = '0';
+
+    const commitRuntime = async () => {
+      try {
+        // Fire-and-forget commit to backend
+        await api.post('/scorm/runtime/commit', {
+          scoId,
+          attemptNo: 1,
+          cmi,
+        });
+        lastError = '0';
+      } catch (err: any) {
+        console.error('[SCORM] Commit failed:', err);
+        lastError = '101'; // general exception
+      }
+    };
+
+    const apiAdapter = {
+      LMSInitialize: (param: string) => {
+        if (terminated) {
+          lastError = '101';
+          return 'false';
+        }
+        initialized = true;
+        lastError = '0';
+        return 'true';
+      },
+      LMSFinish: (param: string) => {
+        if (!initialized) {
+          lastError = '301'; // not initialized
+          return 'false';
+        }
+        terminated = true;
+        // If lesson_status not set, assume completed when finishing
+        if (!cmi['cmi.core.lesson_status']) {
+          cmi['cmi.core.lesson_status'] = 'completed';
+        }
+        void commitRuntime();
+        return 'true';
+      },
+      LMSGetValue: (element: string) => {
+        if (!initialized) {
+          lastError = '301';
+          return '';
+        }
+        lastError = '0';
+        return cmi[element] ?? '';
+      },
+      LMSSetValue: (element: string, value: string) => {
+        if (!initialized) {
+          lastError = '301';
+          return 'false';
+        }
+        cmi[element] = String(value ?? '');
+        lastError = '0';
+        return 'true';
+      },
+      LMSCommit: (param: string) => {
+        if (!initialized) {
+          lastError = '301';
+          return 'false';
+        }
+        void commitRuntime();
+        return 'true';
+      },
+      LMSGetLastError: () => {
+        return lastError;
+      },
+      LMSGetErrorString: (errorCode: string) => {
+        if (errorCode === '0') return 'No error';
+        if (errorCode === '101') return 'General exception';
+        if (errorCode === '301') return 'Not initialized';
+        return 'Unknown error';
+      },
+      LMSGetDiagnostic: (errorCode: string) => {
+        return `Diagnostic for error code ${errorCode || lastError}`;
+      },
+    };
+
+    (window as any).API = apiAdapter;
+    console.log('[SCORM] SCORM 1.2 runtime API (window.API) initialized for lesson', lessonId);
+
+    return () => {
+      if ((window as any).API === apiAdapter) {
+        delete (window as any).API;
+        console.log('[SCORM] SCORM 1.2 runtime API (window.API) cleaned up for lesson', lessonId);
+      }
+    };
+  }, [launchUrl, scoId, lessonId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64 border border-gray-200 rounded-lg bg-white">
+        <div className="flex flex-col items-center gap-2 text-sm text-gray-600">
+          <Loader2 className="h-5 w-5 animate-spin text-primary-600" />
+          <span>Loading SCORM activity…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !launchUrl) {
+    return (
+      <div className="border border-red-200 bg-red-50 rounded-lg p-4 text-sm text-red-700">
+        <p className="font-semibold mb-1">Unable to load SCORM content.</p>
+        <p>{error || 'Launch URL is missing or invalid.'}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-6 space-y-3">
+      <div className="relative h-[65vh] min-h-[420px] border border-gray-200 rounded-lg overflow-hidden bg-black">
+        <iframe
+          key={launchUrl}
+          src={launchUrl}
+          title={lessonTitle || 'SCORM Lesson'}
+          className="w-full h-full"
+          frameBorder={0}
+          allow="fullscreen *; geolocation; microphone; camera; midi; encrypted-media"
+        />
+      </div>
+      <p className="text-xs text-gray-500">
+        If the activity does not appear, ensure your browser allows third-party content and try reloading the page.
+      </p>
+    </div>
+  );
+};
 

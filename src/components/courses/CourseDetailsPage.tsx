@@ -1,7 +1,7 @@
 // Course Details Page - View course structure with modules and lessons
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, BookOpen, Clock, Users, Edit, Trash2, GripVertical, ChevronDown, ChevronRight, FileText, Eye, MessageSquareHeart, Sparkles, Loader2, CheckCircle2, Megaphone, Pin as PinIcon } from 'lucide-react';
+import { ArrowLeft, Plus, BookOpen, Clock, Users, Edit, Trash2, GripVertical, ChevronDown, ChevronRight, FileText, Eye, MessageSquareHeart, Sparkles, Loader2, CheckCircle2, Megaphone, Pin as PinIcon, X } from 'lucide-react';
 import { useModules } from '../../hooks/useModules';
 import { useLessons } from '../../hooks/useLessons';
 import api, { quizzesApi } from '../../lib/api';
@@ -9,8 +9,11 @@ import PageLayout from '../ui/PageLayout';
 import LessonEditorModal from '../lessons/LessonEditorModal';
 import QuizBuilderModal from '../quiz/QuizBuilderModal';
 import QuizEditModal from '../quiz/QuizEditModal';
+import EditCourseModal from './EditCourseModal';
 import { useToast } from '../../contexts/ToastContext';
+import ConfirmationModal from '../ui/ConfirmationModal';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCourses } from '../../hooks/useCourses';
 import {
   CourseReviewSettings,
   getCourseReviewSettings,
@@ -40,6 +43,7 @@ const CourseDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { updateCourse, publishCourse } = useCourses();
   const { modules, loading: modulesLoading, createModule, deleteModule } = useModules(id);
   
   const [course, setCourse] = useState<any>(null);
@@ -66,6 +70,11 @@ const CourseDetailsPage: React.FC = () => {
   const [courseAnnouncementSubmitting, setCourseAnnouncementSubmitting] = useState(false);
   const [announcementsExpanded, setAnnouncementsExpanded] = useState(false);
   const [reviewSettingsExpanded, setReviewSettingsExpanded] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [scormPackage, setScormPackage] = useState<any>(null);
+  const [scormScos, setScormScos] = useState<any[]>([]);
+  const [loadingScormInfo, setLoadingScormInfo] = useState(false);
 
   useEffect(() => {
     setSettingsDraft(buildDefaultReviewSettings(id));
@@ -73,17 +82,60 @@ const CourseDetailsPage: React.FC = () => {
     loadReviewSettings();
   }, [id]);
 
+  useEffect(() => {
+    if (course?.is_scorm && course?.id) {
+      fetchScormPackageInfo();
+    }
+  }, [course?.is_scorm, course?.id]);
+
+  const fetchScormPackageInfo = async () => {
+    if (!course?.id) return;
+    try {
+      setLoadingScormInfo(true);
+      const response = await api.scorm.getPackageByCourseId(course.id);
+      if (response.success) {
+        if (response.data) {
+          setScormPackage(response.data.package);
+          setScormScos(response.data.scos || []);
+        } else {
+          setScormPackage(null);
+          setScormScos([]);
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch SCORM package info:', err);
+    } finally {
+      setLoadingScormInfo(false);
+    }
+  };
+
   const fetchCourse = async () => {
+    if (!id) {
+      showToast('Invalid course ID', 'error');
+      setTimeout(() => navigate('/school/courses'), 2000);
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await api.get(`/courses/${id}`);
-      if (response.success) {
+      if (response.success && response.data) {
         setCourse(response.data);
         if (response.data?.id) {
           setResolvedCourseId(response.data.id);
         }
+      } else {
+        // Course not found or invalid response
+        const errorMsg = response.error || response.message || 'Course not found or you do not have access to it';
+        console.error('Course fetch failed:', { response, id });
+        showToast(errorMsg, 'error');
+        setTimeout(() => navigate('/school/courses'), 2000);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching course:', err);
+      const errorMessage = err?.message || err?.error || err?.toString() || 'Failed to load course';
+      showToast(errorMessage, 'error');
+      setTimeout(() => navigate('/school/courses'), 2000);
     } finally {
       setLoading(false);
     }
@@ -316,8 +368,22 @@ const CourseDetailsPage: React.FC = () => {
     return <div className="p-6 text-center text-gray-600">Course not found</div>;
   }
 
+  const handleCourseUpdate = async () => {
+    await fetchCourse(); // Refresh course data after update
+  };
+
   return (
     <>
+      {course && (
+        <EditCourseModal
+          isOpen={showEditModal}
+          course={course}
+          onClose={() => {
+            setShowEditModal(false);
+            handleCourseUpdate();
+          }}
+        />
+      )}
       <AnnouncementEditorModal
         open={showCourseAnnouncementModal}
         mode="create"
@@ -346,6 +412,48 @@ const CourseDetailsPage: React.FC = () => {
       ]}
       actions={
         <div className="flex gap-3">
+          {course.is_scorm && (
+            <>
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                <Edit size={18} className="mr-2" />
+                Edit Course
+              </button>
+              {course.status !== 'published' && (
+                <button
+                  onClick={async () => {
+                    if (!course.id) return;
+                    try {
+                      setPublishing(true);
+                      await publishCourse(course.id);
+                      showToast('Course published successfully', 'success');
+                      await fetchCourse(); // Refresh course data
+                    } catch (err: any) {
+                      showToast(err.message || 'Failed to publish course', 'error');
+                    } finally {
+                      setPublishing(false);
+                    }
+                  }}
+                  disabled={publishing}
+                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                >
+                  {publishing ? (
+                    <>
+                      <Loader2 size={18} className="mr-2 animate-spin" />
+                      Publishing...
+                    </>
+                  ) : (
+                    <>
+                      <Megaphone size={18} className="mr-2" />
+                      Publish Course
+                    </>
+                  )}
+                </button>
+              )}
+            </>
+          )}
           <button
             onClick={() => {
               const backPath = user?.role === 'student' ? '/student/courses' : 
@@ -388,6 +496,50 @@ const CourseDetailsPage: React.FC = () => {
         {course.description && (
           <div className="mt-4 pt-4 border-t border-gray-200">
             <p className="text-gray-700">{course.description}</p>
+          </div>
+        )}
+        {course.is_scorm && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-900">SCORM Package Information</h3>
+            </div>
+            {loadingScormInfo ? (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading package info...
+              </div>
+            ) : scormPackage ? (
+              <div className="space-y-2 text-sm">
+                <div>
+                  <span className="font-medium text-gray-700">Package:</span>{' '}
+                  <span className="text-gray-600">{scormPackage.title}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">Version:</span>{' '}
+                  <span className="text-gray-600">{scormPackage.version || 'SCORM 1.2'}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">SCOs:</span>{' '}
+                  <span className="text-gray-600">{scormScos.length} content object(s)</span>
+                </div>
+                {scormPackage.created_at && (
+                  <div>
+                    <span className="font-medium text-gray-700">Uploaded:</span>{' '}
+                    <span className="text-gray-600">
+                      {new Date(scormPackage.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="font-medium mb-1">No SCORM package linked</p>
+                <p className="text-xs">
+                  This course was created as a SCORM course but no SCORM package is linked. 
+                  Please upload a SCORM package and create a new course from it, or link an existing package.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -917,6 +1069,36 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [loadingQuizzes, setLoadingQuizzes] = useState(false);
   const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
+  const [showScormModal, setShowScormModal] = useState(false);
+  const [scormFile, setScormFile] = useState<File | null>(null);
+  const [uploadingScorm, setUploadingScorm] = useState(false);
+  const [scormScos, setScormScos] = useState<any[]>([]);
+  const [scormPackage, setScormPackage] = useState<any | null>(null);
+  const [lessonToDelete, setLessonToDelete] = useState<any | null>(null);
+
+  const handleUploadScormAndCreateLesson = async (sco: any) => {
+    try {
+      const newLesson = await createLesson({
+        module_id: module.id,
+        title: sco.title || sco.identifier || 'SCORM Lesson',
+        content: [],
+        lesson_type: 'scorm',
+        scorm_sco_id: sco.id,
+        status: 'draft',
+      });
+      setShowScormModal(false);
+      setScormFile(null);
+      setScormScos([]);
+      setScormPackage(null);
+      showToast('SCORM lesson created', 'success');
+      if (newLesson) {
+        setEditingLesson(newLesson);
+      }
+    } catch (err: any) {
+      console.error('Failed to create SCORM lesson', err);
+      showToast(err.message || 'Failed to create SCORM lesson', 'error');
+    }
+  };
 
   const handleAddLesson = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1102,16 +1284,9 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
                           <Edit size={14} />
                         </button>
                         <button
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            if (window.confirm(`Delete lesson "${lesson.title}"?`)) {
-                              try {
-                                await deleteLesson(lesson.id);
-                                showToast('Lesson deleted', 'success');
-                              } catch (err: any) {
-                                showToast(err.message || 'Failed to delete lesson', 'error');
-                              }
-                            }
+                            setLessonToDelete(lesson);
                           }}
                           className="p-1 text-red-600 hover:bg-red-50 rounded"
                           aria-label={`Delete lesson: ${lesson.title}`}
@@ -1125,18 +1300,23 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
                 </div>
               )}
 
-              {/* Add Lesson Form */}
-              {showAddLesson ? (
-                <form onSubmit={handleAddLesson} className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="text"
-                    placeholder="Lesson title..."
-                    value={newLessonTitle}
-                    onChange={(e) => setNewLessonTitle(e.target.value)}
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    autoFocus
-                  />
+              {/* Add Lesson Actions */}
+              <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                {showAddLesson ? (
+                  <form onSubmit={handleAddLesson} className="flex flex-1 flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      placeholder="Lesson title..."
+                      value={newLessonTitle}
+                      onChange={(e) => setNewLessonTitle(e.target.value)}
+                      className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      autoFocus
+                    />
+                  <label className="sr-only" htmlFor={`lesson-status-${module.id}`}>
+                    Lesson status
+                  </label>
                   <select
+                    id={`lesson-status-${module.id}`}
                     value={newLessonStatus}
                     onChange={(e) => setNewLessonStatus(e.target.value as 'draft' | 'published')}
                     className="px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -1145,32 +1325,34 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
                     <option value="draft">Draft</option>
                     <option value="published">Published</option>
                   </select>
+                    <button
+                      type="submit"
+                      className="px-3 py-2 text-sm bg-primary-600 text-white rounded hover:bg-primary-700"
+                    >
+                      Add
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddLesson(false);
+                        setNewLessonTitle('');
+                        setNewLessonStatus('draft');
+                      }}
+                      className="px-3 py-2 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                ) : (
                   <button
-                    type="submit"
-                    className="px-3 py-2 text-sm bg-primary-600 text-white rounded hover:bg-primary-700"
+                    onClick={() => setShowAddLesson(true)}
+                    className="flex-1 py-2 text-sm text-primary-600 border border-dashed border-primary-300 rounded hover:bg-primary-50 transition-colors"
                   >
-                    Add
+                    + Add Lesson
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAddLesson(false);
-                      setNewLessonTitle('');
-                      setNewLessonStatus('draft');
-                    }}
-                    className="px-3 py-2 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                </form>
-              ) : (
-                <button
-                  onClick={() => setShowAddLesson(true)}
-                  className="w-full py-2 text-sm text-primary-600 border border-dashed border-primary-300 rounded hover:bg-primary-50 transition-colors"
-                >
-                  + Add Lesson
-                </button>
-              )}
+                )}
+                {/* SCORM lesson creation removed - use /school/courses/scorm to create SCORM courses */}
+              </div>
 
               {/* Quizzes section */}
               <div className="mt-6">
@@ -1267,6 +1449,31 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
           tenantId={course?.tenant_id}
         />
       )}
+      {/* Lesson Delete Confirmation */}
+      <ConfirmationModal
+        isOpen={!!lessonToDelete}
+        onClose={() => setLessonToDelete(null)}
+        onConfirm={async () => {
+          if (!lessonToDelete) return;
+          try {
+            await deleteLesson(lessonToDelete.id);
+            showToast('Lesson deleted', 'success');
+          } catch (err: any) {
+            showToast(err.message || 'Failed to delete lesson', 'error');
+          } finally {
+            setLessonToDelete(null);
+          }
+        }}
+        title="Delete lesson?"
+        message={
+          lessonToDelete
+            ? `Are you sure you want to delete the lesson "${lessonToDelete.title}"? This action cannot be undone.`
+            : ''
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
 
       {/* Quiz Builder Modal */}
       {showQuizBuilder && (
@@ -1289,9 +1496,160 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
           }}
         />
       )}
+
+      {/* SCORM Lesson Modal */}
+      {showScormModal && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-900">
+                Add SCORM Lesson to &quot;{module.title}&quot;
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  if (uploadingScorm) return;
+                  setShowScormModal(false);
+                  setScormFile(null);
+                  setScormScos([]);
+                  setScormPackage(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Close SCORM lesson modal"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {!scormPackage && (
+                <div className="space-y-3">
+                  <p className="text-xs text-gray-600">
+                    Upload a SCORM 1.2 package (.zip). SunLMS will scan it for launchable SCOs and let you pick which one
+                    should become a lesson in this module.
+                  </p>
+                  <input
+                    type="file"
+                    accept=".zip,application/zip,application/x-zip-compressed"
+                    onChange={(e) => setScormFile(e.target.files?.[0] || null)}
+                    className="block w-full text-xs text-gray-700"
+                    title="Select SCORM package zip file"
+                  />
+                  <button
+                    type="button"
+                    disabled={!scormFile || uploadingScorm}
+                    className="inline-flex items-center px-3 py-2 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={async () => {
+                      if (!scormFile) return;
+                      try {
+                        setUploadingScorm(true);
+                        const res = await api.scorm.uploadPackage(scormFile, course?.id);
+                        if (!res.success || !res.data) {
+                          throw new Error(res.message || 'Failed to upload SCORM package');
+                        }
+                        setScormPackage(res.data.package);
+                        setScormScos(res.data.scos || []);
+                      } catch (err: any) {
+                        console.error('SCORM upload failed', err);
+                        showToast(err.message || 'Failed to upload SCORM package', 'error');
+                      } finally {
+                        setUploadingScorm(false);
+                      }
+                    }}
+                  >
+                    {uploadingScorm ? 'Uploading…' : 'Upload & Scan Package'}
+                  </button>
+                </div>
+              )}
+
+              {scormPackage && (
+                <div className="space-y-3">
+                  <div className="text-xs text-gray-700">
+                    <p className="font-semibold">Package: {scormPackage.title}</p>
+                    <p className="text-gray-500">
+                      Found {scormScos.length} SCO{scormScos.length === 1 ? '' : 's'}. Choose one to create a lesson.
+                    </p>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto border border-gray-200 rounded divide-y divide-gray-100">
+                    {scormScos.map((sco) => (
+                      <button
+                        key={sco.id}
+                        type="button"
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 flex items-center justify-between"
+                    title={`Use SCO ${sco.title || sco.identifier || ''} as lesson content`}
+                        onClick={async () => {
+                          try {
+                            const newLesson = await createLesson({
+                              module_id: module.id,
+                              title: sco.title || sco.identifier || 'SCORM Lesson',
+                              content: [],
+                              lesson_type: 'scorm',
+                              scorm_sco_id: sco.id,
+                              status: 'draft',
+                            });
+                            setShowScormModal(false);
+                            setScormFile(null);
+                            setScormScos([]);
+                            setScormPackage(null);
+                            showToast('SCORM lesson created', 'success');
+                            if (newLesson) {
+                              setEditingLesson(newLesson);
+                            }
+                          } catch (err: any) {
+                            console.error('Failed to create SCORM lesson', err);
+                            showToast(err.message || 'Failed to create SCORM lesson', 'error');
+                          }
+                        }}
+                      >
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {sco.title || sco.identifier || 'Untitled SCO'}
+                          </div>
+                          <div className="text-[11px] text-gray-500 break-all">
+                            {sco.launch_path}
+                          </div>
+                        </div>
+                        {sco.is_entry_point && (
+                          <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700">
+                            Entry
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                    {scormScos.length === 0 && (
+                      <div className="px-3 py-2 text-xs text-gray-500">
+                        No launchable SCOs found in this package.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 px-4 py-3 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => {
+                  if (uploadingScorm) return;
+                  setShowScormModal(false);
+                  setScormFile(null);
+                  setScormScos([]);
+                  setScormPackage(null);
+                }}
+                className="px-3 py-1.5 text-xs text-gray-700 border border-gray-300 rounded hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+// Simple SCORM modal and creation flow could be further extracted, but is kept inline for now.
 
 export default CourseDetailsPage;
 

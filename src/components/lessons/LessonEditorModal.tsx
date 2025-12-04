@@ -144,6 +144,7 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
   const [lessonType, setLessonType] = useState(lesson?.lesson_type || 'text');
   const [videoUrl, setVideoUrl] = useState(lesson?.video_url || '');
   const [documentUrl, setDocumentUrl] = useState(lesson?.document_url || '');
+  const [scormScoId, setScormScoId] = useState<string>(lesson?.scorm_sco_id || '');
   const [documentMeta, setDocumentMeta] = useState<LessonMediaMeta | null>(() => extractLessonDocumentMeta(lesson));
   const [videoMeta, setVideoMeta] = useState<LessonMediaMeta | null>(() => extractLessonVideoMeta(lesson));
 
@@ -404,6 +405,8 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
       return;
     }
 
+    // For SCORM lessons, we allow editing metadata/content only; SCO linkage is set via the SCORM picker flow.
+
     try {
       setSaving(true);
       
@@ -427,6 +430,7 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
         lesson_type: lessonType,
         video_url: lessonType === 'video' ? (videoUrl || null) : null,
         document_url: lessonType === 'document' ? (documentUrl || null) : null,
+        scorm_sco_id: lessonType === 'scorm' ? (scormScoId || null) : null,
         estimated_duration_minutes: duration ? parseInt(duration) : null,
         status,
       });
@@ -519,6 +523,7 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
                 <option value="video">Video</option>
                 <option value="document">Document</option>
                 <option value="quiz">Quiz</option>
+                {/* SCORM option removed - SCORM courses should be created via /school/courses/scorm */}
               </select>
             </div>
 
@@ -760,6 +765,25 @@ const LessonEditorModal: React.FC<LessonEditorModalProps> = ({
                   Upload PowerPoint or Word files to enable the in-app lesson viewer for students.
                 </p>
               )}
+            </div>
+          )}
+
+          {/* SCORM Lesson Info (read-only) */}
+          {lessonType === 'scorm' && (
+            <div className="space-y-3">
+              <div className="rounded-lg bg-primary-50 border border-primary-100 p-3 text-xs text-primary-800 space-y-1">
+                <p className="font-semibold">SCORM lesson</p>
+                <p>
+                  This lesson is backed by a SCORM package. The SCO linkage is managed from the course builder&apos;s
+                  &ldquo;Add SCORM Lesson&rdquo; flow. Students will see the SCORM activity in an iframe and their
+                  progress will be tracked automatically.
+                </p>
+                {scormScoId && (
+                  <p className="mt-1 text-[11px] text-primary-700 break-all">
+                    Linked SCO ID: <span className="font-mono">{scormScoId}</span>
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
