@@ -89,6 +89,14 @@ const StudentCoursesPage: React.FC = () => {
   const handleContinueCourse = async (courseId: string) => {
     try {
       const courseMeta = courses.find(c => c.id === courseId);
+      
+      // If SCORM course, launch directly in SCORM player
+      if (courseMeta?.is_scorm) {
+        navigate(`/student/courses/${courseId}/scorm`);
+        return;
+      }
+
+      // Regular course: navigate to first lesson
       const coursePathId = courseMeta?.slug || courseId;
       const modulesRes = await api.get(`/modules/course/${courseId}`);
       

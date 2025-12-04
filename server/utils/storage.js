@@ -301,6 +301,10 @@ export function buildStoragePath(category, context = {}) {
       parts.push('certificates');
       break;
 
+    case 'scorm-package':
+      parts.push('scorm', 'packages');
+      break;
+
     case 'tenant-logo':
       parts.push('logos');
       break;

@@ -677,6 +677,46 @@ export const quizzesApi = {
   delete: (id: string) => del<{ success: boolean }>(`/quizzes/${id}`),
 };
 
+/**
+ * SCORM API
+ */
+export const scormApi = {
+  uploadPackage: (file: File, courseId?: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (courseId) {
+      formData.append('courseId', courseId);
+    }
+    return post<{ success: boolean; data: { package: any; scos: any[] } }>('/scorm/upload', formData);
+  },
+
+  listPackages: () =>
+    get<{ success: boolean; data: any[] }>('/scorm/packages'),
+
+  listScos: (packageId: string) =>
+    get<{ success: boolean; data: { package: any; scos: any[] } }>(`/scorm/packages/${packageId}/sco-list`),
+
+  createCourseFromPackage: (packageId: string, courseData?: {
+    title?: string;
+    description?: string;
+    status?: string;
+    duration_weeks?: number;
+    price?: number;
+  }) =>
+    post<{ success: boolean; data: any }>(`/scorm/packages/${packageId}/create-course`, courseData || {}),
+
+  getPackageByCourseId: (courseId: string) =>
+    get<{ success: boolean; data: { package: any; scos: any[] } | null }>(`/scorm/course/${courseId}/package`),
+
+  verifyFile: (packageId: string, filePath: string) =>
+    get<{ success: boolean; data: { exists: boolean; isFile: boolean; isDirectory: boolean; size: number; path: string } }>(
+      `/scorm/verify-file/${packageId}?filePath=${encodeURIComponent(filePath)}`
+    ),
+
+  deletePackage: (packageId: string) =>
+    del<{ success: boolean; message: string }>(`/scorm/packages/${packageId}`),
+};
+
 // Main API object with all methods
 export const api = {
   get,
@@ -695,6 +735,7 @@ export const api = {
   testimonials: testimonialsApi,
   reviewSettings: reviewSettingsApi,
   quizzes: quizzesApi,
+  scorm: scormApi,
 };
 
 export default {
@@ -714,5 +755,6 @@ export default {
   testimonialsApi,
   reviewSettingsApi,
   quizzesApi,
+  scorm: scormApi,
 };
 

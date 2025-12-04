@@ -2,6 +2,11 @@
 import { query } from '../lib/db.js';
 import { notifyLessonStudents } from './notifications.service.js';
 
+// Feature flag: whether the connected database has the SCORM column on lessons.
+// We try the SCORM-aware queries first; if we ever see "undefined_column" (42703),
+// we switch this off and fall back to legacy queries so the default flows keep working.
+let LESSONS_HAS_SCORM_COLUMN = true;
+
 /**
  * Get all lessons for a module
  * - Super Admin: Any module's lessons
@@ -69,7 +74,7 @@ export async function getLessonById(lessonId, tenantId, isSuperAdmin = false) {
  * Create new lesson
  */
 export async function createLesson(lessonData, tenantId, isSuperAdmin = false, io = null) {
-  const { module_id, title, content, lesson_type, video_url, document_url, estimated_duration_minutes, status } = lessonData;
+  const { module_id, title, content, lesson_type, video_url, document_url, scorm_sco_id, estimated_duration_minutes, status } = lessonData;
   
   // Verify module belongs to tenant (skip for super admin)
   if (!isSuperAdmin) {
@@ -97,12 +102,56 @@ export async function createLesson(lessonData, tenantId, isSuperAdmin = false, i
     ? (typeof content === 'string' ? content : JSON.stringify(content))
     : '[]';
   
-  const result = await query(
-    `INSERT INTO lessons (module_id, title, content, lesson_type, video_url, document_url, estimated_duration_minutes, order_index, status)
-     VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9)
-     RETURNING *`,
-    [module_id, title, contentValue, lesson_type || 'text', video_url || null, document_url || null, estimated_duration_minutes || null, orderIndex, status || 'draft']
-  );
+  let result;
+  if (LESSONS_HAS_SCORM_COLUMN) {
+    try {
+      result = await query(
+        `INSERT INTO lessons (module_id, title, content, lesson_type, video_url, document_url, scorm_sco_id, estimated_duration_minutes, order_index, status)
+         VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9, $10)
+         RETURNING *`,
+        [
+          module_id,
+          title,
+          contentValue,
+          lesson_type || 'text',
+          video_url || null,
+          document_url || null,
+          scorm_sco_id || null,
+          estimated_duration_minutes || null,
+          orderIndex,
+          status || 'draft'
+        ]
+      );
+    } catch (error) {
+      // 42703 = undefined_column: the connected DB doesn't have scorm_sco_id yet.
+      if (error && error.code === '42703') {
+        console.warn('[LESSONS] scorm_sco_id column not found on lessons; falling back to legacy INSERT without SCORM column.');
+        LESSONS_HAS_SCORM_COLUMN = false;
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  // Fallback path: legacy INSERT without SCORM column
+  if (!result) {
+    result = await query(
+      `INSERT INTO lessons (module_id, title, content, lesson_type, video_url, document_url, estimated_duration_minutes, order_index, status)
+       VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        module_id,
+        title,
+        contentValue,
+        lesson_type || 'text',
+        video_url || null,
+        document_url || null,
+        estimated_duration_minutes || null,
+        orderIndex,
+        status || 'draft'
+      ]
+    );
+  }
   
   const lesson = result.rows[0];
 
@@ -152,7 +201,7 @@ export async function createLesson(lessonData, tenantId, isSuperAdmin = false, i
  * - Others: Only if lesson is in their school
  */
 export async function updateLesson(lessonId, lessonData, tenantId, isSuperAdmin = false, io = null) {
-  const { title, content, lesson_type, video_url, document_url, estimated_duration_minutes, status } = lessonData;
+  const { title, content, lesson_type, video_url, document_url, scorm_sco_id, estimated_duration_minutes, status } = lessonData;
   
   // Verify lesson access
   if (!isSuperAdmin) {
@@ -174,20 +223,50 @@ export async function updateLesson(lessonId, lessonData, tenantId, isSuperAdmin 
     ? (typeof content === 'string' ? content : JSON.stringify(content))
     : undefined;
 
-  const result = await query(
-    `UPDATE lessons
-     SET title = COALESCE($2, title),
-         content = COALESCE($3::jsonb, content),
-         lesson_type = COALESCE($4, lesson_type),
-         video_url = COALESCE($5, video_url),
-         document_url = COALESCE($6, document_url),
-         estimated_duration_minutes = COALESCE($7, estimated_duration_minutes),
-         status = COALESCE($8, status),
-         updated_at = CURRENT_TIMESTAMP
-     WHERE id = $1
-     RETURNING *`,
-    [lessonId, title, contentValue, lesson_type, video_url, document_url, estimated_duration_minutes, status]
-  );
+  let result;
+  if (LESSONS_HAS_SCORM_COLUMN) {
+    try {
+      result = await query(
+        `UPDATE lessons
+         SET title = COALESCE($2, title),
+             content = COALESCE($3::jsonb, content),
+             lesson_type = COALESCE($4, lesson_type),
+             video_url = COALESCE($5, video_url),
+             document_url = COALESCE($6, document_url),
+             scorm_sco_id = COALESCE($7, scorm_sco_id),
+             estimated_duration_minutes = COALESCE($8, estimated_duration_minutes),
+             status = COALESCE($9, status),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1
+         RETURNING *`,
+        [lessonId, title, contentValue, lesson_type, video_url, document_url, scorm_sco_id, estimated_duration_minutes, status]
+      );
+    } catch (error) {
+      if (error && error.code === '42703') {
+        console.warn('[LESSONS] scorm_sco_id column not found on lessons during update; falling back to legacy UPDATE without SCORM column.');
+        LESSONS_HAS_SCORM_COLUMN = false;
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  if (!result) {
+    result = await query(
+      `UPDATE lessons
+       SET title = COALESCE($2, title),
+           content = COALESCE($3::jsonb, content),
+           lesson_type = COALESCE($4, lesson_type),
+           video_url = COALESCE($5, video_url),
+           document_url = COALESCE($6, document_url),
+           estimated_duration_minutes = COALESCE($7, estimated_duration_minutes),
+           status = COALESCE($8, status),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+       RETURNING *`,
+      [lessonId, title, contentValue, lesson_type, video_url, document_url, estimated_duration_minutes, status]
+    );
+  }
   
   const updated = result.rows[0];
 
@@ -210,6 +289,7 @@ export async function updateLesson(lessonId, lessonData, tenantId, isSuperAdmin 
         if (lesson_type !== undefined) changes.push('type');
         if (video_url !== undefined) changes.push('video');
         if (document_url !== undefined) changes.push('document');
+        if (scorm_sco_id !== undefined) changes.push('scorm_sco');
         if (estimated_duration_minutes !== undefined) changes.push('duration');
         if (status !== undefined) changes.push('status');
         const updateDetails = changes.length ? `Updated: ${changes.join(', ')}` : '';

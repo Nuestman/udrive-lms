@@ -92,9 +92,69 @@ CREATE TABLE IF NOT EXISTS lessons (
     lesson_type TEXT DEFAULT 'text',
     video_url TEXT,
     document_url TEXT,
+    scorm_sco_id UUID,
     order_index INTEGER NOT NULL,
     estimated_duration_minutes INTEGER,
     status TEXT DEFAULT 'draft',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    PRIMARY KEY (id)
+);
+
+-- =============================================
+-- TABLE: scorm_packages
+-- =============================================
+CREATE TABLE IF NOT EXISTS scorm_packages (
+    id UUID DEFAULT uuid_generate_v4() NOT NULL,
+    tenant_id UUID,
+    course_id UUID,
+    title TEXT NOT NULL,
+    version TEXT DEFAULT 'SCORM_1_2',
+    zip_blob_url TEXT,
+    content_base_path TEXT,
+    owner_id UUID,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    PRIMARY KEY (id)
+);
+
+-- =============================================
+-- TABLE: scorm_scos
+-- =============================================
+CREATE TABLE IF NOT EXISTS scorm_scos (
+    id UUID DEFAULT uuid_generate_v4() NOT NULL,
+    package_id UUID NOT NULL,
+    identifier TEXT NOT NULL,
+    title TEXT,
+    launch_path TEXT NOT NULL,
+    is_entry_point BOOLEAN DEFAULT false,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    PRIMARY KEY (id)
+);
+
+-- =============================================
+-- TABLE: scorm_attempts
+-- =============================================
+CREATE TABLE IF NOT EXISTS scorm_attempts (
+    id UUID DEFAULT uuid_generate_v4() NOT NULL,
+    user_id UUID NOT NULL,
+    sco_id UUID NOT NULL,
+    attempt_no INTEGER DEFAULT 1,
+    lesson_status TEXT DEFAULT 'not_attempted',
+    score_raw NUMERIC,
+    score_min NUMERIC,
+    score_max NUMERIC,
+    lesson_location TEXT,
+    suspend_data TEXT,
+    total_time_seconds INTEGER DEFAULT 0,
+    session_time_seconds INTEGER DEFAULT 0,
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    finished_at TIMESTAMP WITH TIME ZONE,
+    last_commit_at TIMESTAMP WITH TIME ZONE,
+    cmi_data JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     PRIMARY KEY (id)
@@ -666,7 +726,7 @@ ALTER TABLE courses ADD CONSTRAINT courses_created_by_fkey FOREIGN KEY (created_
 ALTER TABLE courses ADD CONSTRAINT courses_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'published'::text, 'archived'::text])));
 ALTER TABLE courses ADD CONSTRAINT courses_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
 ALTER TABLE modules ADD CONSTRAINT modules_course_id_fkey FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE;
-ALTER TABLE lessons ADD CONSTRAINT lessons_lesson_type_check CHECK ((lesson_type = ANY (ARRAY['text'::text, 'video'::text, 'document'::text, 'quiz'::text])));
+ALTER TABLE lessons ADD CONSTRAINT lessons_lesson_type_check CHECK ((lesson_type = ANY (ARRAY['text'::text, 'video'::text, 'document'::text, 'quiz'::text, 'scorm'::text])));
 ALTER TABLE lessons ADD CONSTRAINT lessons_module_id_fkey FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE;
 ALTER TABLE lessons ADD CONSTRAINT lessons_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'published'::text])));
 ALTER TABLE quizzes ADD CONSTRAINT quizzes_module_id_fkey FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE;
@@ -749,6 +809,14 @@ ALTER TABLE lesson_progress ADD CONSTRAINT lesson_progress_lesson_id_fkey FOREIG
 ALTER TABLE lesson_progress ADD CONSTRAINT lesson_progress_status_check CHECK ((status = ANY (ARRAY['not_started'::text, 'in_progress'::text, 'completed'::text])));
 ALTER TABLE lesson_progress ADD CONSTRAINT lesson_progress_student_id_fkey FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE;
 ALTER TABLE lesson_progress ADD CONSTRAINT lesson_progress_student_id_lesson_id_key UNIQUE (student_id, lesson_id);
+ALTER TABLE lessons ADD CONSTRAINT lessons_scorm_sco_id_fkey FOREIGN KEY (scorm_sco_id) REFERENCES scorm_scos(id) ON DELETE SET NULL;
+ALTER TABLE scorm_packages ADD CONSTRAINT scorm_packages_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
+ALTER TABLE scorm_packages ADD CONSTRAINT scorm_packages_course_id_fkey FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL;
+ALTER TABLE scorm_packages ADD CONSTRAINT scorm_packages_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE scorm_scos ADD CONSTRAINT scorm_scos_package_id_fkey FOREIGN KEY (package_id) REFERENCES scorm_packages(id) ON DELETE CASCADE;
+ALTER TABLE scorm_attempts ADD CONSTRAINT scorm_attempts_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE scorm_attempts ADD CONSTRAINT scorm_attempts_sco_id_fkey FOREIGN KEY (sco_id) REFERENCES scorm_scos(id) ON DELETE CASCADE;
+ALTER TABLE scorm_attempts ADD CONSTRAINT scorm_attempts_unique_attempt_per_user UNIQUE (user_id, sco_id, attempt_no);
 ALTER TABLE media_files ADD CONSTRAINT media_files_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
 ALTER TABLE media_files ADD CONSTRAINT media_files_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE notifications ADD CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
@@ -846,6 +914,12 @@ CREATE INDEX idx_goals_student_id ON public.goals USING btree (student_id);
 CREATE INDEX idx_goals_course_id ON public.goals USING btree (course_id);
 CREATE INDEX idx_lesson_progress_student_id ON public.lesson_progress USING btree (student_id);
 CREATE INDEX idx_lesson_progress_lesson_id ON public.lesson_progress USING btree (lesson_id);
+CREATE INDEX idx_scorm_packages_tenant_id ON public.scorm_packages USING btree (tenant_id);
+CREATE INDEX idx_scorm_packages_course_id ON public.scorm_packages USING btree (course_id);
+CREATE INDEX idx_scorm_scos_package_id ON public.scorm_scos USING btree (package_id);
+CREATE INDEX idx_scorm_attempts_user_id ON public.scorm_attempts USING btree (user_id);
+CREATE INDEX idx_scorm_attempts_sco_id ON public.scorm_attempts USING btree (sco_id);
+CREATE INDEX idx_scorm_attempts_status ON public.scorm_attempts USING btree (lesson_status);
 CREATE INDEX idx_media_files_tenant_id ON public.media_files USING btree (tenant_id);
 CREATE INDEX idx_media_files_uploaded_by ON public.media_files USING btree (uploaded_by);
 CREATE INDEX idx_media_files_file_type ON public.media_files USING btree (file_type);

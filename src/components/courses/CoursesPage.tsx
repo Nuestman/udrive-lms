@@ -1,7 +1,7 @@
 // Courses Page - Real Database Integration
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, BookOpen, Users, Clock, Edit, Trash2, Eye, MoreVertical } from 'lucide-react';
+import { Plus, Search, BookOpen, Users, Clock, Edit, Trash2, Eye, MoreVertical, Package } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCourses } from '../../hooks/useCourses';
 import { useToast } from '../../contexts/ToastContext';
@@ -72,15 +72,24 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ role }) => {
         title="Courses"
         breadcrumbs={[{ label: 'Courses' }]}
         actions={
-          canCreate ? (
+          <div className="flex gap-2">
+            {canCreate && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium shadow-sm"
+              >
+                <Plus size={20} className="mr-2" />
+                Create Course
+              </button>
+            )}
             <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium shadow-sm"
+              onClick={() => navigate('/school/courses/scorm')}
+              className="flex items-center px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium shadow-sm"
             >
-              <Plus size={20} className="mr-2" />
-              Create Course
+              <Package size={20} className="mr-2" />
+              SCORM Courses
             </button>
-          ) : undefined
+          </div>
         }
       >
         {/* Filters */}
