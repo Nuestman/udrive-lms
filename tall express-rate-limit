@@ -1,0 +1,22 @@
+[33m94554bb[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mdev[m[33m, [m[1;31morigin/dev[m[33m)[m CORS fix 3
+[33me420c0e[m CORS fix 2
+[33m755210f[m CORS fix
+[33m71c9db9[m Merge remote-tracking branch 'origin/dev' - Resolve conflict in ScormCoursesPage.tsx (keep /school/courses path for consistency)
+[33m39c7b40[m Security: Improve CORS configuration for custom domains (sunlms.com, medupskill.com) - Add support for multiple custom domains with secure subdomain matching - Restrict Vercel access to specific projects (disabled by default) - Prevent subdomain spoofing attacks - Add comprehensive security documentation
+[33md25f6c9[m feat: SCORM 1.2 integration (v2.8.0)- Add SCORM package upload and management- Implement SCORM 1.2 Runtime API- Add same-origin content delivery system- Create dedicated SCORM course player- Add comprehensive SCORM documentation- Update version to 2.8.0
+[33m59696f3[m feat: SCORM 1.2 integration (v2.8.0)- Add SCORM package upload and management- Implement SCORM 1.2 Runtime API- Add same-origin content delivery system- Create dedicated SCORM course player- Add comprehensive SCORM documentation- Update version to 2.8.0
+[33mec84a58[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Merge pull request #5 from Nuestman/dev
+[33mdd09b82[m Potential fix for code scanning alert no. 74: DOM text reinterpreted as HTML
+[33mce07352[m Fixed issue from Github code review
+[33m4238b62[m CORS issues fixed. Promote to production
+[33ma86f28c[m Test
+[33mf26c6f3[m Tryin to fix preview CORS error again
+[33mb803d6f[m Tryin to fix preview CORS error
+[33m38e45e6[m chore(storage): course-scoped lesson paths, per-course thumbnail paths, filename augmentation for lesson/course; add upload docs; add debug logs; update CHANGELOG for 2.7.1
+[33m6360a67[m docs: add lesson media pipeline and version 2.7.0
+[33m61e0e71[m docs: Add Supabase migration guide and cleanup temporary files
+[33m6083b1b[m Merge pull request #3 from Nuestman/dev
+[33m4f2a3fb[m added github action to prevent divergenge (1 ahead/1 behind). updated  workflows doc
+[33mb6b249b[m Merge pull request #2 from Nuestman/main
+[33ma8d55ec[m Merge pull request #1 from Nuestman/dev
+[33m4d2df3a[m Set up git workflows and documentation. Dev is default branch locally and remote

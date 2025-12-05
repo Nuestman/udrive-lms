@@ -2,6 +2,7 @@
 // Handles SCORM package uploads, SCO listing, and runtime commit
 
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { tenantContext } from '../middleware/tenant.middleware.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
@@ -23,7 +24,17 @@ import {
 
 const router = express.Router();
 
+// Rate limiter for SCORM API routes
+const scormApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many SCORM API requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // All SCORM routes require auth and tenant context
+router.use(scormApiLimiter); // Apply rate limiting to all SCORM routes
 router.use(requireAuth);
 router.use(tenantContext);
 

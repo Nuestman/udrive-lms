@@ -12,7 +12,31 @@ const __dirname = path.dirname(__filename);
 // Base directory for extracted SCORM content
 const SCORM_CONTENT_ROOT = path.join(__dirname, '..', '..', 'storage', 'scorm');
 
+/**
+ * Validate packageId to prevent path traversal attacks
+ * Package IDs should be UUIDs (36 chars with hyphens) or alphanumeric with hyphens/underscores
+ */
+function validatePackageId(packageId) {
+  if (!packageId || typeof packageId !== 'string') {
+    return false;
+  }
+  // Allow UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  // Or alphanumeric with hyphens/underscores, max 100 chars
+  // Reject any path traversal attempts
+  if (packageId.includes('..') || packageId.includes('/') || packageId.includes('\\')) {
+    return false;
+  }
+  // UUID format or safe alphanumeric with hyphens/underscores
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const safeIdPattern = /^[a-zA-Z0-9_-]{1,100}$/;
+  return uuidPattern.test(packageId) || safeIdPattern.test(packageId);
+}
+
 function ensureScormContentDir(packageId) {
+  // Validate packageId to prevent path traversal
+  if (!validatePackageId(packageId)) {
+    throw new Error('Invalid package ID format');
+  }
   const dir = path.join(SCORM_CONTENT_ROOT, packageId);
   fs.mkdirSync(dir, { recursive: true });
   return dir;
@@ -603,7 +627,17 @@ export async function deleteScormPackage(packageId, tenantId, isSuperAdmin = fal
 
     // Delete extracted files from filesystem
     try {
+      // Validate packageId to prevent path traversal attacks
+      if (!validatePackageId(packageId)) {
+        throw new Error('Invalid package ID format');
+      }
       const contentDir = path.join(SCORM_CONTENT_ROOT, packageId);
+      // Additional safety check: ensure the resolved path is within SCORM_CONTENT_ROOT
+      const resolvedPath = path.resolve(contentDir);
+      const resolvedRoot = path.resolve(SCORM_CONTENT_ROOT);
+      if (!resolvedPath.startsWith(resolvedRoot)) {
+        throw new Error('Path traversal attempt detected');
+      }
       if (fs.existsSync(contentDir)) {
         fs.rmSync(contentDir, { recursive: true, force: true });
         console.log(`[SCORM] Deleted extracted files from ${contentDir}`);
@@ -1010,7 +1044,17 @@ export async function verifyScormFileExists(packageId, filePath, tenantId, isSup
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
     const scormContentRoot = path.join(__dirname, '..', 'storage', 'scorm');
+    // Validate packageId to prevent path traversal
+    if (!validatePackageId(packageId)) {
+      throw new Error('Invalid package ID format');
+    }
     const packageDir = path.join(scormContentRoot, packageId);
+    // Additional safety check: ensure the resolved path is within scormContentRoot
+    const resolvedPath = path.resolve(packageDir);
+    const resolvedRoot = path.resolve(scormContentRoot);
+    if (!resolvedPath.startsWith(resolvedRoot)) {
+      throw new Error('Path traversal attempt detected');
+    }
 
     const sanitizedPath = filePath.replace(/\.\./g, '').replace(/\0/g, '');
     const fullPath = path.join(packageDir, sanitizedPath);

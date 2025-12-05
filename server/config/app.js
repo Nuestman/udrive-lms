@@ -105,7 +105,8 @@ export const APP_CONFIG = {
           }
         } catch (e) {
           // If URL parsing fails, use regex fallback
-          const escapedDomain = domain.replace(/\./g, '\\.');
+          // Security: Escape backslashes first, then dots to prevent regex injection
+          const escapedDomain = domain.replace(/\\/g, '\\\\').replace(/\./g, '\\.');
           const domainPattern = new RegExp(`^https?:\\/\\/.*${escapedDomain}$`);
           if (domainPattern.test(origin)) {
             return callback(null, true);

@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/auth.js';
 import coursesRoutes from './routes/courses.js';
 import modulesRoutes from './routes/modules.js';
@@ -112,7 +113,8 @@ const io = new Server(server, {
           }
         } catch (e) {
           // If URL parsing fails, use regex fallback
-          const escapedDomain = domain.replace(/\./g, '\\.');
+          // Security: Escape backslashes first, then dots to prevent regex injection
+          const escapedDomain = domain.replace(/\\/g, '\\\\').replace(/\./g, '\\.');
           const domainPattern = new RegExp(`^https?:\\/\\/.*${escapedDomain}$`);
           if (domainPattern.test(origin)) {
             return callback(null, true);
@@ -288,6 +290,23 @@ io.on('connect', () => {
   console.log('🔌 [SOCKET-SERVER] Socket server is ready for connections');
 });
 
+// Rate limiters
+const scormContentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // Limit each IP to 1000 requests per windowMs (SCORM content can have many files)
+  message: 'Too many requests for SCORM content, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const scormApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many SCORM API requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Middleware
 app.use(cors(APP_CONFIG.CORS_OPTIONS));
 app.use(express.json({ limit: '10mb' })); // Increase limit for lesson content with images
@@ -300,6 +319,7 @@ app.use(cookieParser());
 //   /api/scorm/content/<packageId>/static/js/main.js
 app.use(
   '/api/scorm/content',
+  scormContentLimiter, // Rate limiting to prevent abuse
   requireAuth,
   tenantContext,
   async (req, res, next) => {
