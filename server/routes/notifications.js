@@ -68,7 +68,9 @@ router.put('/:id/read', asyncHandler(async (req, res) => {
   };
   
   // Emit to socket.io
-  req.app.get('io').to(`user_${userId}`).emit('notification_updated', notification);
+    // Socket.IO removed - notifications now use polling
+    // const io = req.app.get('io');
+    // if (io) io.to(`user_${userId}`).emit('notification_updated', notification);
   
   res.json({
     success: true,
@@ -91,10 +93,11 @@ router.put('/read-all', asyncHandler(async (req, res) => {
     [userId]
   );
   
-  // Emit to socket.io
-  req.app.get('io').to(`user_${userId}`).emit('notifications_marked_read', {
-    count: result.rows.length
-  });
+  // Socket.IO removed - notifications now use polling
+  // const io = req.app.get('io');
+  // if (io) io.to(`user_${userId}`).emit('notifications_marked_read', {
+  //   count: result.rows.length
+  // });
   
   res.json({
     success: true,
@@ -125,7 +128,9 @@ router.delete('/:id', asyncHandler(async (req, res) => {
   }
   
   // Emit to socket.io
-  req.app.get('io').to(`user_${userId}`).emit('notification_deleted', notificationId);
+  // Socket.IO removed - notifications now use polling
+  // const io = req.app.get('io');
+  // if (io) io.to(`user_${userId}`).emit('notification_deleted', notificationId);
   
   res.json({
     success: true,
@@ -150,7 +155,9 @@ router.delete('/clear-all', asyncHandler(async (req, res) => {
   const count = parseInt(result.rows[0].count);
   
   // Emit to socket.io
-  req.app.get('io').to(`user_${userId}`).emit('notifications_cleared', { count });
+  // Socket.IO removed - notifications now use polling
+  // const io = req.app.get('io');
+  // if (io) io.to(`user_${userId}`).emit('notifications_cleared', { count });
   
   res.json({
     success: true,
