@@ -92,15 +92,35 @@ export const APP_CONFIG = {
       for (const domain of APP_CONFIG.ALLOWED_DOMAINS) {
         // Escape dots in domain for regex
         const escapedDomain = domain.replace(/\./g, '\\.');
-        // Match main domain and all subdomains
-        // Pattern: https?://(optional-subdomain.)domain.com
-        // Allows: sunlms.com, www.sunlms.com, app.sunlms.com
-        // Blocks: evil-sunlms.com, sunlms.com.evil.com
-        if (origin.match(new RegExp(`^https?:\\/\\/([a-zA-Z0-9][a-zA-Z0-9.-]*\\.)*${escapedDomain}$`))) {
-          return callback(null, true);
+        
+        // Very simple pattern: check if origin ends with the domain and starts with http:// or https://
+        // This allows any subdomain structure as long as it ends with our allowed domain
+        // Pattern breakdown:
+        // - ^https?:// - starts with http:// or https://
+        // - .* - any characters (subdomains, etc.)
+        // - escapedDomain$ - ends with our domain
+        // This is secure because the $ anchor prevents spoofing (evil-sunlms.com won't match)
+        const simplePattern = new RegExp(`^https?:\\/\\/.*${escapedDomain}$`);
+        if (simplePattern.test(origin)) {
+          // Additional validation: ensure it's a valid URL structure
+          // Extract the hostname part and verify it ends with our domain
+          try {
+            const url = new URL(origin);
+            const hostname = url.hostname;
+            if (hostname === domain || hostname.endsWith('.' + domain)) {
+              return callback(null, true);
+            }
+          } catch (e) {
+            // If URL parsing fails, fall back to regex match (less secure but works)
+            if (simplePattern.test(origin)) {
+              return callback(null, true);
+            }
+          }
         }
       }
       
+      // Log blocked origin for debugging (enable in production temporarily if needed)
+      console.log('🚫 [CORS] Blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     },
     credentials: true

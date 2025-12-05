@@ -95,6 +95,27 @@ const io = new Server(server, {
         return callback(null, true);
       }
       
+      // Allow custom domains and all their subdomains (same logic as Express CORS)
+      for (const domain of APP_CONFIG.ALLOWED_DOMAINS) {
+        const escapedDomain = domain.replace(/\./g, '\\.');
+        const simplePattern = new RegExp(`^https?:\\/\\/.*${escapedDomain}$`);
+        if (simplePattern.test(origin)) {
+          // Additional validation using URL parsing for reliability
+          try {
+            const url = new URL(origin);
+            const hostname = url.hostname;
+            if (hostname === domain || hostname.endsWith('.' + domain)) {
+              return callback(null, true);
+            }
+          } catch (e) {
+            // Fall back to regex if URL parsing fails
+            if (simplePattern.test(origin)) {
+              return callback(null, true);
+            }
+          }
+        }
+      }
+      
       console.warn('🚫 [SOCKET-CORS] Origin not allowed:', origin);
       return callback(new Error('Not allowed by Socket.IO CORS'));
     },
