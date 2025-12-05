@@ -97,21 +97,25 @@ const io = new Server(server, {
       
       // Allow custom domains and all their subdomains (same logic as Express CORS)
       for (const domain of APP_CONFIG.ALLOWED_DOMAINS) {
-        const escapedDomain = domain.replace(/\./g, '\\.');
-        const simplePattern = new RegExp(`^https?:\\/\\/.*${escapedDomain}$`);
-        if (simplePattern.test(origin)) {
-          // Additional validation using URL parsing for reliability
-          try {
-            const url = new URL(origin);
-            const hostname = url.hostname;
-            if (hostname === domain || hostname.endsWith('.' + domain)) {
-              return callback(null, true);
-            }
-          } catch (e) {
-            // Fall back to regex if URL parsing fails
-            if (simplePattern.test(origin)) {
-              return callback(null, true);
-            }
+        try {
+          const url = new URL(origin);
+          const hostname = url.hostname;
+          
+          // Check if hostname exactly matches the domain (e.g., sunlms.com)
+          if (hostname === domain) {
+            return callback(null, true);
+          }
+          
+          // Check if hostname ends with .domain (e.g., www.sunlms.com, staging.sunlms.com)
+          if (hostname.endsWith('.' + domain)) {
+            return callback(null, true);
+          }
+        } catch (e) {
+          // If URL parsing fails, use regex fallback
+          const escapedDomain = domain.replace(/\./g, '\\.');
+          const domainPattern = new RegExp(`^https?:\\/\\/.*${escapedDomain}$`);
+          if (domainPattern.test(origin)) {
+            return callback(null, true);
           }
         }
       }

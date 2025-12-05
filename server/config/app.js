@@ -90,31 +90,25 @@ export const APP_CONFIG = {
       // Security: The $ anchor ensures it ends with the domain, preventing subdomain spoofing
       // (e.g., evil-sunlms.com won't match because it doesn't end with sunlms.com)
       for (const domain of APP_CONFIG.ALLOWED_DOMAINS) {
-        // Escape dots in domain for regex
-        const escapedDomain = domain.replace(/\./g, '\\.');
-        
-        // Very simple pattern: check if origin ends with the domain and starts with http:// or https://
-        // This allows any subdomain structure as long as it ends with our allowed domain
-        // Pattern breakdown:
-        // - ^https?:// - starts with http:// or https://
-        // - .* - any characters (subdomains, etc.)
-        // - escapedDomain$ - ends with our domain
-        // This is secure because the $ anchor prevents spoofing (evil-sunlms.com won't match)
-        const simplePattern = new RegExp(`^https?:\\/\\/.*${escapedDomain}$`);
-        if (simplePattern.test(origin)) {
-          // Additional validation: ensure it's a valid URL structure
-          // Extract the hostname part and verify it ends with our domain
-          try {
-            const url = new URL(origin);
-            const hostname = url.hostname;
-            if (hostname === domain || hostname.endsWith('.' + domain)) {
-              return callback(null, true);
-            }
-          } catch (e) {
-            // If URL parsing fails, fall back to regex match (less secure but works)
-            if (simplePattern.test(origin)) {
-              return callback(null, true);
-            }
+        try {
+          const url = new URL(origin);
+          const hostname = url.hostname;
+          
+          // Check if hostname exactly matches the domain (e.g., sunlms.com)
+          if (hostname === domain) {
+            return callback(null, true);
+          }
+          
+          // Check if hostname ends with .domain (e.g., www.sunlms.com, staging.sunlms.com)
+          if (hostname.endsWith('.' + domain)) {
+            return callback(null, true);
+          }
+        } catch (e) {
+          // If URL parsing fails, use regex fallback
+          const escapedDomain = domain.replace(/\./g, '\\.');
+          const domainPattern = new RegExp(`^https?:\\/\\/.*${escapedDomain}$`);
+          if (domainPattern.test(origin)) {
+            return callback(null, true);
           }
         }
       }
