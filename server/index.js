@@ -3,7 +3,6 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
-import { Server } from 'socket.io';
 import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/auth.js';
 import coursesRoutes from './routes/courses.js';
@@ -58,190 +57,10 @@ process.on('unhandledRejection', (error) => {
 const app = express();
 const server = createServer(app);
 
-// Initialize Socket.IO with permissive CORS matching app CORS options
-// Socket.IO CORS: use function that returns true/false or the origin string
-const io = new Server(server, {
-  cors: {
-    origin: (origin, callback) => {
-      // Allow no-origin (same-origin, curl, etc.)
-      if (!origin) {
-        return callback(null, true);
-      }
-      
-      const allowedFrontend = process.env.FRONTEND_URL || "http://localhost:5173";
-      
-      // Exact match to configured frontend
-      if (origin === allowedFrontend) {
-        return callback(null, true);
-      }
-      
-      // Allow ALL Vercel deployments (preview, production, any subdomain)
-      // This includes: sunlms.vercel.app, udrive-lms.vercel.app, project-name-*.vercel.app, etc.
-      if (/^https:\/\/.*\.vercel\.app$/.test(origin)) {
-        return callback(null, true);
-      }
-      
-      // Also allow Vercel preview URLs with git branch names (e.g., sunlms-git-main-*.vercel.app)
-      if (/^https:\/\/.*-git-.*\.vercel\.app$/.test(origin)) {
-        return callback(null, true);
-      }
-      
-      // Temporary: explicitly allow legacy domain during transition
-      if (origin === 'https://udrive-lms.vercel.app' || origin === 'https://sunlms.vercel.app') {
-        return callback(null, true);
-      }
-      
-      // In development, allow localhost
-      if (process.env.NODE_ENV === 'development' && /^http:\/\/localhost(:\d+)?$/.test(origin)) {
-        return callback(null, true);
-      }
-      
-      // Allow custom domains and all their subdomains (same logic as Express CORS)
-      for (const domain of APP_CONFIG.ALLOWED_DOMAINS) {
-        try {
-          const url = new URL(origin);
-          const hostname = url.hostname;
-          
-          // Check if hostname exactly matches the domain (e.g., sunlms.com)
-          if (hostname === domain) {
-            return callback(null, true);
-          }
-          
-          // Check if hostname ends with .domain (e.g., www.sunlms.com, staging.sunlms.com)
-          if (hostname.endsWith('.' + domain)) {
-            return callback(null, true);
-          }
-        } catch (e) {
-          // If URL parsing fails, use regex fallback
-          // Security: Escape backslashes first, then dots to prevent regex injection
-          const escapedDomain = domain.replace(/\\/g, '\\\\').replace(/\./g, '\\.');
-          const domainPattern = new RegExp(`^https?:\\/\\/.*${escapedDomain}$`);
-          if (domainPattern.test(origin)) {
-            return callback(null, true);
-          }
-        }
-      }
-      
-      // Silent CORS rejection - no logging to reduce noise
-      return callback(new Error('Not allowed by Socket.IO CORS'));
-    },
-    methods: ["GET", "POST"],
-    credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization"],
-    exposedHeaders: ["Content-Type"]
-  }
-});
-
-// Store io instance in app for use in routes
-app.set('io', io);
-
-// Add basic socket server logging - MINIMAL for now
-// console.log('🔌 [SOCKET-SERVER] Socket.IO server initialized');
-// console.log('🔌 [SOCKET-SERVER] CORS origin:', process.env.FRONTEND_URL || "http://localhost:5173", '(plus *.vercel.app, legacy udrive-lms allowed)');
-
-// Socket.IO authentication and connection handling
-// TEMPORARILY DISABLED VERBOSE LOGGING - will re-enable after SCORM testing
-io.use(async (socket, next) => {
-  try {
-    let token = socket.handshake.auth && socket.handshake.auth.token;
-    
-    // Fallback: read from cookie if not provided in auth payload
-    if (!token) {
-      const cookieHeader = socket.handshake.headers.cookie || '';
-      const cookies = {};
-      if (cookieHeader) {
-        cookieHeader.split(';').forEach(cookie => {
-          const [name, ...rest] = cookie.trim().split('=');
-          if (name && rest.length > 0) {
-            cookies[name.trim()] = rest.join('=').trim();
-          }
-        });
-      }
-      token = cookies.auth_token;
-    }
-    
-    // Also check Authorization header as fallback
-    if (!token) {
-      const authHeader = socket.handshake.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.substring(7);
-      }
-    }
-    
-    // Additional fallback: check if token is in query parameters
-    if (!token) {
-      const queryToken = socket.handshake.query?.token;
-      if (queryToken) {
-        token = queryToken;
-      }
-    }
-    
-    if (!token) {
-      return next(new Error('Authentication error: No token provided'));
-    }
-
-    // Verify JWT token
-    const jwt = await import('jsonwebtoken');
-    let decoded;
-    try {
-      decoded = jwt.default.verify(token, APP_CONFIG.JWT_SECRET);
-    } catch (jwtError) {
-      throw jwtError;
-    }
-    
-    // Check if token is expired
-    const now = Math.floor(Date.now() / 1000);
-    if (decoded.exp && decoded.exp < now) {
-      return next(new Error('Authentication error: Token expired'));
-    }
-    
-    // Get user from database
-    const result = await pool.query(
-      'SELECT id, email, role, tenant_id FROM users WHERE id = $1 AND is_active = true',
-      [decoded.id]
-    );
-
-    if (result.rows.length === 0) {
-      return next(new Error('Authentication error: User not found'));
-    }
-
-    const user = result.rows[0];
-    socket.userId = decoded.id;
-    socket.userRole = decoded.role;
-    socket.tenantId = decoded.tenant_id;
-    next();
-  } catch (error) {
-    // Silent fail - no logging to reduce noise
-    next(new Error('Authentication error: Invalid token'));
-  }
-});
-
-io.on('connection', (socket) => {
-  // Join user-specific room
-  socket.join(`user_${socket.userId}`);
-  
-  // Join tenant-specific room if applicable
-  if (socket.tenantId) {
-    socket.join(`tenant_${socket.tenantId}`);
-  }
-  
-  // Join role-specific room
-  socket.join(`role_${socket.userRole}`);
-  
-  socket.on('disconnect', (reason) => {
-    // Silent disconnect - no logging to reduce noise
-  });
-});
-
-// Add connection attempt logging - DISABLED
-// io.engine.on('connection_error', (err) => {
-//   console.error('❌ [SOCKET-ENGINE-ERROR] Connection error:', err);
-// });
-
-// Log when socket server is ready - DISABLED
-// io.on('connect', () => {
-//   console.log('🔌 [SOCKET-SERVER] Socket server is ready for connections');
-// });
+// Socket.IO removed - using polling-based notifications instead
+// Socket.IO doesn't work reliably in Vercel serverless environments
+// Helper function for routes that still reference io (will return null safely)
+app.set('io', null);
 
 // Rate limiters
 const scormContentLimiter = rateLimit({
@@ -286,7 +105,7 @@ if (process.env.VERCEL) {
 // Example:
 //   /api/scorm/content/<packageId>/Playing/Playing.html
 //   /api/scorm/content/<packageId>/static/js/main.js
-// Use app.use with path prefix - this should work in both local and Vercel
+// IMPORTANT: This route MUST be defined BEFORE /api/scorm to ensure proper matching
 app.use(
   '/api/scorm/content',
   scormContentLimiter, // Rate limiting to prevent abuse
@@ -296,11 +115,6 @@ app.use(
     try {
       // Only handle GET requests
       if (req.method !== 'GET') {
-        return next();
-      }
-      
-      // Early return if path doesn't match (shouldn't happen, but safety check)
-      if (!req.path && !req.url.startsWith('/api/scorm/content')) {
         return next();
       }
 
@@ -545,15 +359,7 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Socket.IO test endpoint
-app.get('/api/socket-test', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    socketServer: 'running',
-    timestamp: new Date().toISOString(),
-    message: 'Socket.IO server is running and ready for connections'
-  });
-});
+// Socket.IO removed - notifications now use polling
 
 // Token validation test endpoint
 app.get('/api/test-token', async (req, res) => {
