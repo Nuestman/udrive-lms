@@ -122,7 +122,7 @@ const io = new Server(server, {
         }
       }
       
-      console.warn('🚫 [SOCKET-CORS] Origin not allowed:', origin);
+      // Silent CORS rejection - no logging to reduce noise
       return callback(new Error('Not allowed by Socket.IO CORS'));
     },
     methods: ["GET", "POST"],
@@ -135,30 +135,19 @@ const io = new Server(server, {
 // Store io instance in app for use in routes
 app.set('io', io);
 
-// Add basic socket server logging
-console.log('🔌 [SOCKET-SERVER] Socket.IO server initialized');
-console.log('🔌 [SOCKET-SERVER] CORS origin:', process.env.FRONTEND_URL || "http://localhost:5173", '(plus *.vercel.app, legacy udrive-lms allowed)');
+// Add basic socket server logging - MINIMAL for now
+// console.log('🔌 [SOCKET-SERVER] Socket.IO server initialized');
+// console.log('🔌 [SOCKET-SERVER] CORS origin:', process.env.FRONTEND_URL || "http://localhost:5173", '(plus *.vercel.app, legacy udrive-lms allowed)');
 
 // Socket.IO authentication and connection handling
+// TEMPORARILY DISABLED VERBOSE LOGGING - will re-enable after SCORM testing
 io.use(async (socket, next) => {
   try {
-    console.log('🔐 [SOCKET-AUTH] Starting authentication process');
-    console.log('🔐 [SOCKET-AUTH] Handshake auth:', socket.handshake.auth);
-    console.log('🔐 [SOCKET-AUTH] Handshake headers:', {
-      cookie: socket.handshake.headers.cookie,
-      authorization: socket.handshake.headers.authorization,
-      origin: socket.handshake.headers.origin
-    });
-    
     let token = socket.handshake.auth && socket.handshake.auth.token;
-    console.log('🔐 [SOCKET-AUTH] Token from auth payload:', !!token);
     
     // Fallback: read from cookie if not provided in auth payload
     if (!token) {
       const cookieHeader = socket.handshake.headers.cookie || '';
-      console.log('🔐 [SOCKET-AUTH] Cookie header:', cookieHeader);
-      
-      // Parse cookies more robustly
       const cookies = {};
       if (cookieHeader) {
         cookieHeader.split(';').forEach(cookie => {
@@ -168,10 +157,7 @@ io.use(async (socket, next) => {
           }
         });
       }
-      
-      console.log('🔐 [SOCKET-AUTH] Parsed cookies:', cookies);
       token = cookies.auth_token;
-      console.log('🔐 [SOCKET-AUTH] Token from cookie:', !!token);
     }
     
     // Also check Authorization header as fallback
@@ -179,91 +165,58 @@ io.use(async (socket, next) => {
       const authHeader = socket.handshake.headers.authorization;
       if (authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.substring(7);
-        console.log('🔐 [SOCKET-AUTH] Token from Authorization header:', !!token);
       }
     }
     
-    // Additional fallback: check if token is in query parameters (for debugging)
+    // Additional fallback: check if token is in query parameters
     if (!token) {
       const queryToken = socket.handshake.query?.token;
       if (queryToken) {
         token = queryToken;
-        console.log('🔐 [SOCKET-AUTH] Token from query parameter:', !!token);
       }
     }
     
-    console.log('🔐 [SOCKET-AUTH] Final token status:', !!token);
-    console.log('🔐 [SOCKET-AUTH] Token preview:', token ? token.substring(0, 20) + '...' : 'null');
-    
     if (!token) {
-      console.log('❌ [SOCKET-AUTH] No token provided in auth, cookies, or headers');
       return next(new Error('Authentication error: No token provided'));
     }
 
     // Verify JWT token
-    console.log('🔐 [SOCKET-AUTH] Verifying JWT token...');
-    console.log('🔐 [SOCKET-AUTH] JWT Secret available:', !!APP_CONFIG.JWT_SECRET);
-    console.log('🔐 [SOCKET-AUTH] Token length:', token.length);
-    
     const jwt = await import('jsonwebtoken');
     let decoded;
     try {
       decoded = jwt.default.verify(token, APP_CONFIG.JWT_SECRET);
-      console.log('🔐 [SOCKET-AUTH] Token decoded successfully:', { 
-        id: decoded.id, 
-        role: decoded.role, 
-        exp: decoded.exp,
-        iat: decoded.iat 
-      });
     } catch (jwtError) {
-      console.error('🔐 [SOCKET-AUTH] JWT verification failed:', jwtError.message);
-      console.error('🔐 [SOCKET-AUTH] JWT error details:', jwtError);
       throw jwtError;
     }
     
     // Check if token is expired
     const now = Math.floor(Date.now() / 1000);
     if (decoded.exp && decoded.exp < now) {
-      console.log('❌ [SOCKET-AUTH] Token expired:', { exp: decoded.exp, now });
       return next(new Error('Authentication error: Token expired'));
     }
     
     // Get user from database
-    console.log('🔐 [SOCKET-AUTH] Fetching user from database...');
     const result = await pool.query(
       'SELECT id, email, role, tenant_id FROM users WHERE id = $1 AND is_active = true',
       [decoded.id]
     );
 
     if (result.rows.length === 0) {
-      console.log('❌ [SOCKET-AUTH] User not found or inactive:', decoded.id);
       return next(new Error('Authentication error: User not found'));
     }
 
     const user = result.rows[0];
-    console.log('✅ [SOCKET-AUTH] User authenticated successfully:', { 
-      id: user.id, 
-      email: user.email, 
-      role: user.role 
-    });
-
     socket.userId = decoded.id;
     socket.userRole = decoded.role;
     socket.tenantId = decoded.tenant_id;
     next();
   } catch (error) {
-    console.error('❌ [SOCKET-AUTH] Authentication error:', error.message);
-    console.error('❌ [SOCKET-AUTH] Error details:', error);
+    // Silent fail - no logging to reduce noise
     next(new Error('Authentication error: Invalid token'));
   }
 });
 
 io.on('connection', (socket) => {
-  console.log(`✅ [SOCKET-CONNECTION] User ${socket.userId} connected to notifications`);
-  console.log(`✅ [SOCKET-CONNECTION] Socket ID: ${socket.id}`);
-  console.log(`✅ [SOCKET-CONNECTION] User Role: ${socket.userRole}`);
-  console.log(`✅ [SOCKET-CONNECTION] Tenant ID: ${socket.tenantId}`);
-  
   // Join user-specific room
   socket.join(`user_${socket.userId}`);
   
@@ -276,19 +229,19 @@ io.on('connection', (socket) => {
   socket.join(`role_${socket.userRole}`);
   
   socket.on('disconnect', (reason) => {
-    console.log(`❌ [SOCKET-DISCONNECT] User ${socket.userId} disconnected: ${reason}`);
+    // Silent disconnect - no logging to reduce noise
   });
 });
 
-// Add connection attempt logging
-io.engine.on('connection_error', (err) => {
-  console.error('❌ [SOCKET-ENGINE-ERROR] Connection error:', err);
-});
+// Add connection attempt logging - DISABLED
+// io.engine.on('connection_error', (err) => {
+//   console.error('❌ [SOCKET-ENGINE-ERROR] Connection error:', err);
+// });
 
-// Log when socket server is ready
-io.on('connect', () => {
-  console.log('🔌 [SOCKET-SERVER] Socket server is ready for connections');
-});
+// Log when socket server is ready - DISABLED
+// io.on('connect', () => {
+//   console.log('🔌 [SOCKET-SERVER] Socket server is ready for connections');
+// });
 
 // Rate limiters
 const scormContentLimiter = rateLimit({
@@ -313,10 +266,27 @@ app.use(express.json({ limit: '10mb' })); // Increase limit for lesson content w
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
 
+// Debug: Log all requests to help diagnose routing issues
+if (process.env.VERCEL) {
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/scorm/content')) {
+      console.log('[DEBUG] Request to SCORM content:', {
+        method: req.method,
+        path: req.path,
+        url: req.url,
+        originalUrl: req.originalUrl,
+        baseUrl: req.baseUrl,
+      });
+    }
+    next();
+  });
+}
+
 // SCORM content streaming (same-origin, path-style URLs)
 // Example:
 //   /api/scorm/content/<packageId>/Playing/Playing.html
 //   /api/scorm/content/<packageId>/static/js/main.js
+// Use app.use with path prefix - this should work in both local and Vercel
 app.use(
   '/api/scorm/content',
   scormContentLimiter, // Rate limiting to prevent abuse
@@ -328,6 +298,19 @@ app.use(
       if (req.method !== 'GET') {
         return next();
       }
+      
+      // Early return if path doesn't match (shouldn't happen, but safety check)
+      if (!req.path && !req.url.startsWith('/api/scorm/content')) {
+        return next();
+      }
+
+      console.log('[SCORM] Content request received:', {
+        method: req.method,
+        path: req.path,
+        url: req.url,
+        originalUrl: req.originalUrl,
+        baseUrl: req.baseUrl,
+      });
 
       // Parse path - handle both Vercel serverless and local Express behavior
       // In Vercel, req.path might be full path; in Express, it's relative to the route
@@ -346,14 +329,32 @@ app.use(
         }
       }
       
+      // Also try originalUrl as another fallback
+      if (!pathToParse || pathToParse === '/') {
+        const originalPath = req.originalUrl.split('?')[0];
+        if (originalPath.startsWith('/api/scorm/content')) {
+          pathToParse = originalPath.replace(/^\/api\/scorm\/content\/?/, '');
+        }
+      }
+      
       // Remove leading slashes and parse
       const trimmedPath = pathToParse.replace(/^\/+/, ''); // remove leading slashes
       const pathParts = trimmedPath.split('/').filter(Boolean); // filter empty strings
       
+      console.log('[SCORM] Path parsing intermediate:', {
+        originalPath: req.path,
+        originalUrl: req.originalUrl,
+        url: req.url,
+        pathToParse,
+        trimmedPath,
+        pathParts,
+      });
+      
       if (pathParts.length < 2) {
         console.error('[SCORM] Invalid path structure:', {
           originalPath: req.path,
-          originalUrl: req.url,
+          originalUrl: req.originalUrl,
+          url: req.url,
           parsedPath: pathToParse,
           pathParts,
         });
@@ -366,10 +367,10 @@ app.use(
       const packageId = pathParts[0];
       const filePath = pathParts.slice(1).join('/');
 
-      console.log('[SCORM] Path parsing:', {
+      console.log('[SCORM] Path parsing result:', {
         originalPath: req.path,
-        originalUrl: req.url,
-        parsedPath: pathToParse,
+        originalUrl: req.originalUrl,
+        url: req.url,
         packageId,
         filePath,
       });
