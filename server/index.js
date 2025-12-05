@@ -329,10 +329,50 @@ app.use(
         return next();
       }
 
-      // req.path here starts with "/<packageId>/..." because "/api/scorm/content"
-      // has already been stripped by Express.
-      const trimmedPath = req.path.replace(/^\/+/, ''); // remove leading slashes
-      const [packageId, ...restSegments] = trimmedPath.split('/');
+      // Parse path - handle both Vercel serverless and local Express behavior
+      // In Vercel, req.path might be full path; in Express, it's relative to the route
+      let pathToParse = req.path;
+      
+      // If path includes the full route prefix, strip it
+      if (pathToParse.startsWith('/api/scorm/content')) {
+        pathToParse = pathToParse.replace(/^\/api\/scorm\/content\/?/, '');
+      }
+      
+      // Also check req.url as fallback (includes query string, but we'll strip it)
+      if (!pathToParse || pathToParse === '/') {
+        const urlPath = req.url.split('?')[0]; // Remove query string
+        if (urlPath.startsWith('/api/scorm/content')) {
+          pathToParse = urlPath.replace(/^\/api\/scorm\/content\/?/, '');
+        }
+      }
+      
+      // Remove leading slashes and parse
+      const trimmedPath = pathToParse.replace(/^\/+/, ''); // remove leading slashes
+      const pathParts = trimmedPath.split('/').filter(Boolean); // filter empty strings
+      
+      if (pathParts.length < 2) {
+        console.error('[SCORM] Invalid path structure:', {
+          originalPath: req.path,
+          originalUrl: req.url,
+          parsedPath: pathToParse,
+          pathParts,
+        });
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid SCORM content path. Expected: /api/scorm/content/<packageId>/<filePath>',
+        });
+      }
+
+      const packageId = pathParts[0];
+      const filePath = pathParts.slice(1).join('/');
+
+      console.log('[SCORM] Path parsing:', {
+        originalPath: req.path,
+        originalUrl: req.url,
+        parsedPath: pathToParse,
+        packageId,
+        filePath,
+      });
 
       if (!packageId) {
         return res.status(400).json({
@@ -341,7 +381,6 @@ app.use(
         });
       }
 
-      const filePath = restSegments.join('/');
       if (!filePath) {
         return res.status(400).json({
           success: false,
