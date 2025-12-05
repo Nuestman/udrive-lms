@@ -23,10 +23,33 @@ export const APP_CONFIG = {
   // Frontend URL
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
   
+  // Allowed custom domains (add more domains here as needed)
+  // Supports main domain and all subdomains (e.g., sunlms.com, www.sunlms.com, app.sunlms.com)
+  // IMPORTANT: Only add domains you own and control
+  ALLOWED_DOMAINS: [
+    'sunlms.com',
+    'medupskill.com',
+    // Add more domains here: 'example.com', 'another-domain.com'
+  ],
+  
+  // Allowed Vercel project names (for preview deployments)
+  // Only add your actual Vercel project names to prevent unauthorized access
+  // Leave empty array to disable Vercel wildcard access
+  ALLOWED_VERCEL_PROJECTS: [
+    // 'sunlms', 'udrive-lms', // Add your actual Vercel project names here
+  ],
+      // Commented out for now to disable Vercel wildcard access
+      // Allow ALL Vercel deployments (preview, production, any subdomain)
+      // This includes: sunlms.vercel.app, udrive-lms.vercel.app, project-name-*.vercel.app, etc.
+        //   if (origin.match(/^https:\/\/.*\.vercel\.app$/)) {
+        //     return callback(null, true);
+  
   // CORS settings
   CORS_OPTIONS: {
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
+      // Allow requests with no origin (like mobile apps, curl requests, or same-origin requests)
+      // Note: This is generally safe as CORS only applies to cross-origin requests
+      // Same-origin requests don't include an Origin header
       if (!origin) return callback(null, true);
       
       // In development, allow localhost and local network IPs
@@ -50,15 +73,32 @@ export const APP_CONFIG = {
         return callback(null, true);
       }
       
-      // Allow ALL Vercel deployments (preview, production, any subdomain)
-      // This includes: sunlms.vercel.app, udrive-lms.vercel.app, project-name-*.vercel.app, etc.
-      if (origin.match(/^https:\/\/.*\.vercel\.app$/)) {
-        return callback(null, true);
+      // Allow specific Vercel project deployments (more secure than wildcard)
+      if (APP_CONFIG.ALLOWED_VERCEL_PROJECTS.length > 0) {
+        for (const project of APP_CONFIG.ALLOWED_VERCEL_PROJECTS) {
+          const escapedProject = project.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          // Match production: project.vercel.app
+          // Match preview: project-git-*.vercel.app
+          if (origin.match(new RegExp(`^https:\\/\\/(${escapedProject}|${escapedProject}-git-[^.]+)\\.vercel\\.app$`))) {
+            return callback(null, true);
+          }
+        }
       }
       
-      // Also allow Vercel preview URLs with git branch names
-      if (origin.match(/^https:\/\/.*-git-.*\.vercel\.app$/)) {
-        return callback(null, true);
+      // Allow custom domains and all their subdomains (http and https)
+      // This includes: sunlms.com, www.sunlms.com, app.sunlms.com, medupskill.com, etc.
+      // Security: The $ anchor ensures it ends with the domain, preventing subdomain spoofing
+      // (e.g., evil-sunlms.com won't match because it doesn't end with sunlms.com)
+      for (const domain of APP_CONFIG.ALLOWED_DOMAINS) {
+        // Escape dots in domain for regex
+        const escapedDomain = domain.replace(/\./g, '\\.');
+        // Match main domain and all subdomains
+        // Pattern: https?://(optional-subdomain.)domain.com
+        // Allows: sunlms.com, www.sunlms.com, app.sunlms.com
+        // Blocks: evil-sunlms.com, sunlms.com.evil.com
+        if (origin.match(new RegExp(`^https?:\\/\\/([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)*${escapedDomain}$`))) {
+          return callback(null, true);
+        }
       }
       
       callback(new Error('Not allowed by CORS'));

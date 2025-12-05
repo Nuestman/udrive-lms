@@ -86,7 +86,7 @@ const ScormCoursesPage: React.FC = () => {
       if (response.success) {
         showToast('Course created from SCORM package successfully', 'success');
         // Navigate to the new course
-        navigate(`/courses/${response.data.course.id}`);
+        navigate(`/school/courses/${response.data.course.id}`);
       }
     } catch (err: any) {
       console.error('Failed to create course from package:', err);

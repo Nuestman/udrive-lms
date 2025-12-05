@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS courses (
     title TEXT NOT NULL,
     description TEXT,
     thumbnail_url TEXT,
+    is_scorm BOOLEAN DEFAULT false,
     status TEXT DEFAULT 'draft',
     duration_weeks INTEGER,
     price NUMERIC DEFAULT 0,
