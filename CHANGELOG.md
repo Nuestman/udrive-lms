@@ -12,6 +12,178 @@ All notable changes to SunLMS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2025-01-XX
+
+### 🎓 SCORM 1.2 Integration
+
+This release introduces comprehensive SCORM 1.2 support, enabling administrators to upload SCORM packages, create courses from them, and deliver SCORM content to students with full progress tracking capabilities.
+
+### ✨ Added
+
+#### SCORM Package Management
+- **Package Upload**: Full SCORM 1.2 package (.zip) upload and processing
+  - Automatic extraction and parsing of `imsmanifest.xml`
+  - Individual file upload to Vercel Blob storage
+  - Package and SCO metadata storage in PostgreSQL
+  - Human-readable storage paths using package names
+- **Package Management UI**: Admin interface for managing SCORM packages
+  - Package listing with metadata (title, version, SCO count, upload date)
+  - Package deletion with confirmation modal
+  - Course creation from SCORM packages
+  - Package-to-course linking
+
+#### SCORM Content Delivery
+- **Same-Origin Content Streaming**: Path-style URL routing for SCORM content
+  - Content served via `/api/scorm/content/<packageId>/<filePath>`
+  - Automatic relative URL resolution for assets (CSS, JS, images)
+  - Proper CORS and iframe headers for secure embedding
+  - Path sanitization and security measures
+- **Vercel Blob Integration**: All SCORM content stored in Vercel Blob
+  - Organized by tenant and package name
+  - Efficient streaming from cloud storage
+  - Tenant-isolated content access
+
+#### SCORM Runtime API
+- **SCORM 1.2 Runtime Implementation**: Full JavaScript API for SCORM content
+  - `LMSInitialize()`, `LMSFinish()`, `LMSGetValue()`, `LMSSetValue()`, `LMSCommit()`
+  - `LMSGetLastError()`, `LMSGetErrorString()`, `LMSGetDiagnostic()`
+  - CMI data model management (status, score, location, suspend data, time)
+  - Automatic progress tracking in `scorm_attempts` table
+- **API Exposure**: Runtime API exposed on `window.API` and `window.top.API`
+  - Accessible to SCORM content in iframe
+  - Same-origin requirement satisfied via content proxy
+
+#### SCORM Course Player
+- **Dedicated Player Component**: Full-featured SCORM player for students
+  - Iframe-based content rendering
+  - Fullscreen toggle functionality
+  - Loading and error states with detailed messages
+  - SCO navigation for multi-SCO packages
+  - Sticky header with course information
+- **Student Integration**: SCORM courses accessible from student dashboard
+  - Automatic routing to SCORM player for SCORM courses
+  - Course listing shows SCORM courses with enroll button
+  - Progress tracking (stored in `scorm_attempts`)
+
+#### Database Schema
+- **SCORM Tables**: Complete database schema for SCORM support
+  - `scorm_packages`: Package metadata and storage paths
+  - `scorm_scos`: Individual Sharable Content Objects
+  - `scorm_attempts`: Learner progress per SCO per attempt
+  - Proper relationships and tenant isolation
+  - Indexes for performance optimization
+
+### 🔄 Changed
+
+#### Course System
+- **SCORM Course Support**: Courses can now be created from SCORM packages
+  - `courses.is_scorm` flag to identify SCORM courses
+  - Course-to-package linking via `scorm_packages.course_id`
+  - SCORM courses bypass native module/lesson structure
+
+#### Content Delivery Architecture
+- **Path-Style URLs**: Switched from query-parameter to path-style URLs
+  - Enables natural relative URL resolution
+  - Eliminates need for HTML rewriting
+  - Better compatibility with SCORM packages
+
+### 🐛 Fixed
+
+#### Content Loading
+- **Same-Origin Issues**: Resolved CORS and iframe sandboxing problems
+  - Content now served through same-origin proxy
+  - SCORM API accessible to content
+  - Proper iframe sandbox attributes
+
+#### Path Resolution
+- **Asset Loading**: Fixed broken images, CSS, and JavaScript
+  - Relative paths now resolve correctly
+  - Path-style URLs ensure proper asset resolution
+  - Removed problematic query-parameter routing
+
+### 📚 Documentation
+
+#### New Documentation
+- **SCORM Implementation Guide**: Comprehensive documentation (`docs/SCORM_IMPLEMENTATION.md`)
+  - Architecture overview and data flow
+  - Data model and database schema
+  - Backend and frontend implementation details
+  - Content delivery and Runtime API documentation
+  - Current status and known limitations
+  - Testing checklist and file reference
+- **SCORM Integration Plan**: Roadmap for progress tracking integration (`docs/SCORM_INTEGRATION_PLAN.md`)
+  - Problem statement and current state analysis
+  - Solution architecture with data flow diagrams
+  - 4-phase implementation plan
+  - Implementation checklist and success criteria
+  - Timeline estimates and rollback plan
+
+### ⚠️ Known Limitations
+
+#### Progress Tracking Integration
+- **Isolated Progress**: SCORM attempts stored but not yet synced to unified `content_progress` system
+  - Progress tracked in `scorm_attempts` table ✅
+  - Not yet integrated with enrollment progress calculation ❌
+  - Course completion doesn't include SCORM content yet ❌
+  - See `docs/SCORM_INTEGRATION_PLAN.md` for integration roadmap
+
+#### Package Compatibility
+- **Hardcoded Paths**: Some SCORM packages reference absolute paths that don't exist
+  - Packages with `/shared/...` paths may show missing assets
+  - Some packages may need to be repackaged for compatibility
+  - Documentation includes package requirements guidance
+
+#### Storage Limits
+- **Vercel Blob Limits**: Currently hitting storage limits during testing
+  - May require plan upgrade or alternative storage solution
+  - Cleanup of old packages recommended
+
+### 🔒 Security
+
+#### Access Control
+- **Tenant Isolation**: SCORM packages and content strictly tenant-isolated
+- **Role-Based Access**: Package management restricted to admins/instructors
+- **Path Sanitization**: All file paths sanitized to prevent directory traversal
+- **Content Validation**: Package validation and manifest parsing with error handling
+
+### 🗃️ Database Changes
+
+#### New Tables
+- `scorm_packages`: Stores SCORM package metadata
+- `scorm_scos`: Stores individual Sharable Content Objects
+- `scorm_attempts`: Tracks learner progress per SCO per attempt
+
+#### Schema Updates
+- `courses.is_scorm`: Flag to identify SCORM courses
+- `lessons.scorm_sco_id`: Foreign key to link lessons to SCOs (for future integration)
+
+### 📋 Migration Required
+
+#### Database Migrations
+- SCORM tables created via existing migrations
+- No data migration required (new feature)
+
+### 🚀 Performance
+
+#### Content Delivery
+- **Efficient Streaming**: Direct streaming from Vercel Blob to browser
+- **Caching Headers**: Proper cache control for SCORM content
+- **Path Resolution**: Browser-native relative URL resolution (no server-side rewriting)
+
+### 🔧 Technical Improvements
+
+#### Backend Architecture
+- **Clean Route Structure**: Path-style content serving in `server/index.js`
+- **Service Layer**: Comprehensive SCORM service layer with proper error handling
+- **Storage Integration**: Seamless Vercel Blob integration for file storage
+
+#### Frontend Architecture
+- **Dedicated Player**: Isolated SCORM player component for better maintainability
+- **Runtime API**: Clean SCORM 1.2 Runtime API implementation
+- **Error Handling**: Comprehensive error states and user feedback
+
+---
+
 ## [2.7.0] - 2025-11-15
 
 ## [2.7.1] - 2025-11-16
@@ -871,6 +1043,7 @@ This major release introduces a unified approach to learning content, treating l
 
 | Version | Release Date | Major Features |
 |---------|--------------|----------------|
+| 2.8.0   | 2025-01-XX   | SCORM 1.2 Integration, Package Upload & Management, SCORM Runtime API, Content Delivery System |
 | 2.4.0   | 2025-11-06   | Contact Messages System, Public Contact Form, Admin Message Management, Email Notifications |
 | 2.3.0   | 2025-11-05   | Active role switcher, certificates UX (modals/notes), verification fixes, RBAC/tenant hardening |
 | 2.2.0   | 2025-11-04   | SunLMS brand color system, white-label enhancements, system-wide styling updates |

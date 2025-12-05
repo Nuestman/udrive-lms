@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/auth.js';
 import coursesRoutes from './routes/courses.js';
 import modulesRoutes from './routes/modules.js';
@@ -30,6 +31,9 @@ import feedbackRoutes from './routes/feedback.js';
 import testimonialsRoutes from './routes/testimonials.js';
 import reviewSettingsRoutes from './routes/reviewSettings.js';
 import courseSupportRoutes from './routes/courseSupport.js';
+import scormRoutes from './routes/scorm.js';
+import { requireAuth } from './middleware/auth.middleware.js';
+import { tenantContext } from './middleware/tenant.middleware.js';
 import { pool } from './lib/db.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { APP_CONFIG, validateConfig } from './config/app.js';
@@ -90,6 +94,32 @@ const io = new Server(server, {
       // In development, allow localhost
       if (process.env.NODE_ENV === 'development' && /^http:\/\/localhost(:\d+)?$/.test(origin)) {
         return callback(null, true);
+      }
+      
+      // Allow custom domains and all their subdomains (same logic as Express CORS)
+      for (const domain of APP_CONFIG.ALLOWED_DOMAINS) {
+        try {
+          const url = new URL(origin);
+          const hostname = url.hostname;
+          
+          // Check if hostname exactly matches the domain (e.g., sunlms.com)
+          if (hostname === domain) {
+            return callback(null, true);
+          }
+          
+          // Check if hostname ends with .domain (e.g., www.sunlms.com, staging.sunlms.com)
+          if (hostname.endsWith('.' + domain)) {
+            return callback(null, true);
+          }
+        } catch (e) {
+          // If URL parsing fails, use regex fallback
+          // Security: Escape backslashes first, then dots to prevent regex injection
+          const escapedDomain = domain.replace(/\\/g, '\\\\').replace(/\./g, '\\.');
+          const domainPattern = new RegExp(`^https?:\\/\\/.*${escapedDomain}$`);
+          if (domainPattern.test(origin)) {
+            return callback(null, true);
+          }
+        }
       }
       
       console.warn('🚫 [SOCKET-CORS] Origin not allowed:', origin);
@@ -260,11 +290,178 @@ io.on('connect', () => {
   console.log('🔌 [SOCKET-SERVER] Socket server is ready for connections');
 });
 
+// Rate limiters
+const scormContentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // Limit each IP to 1000 requests per windowMs (SCORM content can have many files)
+  message: 'Too many requests for SCORM content, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const scormApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many SCORM API requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Middleware
 app.use(cors(APP_CONFIG.CORS_OPTIONS));
 app.use(express.json({ limit: '10mb' })); // Increase limit for lesson content with images
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
+
+// SCORM content streaming (same-origin, path-style URLs)
+// Example:
+//   /api/scorm/content/<packageId>/Playing/Playing.html
+//   /api/scorm/content/<packageId>/static/js/main.js
+app.use(
+  '/api/scorm/content',
+  scormContentLimiter, // Rate limiting to prevent abuse
+  requireAuth,
+  tenantContext,
+  async (req, res, next) => {
+    try {
+      // Only handle GET requests
+      if (req.method !== 'GET') {
+        return next();
+      }
+
+      // req.path here starts with "/<packageId>/..." because "/api/scorm/content"
+      // has already been stripped by Express.
+      const trimmedPath = req.path.replace(/^\/+/, ''); // remove leading slashes
+      const [packageId, ...restSegments] = trimmedPath.split('/');
+
+      if (!packageId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Package ID is required in SCORM content path',
+        });
+      }
+
+      const filePath = restSegments.join('/');
+      if (!filePath) {
+        return res.status(400).json({
+          success: false,
+          error: 'File path is required in SCORM content path',
+        });
+      }
+
+      // Sanitize file path
+      let sanitizedPath = filePath.replace(/\.\./g, '').replace(/\0/g, '');
+      sanitizedPath = sanitizedPath.replace(/^\.\//, '');
+      sanitizedPath = sanitizedPath
+        .replace(/\/+/g, '/')
+        .replace(/^\/+/, '')
+        .replace(/\/+$/, '');
+
+      // Look up package info
+      const pkgResult = await pool.query(
+        `SELECT content_base_path, tenant_id 
+         FROM public.scorm_packages 
+         WHERE id = $1`,
+        [packageId]
+      );
+
+      if (pkgResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'SCORM package not found',
+        });
+      }
+
+      const pkg = pkgResult.rows[0];
+
+      // Tenant isolation: only allow access to content for the same tenant (unless super admin)
+      if (req.user?.role !== 'super_admin' && pkg.tenant_id !== req.tenantId) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied to SCORM content',
+        });
+      }
+
+      const contentBasePath = pkg.content_base_path;
+      if (!contentBasePath || !contentBasePath.startsWith('http')) {
+        return res.status(400).json({
+          success: false,
+          error: 'Package content is not stored in Vercel Blob',
+        });
+      }
+
+      const fullUrl = `${contentBasePath.replace(/\/$/, '')}/${sanitizedPath}`;
+      console.log('[SCORM] Streaming content from Blob:', fullUrl);
+
+      const https = await import('https');
+      const http = await import('http');
+      const url = await import('url');
+
+      const urlObj = new url.URL(fullUrl);
+      const transport = urlObj.protocol === 'https:' ? https : http;
+
+      transport
+        .get(fullUrl, (blobRes) => {
+          if (blobRes.statusCode && blobRes.statusCode >= 400) {
+            console.error(
+              '[SCORM] Blob responded with error:',
+              blobRes.statusCode,
+              blobRes.statusMessage
+            );
+            res.status(blobRes.statusCode).end();
+            return;
+          }
+
+          const contentType = blobRes.headers['content-type'] || 'application/octet-stream';
+          res.setHeader('Content-Type', contentType);
+          res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+
+          blobRes.pipe(res);
+          blobRes.on('end', () => {
+            console.log('[SCORM] Finished streaming SCORM content:', fullUrl);
+          });
+          blobRes.on('error', (err) => {
+            console.error('[SCORM] Error streaming SCORM content:', err);
+            if (!res.headersSent) {
+              res.status(500).json({
+                success: false,
+                error: 'Failed to stream SCORM content',
+              });
+            }
+          });
+        })
+        .on('error', (err) => {
+          console.error('[SCORM] Error fetching SCORM content from Blob:', err);
+          if (!res.headersSent) {
+            res.status(500).json({
+              success: false,
+              error: 'Failed to fetch SCORM content from storage',
+            });
+          }
+        });
+    } catch (err) {
+      console.error('[SCORM] Unexpected error in SCORM content handler:', err);
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          error: err.message || 'Unexpected error serving SCORM content',
+        });
+      }
+    }
+  }
+);
+
+// Static serving for extracted SCORM content
+// Serve SCORM files with proper headers and security
+app.use('/scorm-content', express.static('storage/scorm', {
+  setHeaders: (res, filePath) => {
+    // Allow iframe embedding for SCORM content
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    // Don't cache SCORM content aggressively
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  }
+}));
 
 // Request logging
 if (APP_CONFIG.ENABLE_REQUEST_LOGGING) {
@@ -301,6 +498,7 @@ app.use('/api/testimonials', testimonialsRoutes);
 app.use('/api/review-settings', reviewSettingsRoutes);
 app.use('/api/announcements', announcementsRoutes);
 app.use('/api/course-support', courseSupportRoutes);
+app.use('/api/scorm', scormRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -41,7 +41,8 @@ export const query = async (text, params) => {
     const duration = Date.now() - start;
     
     if (!isProduction) {
-      console.log('Executed query', { text, duration, rows: res.rowCount });
+    //   commented out for now to reduce console noise
+    //   console.log('Executed query', { text, duration, rows: res.rowCount });
     }
     
     return res;

@@ -66,7 +66,8 @@ export async function tenantContext(req, res, next) {
   req.tenantId = userProfile.tenant_id;
   req.isSuperAdmin = false;
   const activeRole = req.user.activeRole || userProfile.role;
-  console.log(`🔒 Tenant Isolation: ${req.tenantId} (User: ${userProfile.email}, Primary Role: ${primaryRole}, Active Role: ${activeRole})`);
+//   commented out for now to reduce console noise
+//   console.log(`🔒 Tenant Isolation: ${req.tenantId} (User: ${userProfile.email}, Primary Role: ${primaryRole}, Active Role: ${activeRole})`);
 
   next();
 }

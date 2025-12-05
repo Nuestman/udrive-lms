@@ -29,14 +29,23 @@ const StudentDashboardPage: React.FC = () => {
   const handleStartCourse = async (courseId: string) => {
     // Get first lesson in course
     try {
-      // Get slug for nicer URL
+      // Get course info to check if it's SCORM
       const courseRes = await api.get(`/courses/${courseId}`);
       if (!courseRes.success) {
         showError(courseRes.error || 'Failed to load course');
         return;
       }
-      
-      const slugOrId = courseRes.data?.slug ? courseRes.data.slug : courseId;
+
+      const course = courseRes.data;
+
+      // If SCORM course, launch directly in SCORM player
+      if (course.is_scorm) {
+        navigate(`/student/courses/${courseId}/scorm`);
+        return;
+      }
+
+      // Regular course: navigate to first lesson
+      const slugOrId = course.slug ? course.slug : courseId;
       const modulesRes = await api.get(`/modules/course/${courseId}`);
       
       if (!modulesRes.success) {

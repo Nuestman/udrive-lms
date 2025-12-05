@@ -41,12 +41,19 @@ import path from 'path';
  */
 export function sanitizeDirectoryName(name, maxLength = 80) {
   if (!name) return '';
-  return name
-    .toString()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')  // Replace non-alphanumeric with hyphens
-    .replace(/^-+|-+$/g, '')      // Remove leading/trailing hyphens
-    .substring(0, maxLength);
+  // Limit input length first to prevent ReDoS attacks
+  const limited = name.toString().substring(0, maxLength * 2).toLowerCase();
+  // Replace non-alphanumeric with hyphens
+  let sanitized = limited.replace(/[^a-z0-9]+/g, '-');
+  // Remove leading hyphens (more efficient than regex with many hyphens)
+  while (sanitized.startsWith('-')) {
+    sanitized = sanitized.substring(1);
+  }
+  // Remove trailing hyphens (more efficient than regex with many hyphens)
+  while (sanitized.endsWith('-')) {
+    sanitized = sanitized.substring(0, sanitized.length - 1);
+  }
+  return sanitized.substring(0, maxLength);
 }
 
 /**
@@ -299,6 +306,10 @@ export function buildStoragePath(category, context = {}) {
 
     case 'certificate':
       parts.push('certificates');
+      break;
+
+    case 'scorm-package':
+      parts.push('scorm', 'packages');
       break;
 
     case 'tenant-logo':
