@@ -96,7 +96,7 @@ export const APP_CONFIG = {
         // Pattern: https?://(optional-subdomain.)domain.com
         // Allows: sunlms.com, www.sunlms.com, app.sunlms.com
         // Blocks: evil-sunlms.com, sunlms.com.evil.com
-        if (origin.match(new RegExp(`^https?:\\/\\/([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)*${escapedDomain}$`))) {
+        if (origin.match(new RegExp(`^https?:\\/\\/([a-zA-Z0-9][a-zA-Z0-9.-]*\\.)*${escapedDomain}$`))) {
           return callback(null, true);
         }
       }
