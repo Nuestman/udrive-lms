@@ -1,7 +1,23 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, Eye, EyeOff, BookOpen, ArrowLeft, Loader2 } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, ArrowLeft, Loader2 } from 'lucide-react';
+import { authApi } from '../../../lib/api';
+
+// Helper function to get dashboard route based on role
+const getDashboardRouteForRole = (role?: string | null): string => {
+  switch (role) {
+    case 'student':
+      return '/student/dashboard';
+    case 'instructor':
+      return '/instructor/dashboard';
+    case 'super_admin':
+      return '/admin/dashboard';
+    case 'school_admin':
+    default:
+      return '/school/dashboard';
+  }
+};
 
 const LoginPage: React.FC = () => {
   const [credential, setCredential] = useState('');
@@ -46,40 +62,61 @@ const LoginPage: React.FC = () => {
     
     try {
       if (requires2FA && pendingUserId) {
-        // Verify 2FA token
+        // Verify 2FA token - call API directly to get user immediately
+        const response = await authApi.verify2FA(pendingUserId, twoFactorToken);
+        // Also update the auth context
         await verify2FA(pendingUserId, twoFactorToken);
-        console.log('2FA verification successful - redirect will be handled by App.tsx');
-        navigate('/app', { replace: true });
-      } else {
-        // Initial login attempt
-        const result = await signIn(credential, password);
         
-        if (result && result.requires2FA) {
-          setRequires2FA(true);
-          setPendingUserId(result.userId);
-          setError(null);
-          console.log('2FA required for login');
+        // Navigate directly using the user from the response
+        // This avoids the race condition where React state hasn't updated yet
+        if (response.success && response.user) {
+          const role = response.user.active_role || response.user.role;
+          const dashboardRoute = getDashboardRouteForRole(role);
+          navigate(dashboardRoute, { replace: true });
         } else {
-          console.log('Login successful - redirect will be handled by App.tsx');
+          // Fallback: navigate to /app and let App.tsx handle redirect
           navigate('/app', { replace: true });
         }
+      } else {
+        // Initial login attempt - call API directly to get user immediately
+        const response = await authApi.login(credential, password);
+        
+        if (response.requires2FA) {
+          // Update context for 2FA flow
+          setRequires2FA(true);
+          setPendingUserId(response.userId!);
+          setError(null);
+          console.log('2FA required for login');
+        } else if (response.success && response.user) {
+          // Update auth context (this is async but we don't need to wait)
+          await signIn(credential, password);
+          
+          // Navigate directly using the user from the response
+          // This avoids the race condition where React state hasn't updated yet
+          const role = response.user.active_role || response.user.role;
+          const dashboardRoute = getDashboardRouteForRole(role);
+          navigate(dashboardRoute, { replace: true });
+        } else {
+          throw new Error('Login failed');
+        }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Login error:', err);
       
       // Provide user-friendly error messages
       let errorMessage = 'Failed to sign in';
+      const error = err as Error;
       
-      if (err.message?.includes('Invalid login credentials')) {
+      if (error.message?.includes('Invalid login credentials')) {
         errorMessage = 'Invalid email/phone or password. Please check your credentials and try again.';
-      } else if (err.message?.includes('Email not confirmed')) {
+      } else if (error.message?.includes('Email not confirmed')) {
         errorMessage = 'Please check your email and click the confirmation link before signing in.';
-      } else if (err.message?.includes('Too many requests')) {
+      } else if (error.message?.includes('Too many requests')) {
         errorMessage = 'Too many login attempts. Please wait a few minutes before trying again.';
-      } else if (err.message?.includes('Invalid two-factor authentication code')) {
+      } else if (error.message?.includes('Invalid two-factor authentication code')) {
         errorMessage = 'Invalid 2FA code. Please check your authenticator app and try again.';
-      } else if (err.message) {
-        errorMessage = err.message;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       
       setError(errorMessage);

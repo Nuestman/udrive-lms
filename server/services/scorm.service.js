@@ -10,7 +10,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Base directory for extracted SCORM content
-const SCORM_CONTENT_ROOT = path.join(__dirname, '..', '..', 'storage', 'scorm');
+// In serverless environments (Vercel), use /tmp instead of project-relative path
+// /tmp is writable and available in serverless functions
+const SCORM_CONTENT_ROOT = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+  ? path.join('/tmp', 'scorm')
+  : path.join(__dirname, '..', '..', 'storage', 'scorm');
 
 /**
  * Validate packageId to prevent path traversal attacks
@@ -37,6 +41,12 @@ function ensureScormContentDir(packageId) {
   if (!validatePackageId(packageId)) {
     throw new Error('Invalid package ID format');
   }
+  
+  // Ensure base directory exists
+  if (!fs.existsSync(SCORM_CONTENT_ROOT)) {
+    fs.mkdirSync(SCORM_CONTENT_ROOT, { recursive: true });
+  }
+  
   const dir = path.join(SCORM_CONTENT_ROOT, packageId);
   fs.mkdirSync(dir, { recursive: true });
   return dir;
