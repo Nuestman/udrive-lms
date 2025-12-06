@@ -35,7 +35,7 @@ const StudentDashboardPage: React.FC = () => {
         showError(courseRes.error || 'Failed to load course');
         return;
       }
-
+      
       const course = courseRes.data;
 
       // If SCORM course, launch directly in SCORM player

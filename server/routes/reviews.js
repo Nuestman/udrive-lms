@@ -24,8 +24,6 @@ router.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     const { type, targetId, rating, title, body } = req.body;
-    const io = req.app.get('io');
-
     const review = await createReview({
       userId: req.user.id,
       reviewableType: type,
@@ -33,7 +31,7 @@ router.post(
       rating,
       title,
       body,
-    }, { io });
+    });
 
     res.status(201).json({
       success: true,

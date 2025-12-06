@@ -1302,16 +1302,16 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
 
               {/* Add Lesson Actions */}
               <div className="flex flex-col sm:flex-row gap-2 mt-2">
-                {showAddLesson ? (
+              {showAddLesson ? (
                   <form onSubmit={handleAddLesson} className="flex flex-1 flex-col sm:flex-row gap-2">
-                    <input
-                      type="text"
-                      placeholder="Lesson title..."
-                      value={newLessonTitle}
-                      onChange={(e) => setNewLessonTitle(e.target.value)}
-                      className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      autoFocus
-                    />
+                  <input
+                    type="text"
+                    placeholder="Lesson title..."
+                    value={newLessonTitle}
+                    onChange={(e) => setNewLessonTitle(e.target.value)}
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    autoFocus
+                  />
                   <label className="sr-only" htmlFor={`lesson-status-${module.id}`}>
                     Lesson status
                   </label>
@@ -1325,32 +1325,32 @@ const ModuleWithLessons: React.FC<ModuleWithLessonsProps> = ({ module, index, is
                     <option value="draft">Draft</option>
                     <option value="published">Published</option>
                   </select>
-                    <button
-                      type="submit"
-                      className="px-3 py-2 text-sm bg-primary-600 text-white rounded hover:bg-primary-700"
-                    >
-                      Add
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowAddLesson(false);
-                        setNewLessonTitle('');
-                        setNewLessonStatus('draft');
-                      }}
-                      className="px-3 py-2 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                  </form>
-                ) : (
                   <button
-                    onClick={() => setShowAddLesson(true)}
-                    className="flex-1 py-2 text-sm text-primary-600 border border-dashed border-primary-300 rounded hover:bg-primary-50 transition-colors"
+                    type="submit"
+                    className="px-3 py-2 text-sm bg-primary-600 text-white rounded hover:bg-primary-700"
                   >
-                    + Add Lesson
+                    Add
                   </button>
-                )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddLesson(false);
+                      setNewLessonTitle('');
+                      setNewLessonStatus('draft');
+                    }}
+                    className="px-3 py-2 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <button
+                  onClick={() => setShowAddLesson(true)}
+                    className="flex-1 py-2 text-sm text-primary-600 border border-dashed border-primary-300 rounded hover:bg-primary-50 transition-colors"
+                >
+                  + Add Lesson
+                </button>
+              )}
                 {/* SCORM lesson creation removed - use /school/courses/scorm to create SCORM courses */}
               </div>
 

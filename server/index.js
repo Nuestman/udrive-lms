@@ -360,12 +360,9 @@ app.get('/api/health', (req, res) => {
 });
 
 // Socket.IO removed - notifications now use polling
-// Handle socket.io requests and return 404 immediately to stop spam
+// Handle socket.io requests silently (no logging to reduce spam)
 app.use('/socket.io', (req, res) => {
-  res.status(404).json({ 
-    success: false,
-    error: 'Socket.IO is not available. Notifications use polling instead.' 
-  });
+  res.status(404).end(); // Silent 404, no JSON response to reduce log noise
 });
 
 // Token validation test endpoint

@@ -108,7 +108,7 @@ export async function getStudentEnrollments(studentId, tenantId, isSuperAdmin = 
 /**
  * Enroll student in course
  */
-export async function enrollStudent(enrollmentData, tenantId, io = null, roleSwitchedUserId = null, isSuperAdmin = false) {
+export async function enrollStudent(enrollmentData, tenantId, roleSwitchedUserId = null, isSuperAdmin = false) {
   const { student_id, course_id } = enrollmentData;
 
   // Validation

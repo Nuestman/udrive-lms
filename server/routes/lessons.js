@@ -63,7 +63,6 @@ router.post('/', asyncHandler(async (req, res) => {
   });
   
   // Create notification for lesson creation
-  const io = req.app.get('io');
   try {
     await createNotification(req.user.id, {
       type: 'success',
@@ -71,7 +70,7 @@ router.post('/', asyncHandler(async (req, res) => {
       message: `Lesson "${lesson.title}" has been created successfully.`,
       link: `/courses/${lesson.course_id}/lessons/${lesson.id}`,
       data: { lessonId: lesson.id, lessonTitle: lesson.title, courseId: lesson.course_id }
-    }, io);
+    });
     console.log('📚 [LESSON-CREATE] Notification created successfully');
   } catch (notificationError) {
     console.error('📚 [LESSON-CREATE] Failed to create notification:', notificationError);

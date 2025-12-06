@@ -2,7 +2,9 @@
 
 ## Overview
 
-The SunLMS Notification System provides comprehensive real-time communication capabilities, including in-app notifications, email notifications, push notifications, and SMS alerts. The system is built on WebSocket technology for real-time delivery and includes advanced features like quiet hours, notification preferences, and multi-channel delivery.
+The SunLMS Notification System provides comprehensive notification capabilities, including in-app notifications, email notifications, and SMS alerts. The system uses HTTP polling for notification delivery and includes advanced features like quiet hours, notification preferences, and multi-channel delivery.
+
+**Note**: As of version 3.0.0, the notification system has been migrated from Socket.IO (WebSocket) to HTTP polling for improved reliability and simpler deployment.
 
 ## Architecture
 
@@ -22,9 +24,7 @@ const {
   notifications, 
   unreadCount, 
   markAsRead, 
-  deleteNotification,
-  connect,
-  disconnect 
+  deleteNotification
 } = useNotification();
 ```
 
@@ -362,144 +362,76 @@ const resetNotificationPreferences = async () => {
 };
 ```
 
-## Real-time Communication
+## Notification Polling
 
-### WebSocket Connection
+### HTTP Polling Implementation
+
+As of version 3.0.0, notifications are delivered via HTTP polling instead of WebSocket connections. This provides better reliability and simpler deployment.
+
 ```typescript
-// Frontend WebSocket connection with enhanced authentication and error handling
+// Frontend polling implementation
 const useNotification = () => {
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Initialize socket connection when user is authenticated
+  // Start polling when user is authenticated
   useEffect(() => {
     if (user && profile) {
-      // Add a small delay to ensure token is available
-      const connectSocket = () => {
-        const token = localStorage.getItem('token');
-        
-        // Only connect if we have a valid token
-        if (!token) {
-          console.log('No authentication token available, skipping Socket.IO connection');
-          return;
+      const fetchNotifications = async () => {
+        try {
+          const response = await get('/api/notifications');
+          if (response.success) {
+            setNotifications(response.data);
+            setUnreadCount(response.data.filter((n: Notification) => !n.read).length);
+          }
+        } catch (error) {
+          console.error('Error fetching notifications:', error);
         }
-
-        // Remove /api from the URL for Socket.IO connection
-        const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
-        const newSocket = io(baseUrl, {
-          auth: {
-            token: token,
-            userId: user.id
-          },
-          transports: ['polling', 'websocket'], // Add fallback transports
-          timeout: 10000, // 10 second timeout
-          forceNew: true // Force new connection
-        });
-
-        newSocket.on('connect', () => {
-          console.log('✅ Connected to notification server');
-          setError(null);
-        });
-
-        newSocket.on('disconnect', (reason) => {
-          console.log('❌ Disconnected from notification server:', reason);
-        });
-
-        newSocket.on('connect_error', (err) => {
-          console.error('❌ Socket connection error:', err.message);
-          // Don't set error for authentication issues - just log them
-          if (!err.message.includes('Authentication error')) {
-            setError('Failed to connect to notification server');
-          }
-        });
-
-        newSocket.on('notification', (notification) => {
-          console.log('🔔 New notification received:', notification);
-          setNotifications(prev => [notification, ...prev]);
-          
-          // Show browser notification if enabled and permission granted
-          if (userSettings?.notifications?.pushNotifications && 'Notification' in window) {
-            if (Notification.permission === 'granted') {
-              new Notification(notification.title, {
-                body: notification.message,
-                icon: '/sun-lms-logo-compact.png',
-                tag: notification.id
-              });
-            }
-          }
-        });
-
-        newSocket.on('notification_updated', (updatedNotification) => {
-          console.log('📝 Notification updated:', updatedNotification);
-          setNotifications(prev => 
-            prev.map(n => n.id === updatedNotification.id ? updatedNotification : n)
-          );
-        });
-
-        newSocket.on('notification_deleted', (notificationId) => {
-          console.log('🗑️ Notification deleted:', notificationId);
-          setNotifications(prev => prev.filter(n => n.id !== notificationId));
-        });
-
-        setSocket(newSocket);
-
-        return () => {
-          newSocket.close();
-        };
       };
 
-      // Connect with a small delay to ensure token is available
-      const timeoutId = setTimeout(connectSocket, 100);
-      
+      // Initial fetch
+      fetchNotifications();
+
+      // Poll every 30 seconds
+      pollingIntervalRef.current = setInterval(fetchNotifications, 30000);
+
       return () => {
-        clearTimeout(timeoutId);
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+        }
       };
-    } else {
-      // Clean up socket if user logs out
-      if (socket) {
-        console.log('User logged out, disconnecting socket');
-        socket.disconnect();
-        setSocket(null);
-      }
     }
-  }, [user, profile, userSettings?.notifications?.pushNotifications]);
+  }, [user, profile]);
   
-  return { socket, notifications, unreadCount };
+  return { notifications, unreadCount };
 };
 ```
 
-### Server-side Broadcasting
+### Server-side Notification Creation
+
 ```javascript
-// Broadcast notification to specific users
-const broadcastNotification = async (notification, targetUsers) => {
+// Create notification (stored in database, fetched via polling)
+const createNotification = async (userId, notificationData) => {
   // Store notification in database
   const savedNotification = await notificationsService.createNotification(
-    notification.userId,
-    notification
+    userId,
+    notificationData
   );
   
-  // Broadcast via WebSocket
-  targetUsers.forEach(userId => {
-    io.to(`user_${userId}`).emit('notification', savedNotification);
-  });
-  
   // Send via other channels based on preferences
-  for (const userId of targetUsers) {
-    const preferences = await getUserNotificationPreferences(userId);
-    
-    if (preferences.emailNotifications) {
-      await sendEmailNotification(userId, savedNotification);
-    }
-    
-    if (preferences.pushNotifications) {
-      await sendPushNotification(userId, savedNotification);
-    }
-    
-    if (preferences.smsNotifications) {
-      await sendSMSNotification(userId, savedNotification);
-    }
+  const preferences = await getUserNotificationPreferences(userId);
+  
+  if (preferences.emailNotifications) {
+    await sendEmailNotification(userId, savedNotification);
   }
+  
+  if (preferences.smsNotifications) {
+    await sendSMSNotification(userId, savedNotification);
+  }
+  
+  // Note: In-app notifications are fetched via polling
+  // No WebSocket broadcasting required
 };
 ```
 
@@ -671,7 +603,7 @@ await sendTemplatedEmail('quiz_assigned', {
   - Update / Result: detailed emails
 
 Delivery
-- In‑app: saved in notifications; Socket.IO broadcast when available
+- In‑app: saved in notifications; fetched via HTTP polling (30s interval)
 - Email: Nodemailer (Gmail SMTP); required env: SMTP_HOST/PORT/USER/PASSWORD, EMAIL_FROM
 - Branding logo CID used when available
 
@@ -803,37 +735,25 @@ Mark all notifications as read
 }
 ```
 
-### WebSocket Events
+### Polling Configuration
 
-#### Client to Server
-```javascript
-// Join user-specific room
-socket.emit('join_user_room', { userId: '123' });
+#### Polling Interval
+```typescript
+// Configure polling interval (default: 30 seconds)
+const POLLING_INTERVAL = 30000; // 30 seconds
 
-// Join tenant-specific room
-socket.emit('join_tenant_room', { tenantId: '456' });
-
-// Join role-specific room
-socket.emit('join_role_room', { role: 'instructor' });
+// Adjust based on application needs:
+// - Lower interval (10-15s): More real-time, higher server load
+// - Higher interval (60s+): Less real-time, lower server load
+// - Default (30s): Balanced approach
 ```
 
-#### Server to Client
-```javascript
-// New notification
-socket.on('notification', (notification) => {
-  console.log('New notification:', notification);
-});
-
-// Notification read status update
-socket.on('notification_read', (data) => {
-  console.log('Notification read:', data);
-});
-
-// Bulk notification update
-socket.on('notifications_update', (notifications) => {
-  console.log('Notifications updated:', notifications);
-});
-```
+#### Polling Best Practices
+- **Start polling** when user authenticates
+- **Stop polling** when user logs out or component unmounts
+- **Handle errors gracefully** - continue polling even if a request fails
+- **Respect rate limits** - don't poll too frequently
+- **Optimize queries** - use pagination and filtering to reduce payload size
 
 ## Performance Optimization
 
@@ -930,120 +850,89 @@ const getNotification = async (notificationId, userId) => {
 };
 ```
 
-## Socket.IO Improvements & Best Practices
+## Polling Implementation & Best Practices
 
-### Enhanced Authentication & Connection Management
+### Polling Architecture
 
-The notification system has been enhanced with robust Socket.IO connection management to handle authentication timing issues and improve reliability.
+The notification system uses HTTP polling for reliable notification delivery. This approach eliminates WebSocket complexity while maintaining good user experience.
 
-#### Key Improvements
+#### Key Benefits
 
-1. **Token Validation**: Only attempts Socket.IO connection when a valid authentication token is available
-2. **Connection Timing**: Added 100ms delay to ensure token is available after login
-3. **Error Handling**: Improved error handling to distinguish between authentication and connection issues
-4. **Proper Cleanup**: Automatic socket disconnection when users log out
-5. **Fallback Transports**: Added polling and websocket transports for better compatibility
-6. **Connection Timeout**: 10-second timeout to prevent hanging connections
+1. **Simplified Deployment**: No WebSocket server configuration required
+2. **Better Reliability**: Works behind firewalls, proxies, and restrictive networks
+3. **Reduced Complexity**: No connection state management or reconnection logic
+4. **Universal Compatibility**: Works with all network configurations
+5. **Easier Debugging**: Standard HTTP requests are easier to monitor and debug
 
-#### Authentication Flow
+#### Polling Implementation
 ```typescript
-// Enhanced authentication flow
+// Polling implementation with error handling
 useEffect(() => {
   if (user && profile) {
-    const connectSocket = () => {
-      const token = localStorage.getItem('token');
-      
-      // Only connect if we have a valid token
-      if (!token) {
-        console.log('No authentication token available, skipping Socket.IO connection');
-        return;
-      }
-
-      // Remove /api from the URL for Socket.IO connection
-      const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
-      const newSocket = io(baseUrl, {
-        auth: {
-          token: token,
-          userId: user.id
-        },
-        transports: ['polling', 'websocket'], // Fallback transports
-        timeout: 10000, // 10 second timeout
-        forceNew: true // Force new connection
-      });
-
-      // Enhanced event handling with better logging
-      newSocket.on('connect', () => {
-        console.log('✅ Connected to notification server');
-        setError(null);
-      });
-
-      newSocket.on('connect_error', (err) => {
-        console.error('❌ Socket connection error:', err.message);
-        // Don't set error for authentication issues - just log them
-        if (!err.message.includes('Authentication error')) {
-          setError('Failed to connect to notification server');
+    const fetchNotifications = async () => {
+      try {
+        setLoading(true);
+        const response = await get('/api/notifications');
+        if (response.success) {
+          setNotifications(response.data);
+          setUnreadCount(response.data.filter((n: Notification) => !n.read).length);
+          setError(null);
         }
-      });
-
-      setSocket(newSocket);
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+        // Don't show error to user - polling will retry automatically
+      } finally {
+        setLoading(false);
+      }
     };
 
-    // Connect with a small delay to ensure token is available
-    const timeoutId = setTimeout(connectSocket, 100);
-    
+    // Initial fetch
+    fetchNotifications();
+
+    // Poll every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
+
     return () => {
-      clearTimeout(timeoutId);
+      clearInterval(interval);
     };
-  } else {
-    // Clean up socket if user logs out
-    if (socket) {
-      console.log('User logged out, disconnecting socket');
-      socket.disconnect();
-      setSocket(null);
-    }
   }
-}, [user, profile, userSettings?.notifications?.pushNotifications]);
+}, [user, profile]);
 ```
 
 #### Error Handling Best Practices
 ```typescript
-// Comprehensive error handling
-newSocket.on('connect_error', (err) => {
-  console.error('❌ Socket connection error:', err.message);
-  
-  // Handle different types of errors
-  if (err.message.includes('Authentication error')) {
-    console.log('🔐 Authentication issue - will retry when token is available');
-    // Don't show this as a user error
-  } else if (err.message.includes('timeout')) {
-    console.log('⏱️ Connection timeout - check network connectivity');
-    setError('Connection timeout. Please check your internet connection.');
-  } else {
-    console.log('🌐 Network error - will retry automatically');
-    setError('Failed to connect to notification server');
+// Graceful error handling for polling
+const fetchNotifications = async () => {
+  try {
+    const response = await get('/api/notifications');
+    if (response.success) {
+      setNotifications(response.data);
+      setUnreadCount(response.data.filter((n: Notification) => !n.read).length);
+    }
+  } catch (error) {
+    // Log error but don't interrupt polling
+    console.error('Notification polling error:', error);
+    // Polling will automatically retry on next interval
   }
-});
+};
 ```
 
-#### Connection State Management
+#### Polling State Management
 ```typescript
-// Track connection state
-const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
+// Track polling state
+const [isPolling, setIsPolling] = useState(false);
 
-newSocket.on('connect', () => {
-  setConnectionState('connected');
-  console.log('✅ Connected to notification server');
-});
-
-newSocket.on('disconnect', (reason) => {
-  setConnectionState('disconnected');
-  console.log('❌ Disconnected from notification server:', reason);
-});
-
-newSocket.on('connect_error', (err) => {
-  setConnectionState('error');
-  console.error('❌ Socket connection error:', err.message);
-});
+useEffect(() => {
+  if (user && profile) {
+    setIsPolling(true);
+    const interval = setInterval(fetchNotifications, 30000);
+    
+    return () => {
+      setIsPolling(false);
+      clearInterval(interval);
+    };
+  }
+}, [user, profile]);
 ```
 
 ### Database Schema Compatibility
@@ -1206,34 +1095,42 @@ const notifications = result.rows.map(row => ({
 }));
 ```
 
-### Socket.IO Connection Issues
+### Polling Issues
 
-#### Symptom: Socket not connecting
+#### Symptom: Notifications not updating
 **Check**:
-1. Socket.IO server is running
-2. CORS is configured correctly
-3. Token is being sent in auth payload
-4. Authentication middleware is passing
+1. Polling interval is set correctly (default: 30 seconds)
+2. User is authenticated
+3. API endpoint `/api/notifications` is accessible
+4. No network errors in browser console
 
-**Debug logs to look for**:
-```
-✅ [SOCKET-CONNECTION] User connected to notifications
-✅ [SOCKET-AUTH] User authenticated successfully
-```
-
-#### Symptom: Multiple socket connections
-**Cause**: React StrictMode or re-renders causing multiple useEffect executions.
-
-**Solution**: Ensure proper cleanup:
+**Debug**:
 ```typescript
+// Check if polling is active
+console.log('Polling active:', isPolling);
+console.log('User authenticated:', !!user);
+console.log('Last fetch time:', lastFetchTime);
+```
+
+#### Symptom: Too many API requests
+**Cause**: Polling interval set too low or multiple polling instances.
+
+**Solution**: Ensure single polling instance and appropriate interval:
+```typescript
+// Use ref to prevent multiple intervals
+const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
 useEffect(() => {
-  if (user && profile) {
-    const newSocket = io(baseUrl, socketOptions);
-    
-    return () => {
-      newSocket.close();
-    };
+  if (user && profile && !pollingIntervalRef.current) {
+    pollingIntervalRef.current = setInterval(fetchNotifications, 30000);
   }
+  
+  return () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  };
 }, [user, profile]);
 ```
 
@@ -1275,50 +1172,43 @@ CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
 - **CRM Systems**: Integration with Salesforce, HubSpot
 - **Learning Analytics**: Advanced learning analytics and insights
 
-## Critical Fixes & Implementation Issues
+## Migration from Socket.IO to Polling (v3.0.0)
 
-### Issue 1: JWT Import with ES Modules (RESOLVED)
+### Breaking Changes
 
-**Problem**: Socket.IO authentication was failing with `"jwt.verify is not a function"` error.
+**Socket.IO Removed**: As of version 3.0.0, Socket.IO has been completely removed from the notification system. All real-time WebSocket functionality has been replaced with HTTP polling.
 
-**Root Cause**: When using dynamic ES module imports (`await import('jsonwebtoken')`), functions are exported under the `.default` property.
+### Migration Guide
 
-**Solution**: Use `jwt.default.verify()` instead of `jwt.verify()` when dynamically importing.
+#### Frontend Changes Required
 
-**Fixed in**: `server/index.js` (Socket.IO authentication middleware)
+1. **Remove Socket.IO Dependencies**:
+   ```bash
+   npm uninstall socket.io-client
+   ```
 
-### Issue 2: Date Format Mismatch (RESOLVED)
+2. **Update NotificationContext**: The context now uses polling instead of WebSocket connections. No changes needed if using the updated `NotificationContext.tsx`.
 
-**Problem**: Notifications displayed "Invalid date" because API returned `created_at` (snake_case) but frontend expected `createdAt` (camelCase).
+3. **Remove Socket Connection Code**: Any custom Socket.IO connection code should be removed.
 
-**Solution**: Transform snake_case to camelCase in notification routes.
+#### Backend Changes
 
-**Fixed in**: `server/routes/notifications.js`
+1. **Socket.IO Server Removed**: The Socket.IO server setup in `server/index.js` has been removed.
 
-### Issue 3: Missing Notification Triggers (RESOLVED)
+2. **Notification Service**: The notification service no longer requires `io` parameter. All socket-related code has been removed.
 
-**Problem**: Course/lesson/module creation wasn't creating notifications in the database.
+3. **Route Handlers**: Route handlers no longer emit socket events. Notifications are stored in the database and fetched via polling.
 
-**Solution**: Added notification triggers to route handlers.
+### Benefits of Migration
 
-**Fixed in**: 
-- `server/routes/courses.js` - Course creation and publishing
-- `server/routes/lessons.js` - Lesson creation
-- `server/routes/modules.js` - Module creation
+- **Simplified Architecture**: No WebSocket server management
+- **Better Reliability**: Works in all network environments
+- **Easier Deployment**: Standard HTTP-only deployment
+- **Reduced Complexity**: No connection state management
+- **Better Debugging**: Standard HTTP requests are easier to monitor
 
-### Issue 4: Overengineering Identified
+### Performance Considerations
 
-**Token Retry Mechanism**: Complex retry loop (10 attempts) is unnecessary if token storage is guaranteed before socket connection attempt.
-
-**Recommendation**: Simplify to 2-3 retries or remove entirely if token is always available.
-
-**Token Refresh Logic**: Complex workaround for authentication errors is unnecessary after JWT fix.
-
-**Recommendation**: Remove token refresh logic from `connect_error` handler.
-
-**testSocketConnection**: Debug function should be development-only.
-
-**Recommendation**: Add environment check:
-```typescript
-if (process.env.NODE_ENV !== 'development') return;
-```
+- **Polling Interval**: Default 30 seconds provides good balance between real-time feel and server load
+- **API Optimization**: Notifications endpoint is optimized with pagination and filtering
+- **Database Indexes**: Proper indexes ensure fast notification queries

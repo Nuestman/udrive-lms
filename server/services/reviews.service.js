@@ -442,7 +442,6 @@ async function notifyReviewModerators({
   user,
   course,
   school,
-  io = null,
 }) {
   try {
     const reviewerName = user.display_name || user.email || 'A learner';
@@ -506,8 +505,7 @@ async function notifyReviewModerators({
             message: messageParts.join(' '),
             link,
             data: dataPayload,
-          },
-          io
+          }
         );
       })
     );
@@ -525,7 +523,6 @@ export async function createReview(
     title,
     body,
   },
-  { io = null } = {}
 ) {
   if (!body || body.trim().length < 10) {
     throw new ValidationError('Review body must be at least 10 characters');
@@ -584,7 +581,6 @@ export async function createReview(
     user,
     course,
     school,
-    io,
   });
 
   if (reviewableType === 'course' && course) {

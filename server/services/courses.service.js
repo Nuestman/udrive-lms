@@ -220,7 +220,7 @@ export async function createCourse(courseData, user) {
 /**
  * Update course
  */
-export async function updateCourse(courseId, courseData, user, io = null) {
+export async function updateCourse(courseId, courseData, user) {
   const { title, description, thumbnail_url, duration_weeks, price, status } = courseData;
 
   // Get current course data for comparison
@@ -290,18 +290,17 @@ export async function updateCourse(courseId, courseData, user, io = null) {
 
   const updatedCourse = result.rows[0];
 
-  // Send notifications for course updates
-  if (io) {
-    try {
-      const { notifyEnrolledStudents } = await import('./notifications.service.js');
-      
-      // Determine notification type and content
-      let notificationType = 'course_update';
-      let notificationTitle = 'Course Updated';
-      let notificationMessage = `The course "${updatedCourse.title}" has been updated.`;
-      let updateDetails = '';
+  // Send notifications for course updates (via polling, not socket.io)
+  try {
+    const { notifyEnrolledStudents } = await import('./notifications.service.js');
+    
+    // Determine notification type and content
+    let notificationType = 'course_update';
+    let notificationTitle = 'Course Updated';
+    let notificationMessage = `The course "${updatedCourse.title}" has been updated.`;
+    let updateDetails = '';
 
-      // Check what was updated
+    // Check what was updated
       const changes = [];
       if (title !== undefined && title !== currentCourse.title) {
         changes.push('title');
@@ -353,14 +352,13 @@ export async function updateCourse(courseId, courseData, user, io = null) {
       };
 
       // Notify enrolled students
-      await notifyEnrolledStudents(courseId, notificationData, io);
+      await notifyEnrolledStudents(courseId, notificationData);
       
       console.log(`Course update notifications sent for course ${courseId}`);
     } catch (error) {
       console.error('Error sending course update notifications:', error);
       // Don't fail the course update if notifications fail
     }
-  }
 
   return updatedCourse;
 }

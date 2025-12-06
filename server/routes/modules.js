@@ -61,7 +61,6 @@ router.post('/', asyncHandler(async (req, res) => {
   });
   
   // Create notification for module creation
-  const io = req.app.get('io');
   try {
     await createNotification(req.user.id, {
       type: 'success',
@@ -69,7 +68,7 @@ router.post('/', asyncHandler(async (req, res) => {
       message: `Module "${module.title}" has been created successfully.`,
       link: `/courses/${module.course_id}/modules/${module.id}`,
       data: { moduleId: module.id, moduleTitle: module.title, courseId: module.course_id }
-    }, io);
+    });
     console.log('📦 [MODULE-CREATE] Notification created successfully');
   } catch (notificationError) {
     console.error('📦 [MODULE-CREATE] Failed to create notification:', notificationError);
@@ -87,8 +86,7 @@ router.post('/', asyncHandler(async (req, res) => {
  * Update module
  */
 router.put('/:id', asyncHandler(async (req, res) => {
-  const io = req.app.get('io');
-  const module = await modulesService.updateModule(req.params.id, req.body, req.tenantId, io);
+  const module = await modulesService.updateModule(req.params.id, req.body, req.tenantId);
   
   res.json({
     success: true,

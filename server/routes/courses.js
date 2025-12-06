@@ -98,7 +98,6 @@ router.post('/', asyncHandler(async (req, res) => {
   });
   
   // Create notification for course creation
-  const io = req.app.get('io');
   try {
     await createNotification(req.user.id, {
       type: 'success',
@@ -106,7 +105,7 @@ router.post('/', asyncHandler(async (req, res) => {
       message: `Course "${course.title}" has been created successfully.`,
       link: `/courses/${course.id}`,
       data: { courseId: course.id, courseTitle: course.title }
-    }, io);
+    });
     console.log('🎓 [COURSE-CREATE] Notification created successfully');
   } catch (notificationError) {
     console.error('🎓 [COURSE-CREATE] Failed to create notification:', notificationError);
@@ -124,8 +123,7 @@ router.post('/', asyncHandler(async (req, res) => {
  * Update course
  */
 router.put('/:id', asyncHandler(async (req, res) => {
-  const io = req.app.get('io');
-  const course = await coursesService.updateCourse(req.params.id, req.body, req.user, io);
+  const course = await coursesService.updateCourse(req.params.id, req.body, req.user);
   
   res.json({
     success: true,
@@ -155,7 +153,6 @@ router.post('/:id/publish', asyncHandler(async (req, res) => {
   const course = await coursesService.publishCourse(req.params.id, req.user);
   
   // Create notification for course publishing
-  const io = req.app.get('io');
   await createNotification(req.user.id, {
     type: 'success',
     title: 'Course Published',

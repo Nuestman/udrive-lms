@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { useSettings } from './SettingsContext';
 import { useToast } from './ToastContext';
@@ -46,9 +46,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+  const connectionStatus: 'disconnected' | 'connecting' | 'connected' = 'connected'; // Always connected for polling
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastCheckRef = useRef<Date | null>(null);
+  const shownNotificationIdsRef = useRef<Set<string>>(new Set()); // Track which notifications have already shown toasts
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -56,7 +57,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const POLLING_INTERVAL = 30000;
 
   // Load notifications from API
-  const loadNotifications = async (showLoading = true) => {
+  const loadNotifications = useCallback(async (showLoading = true) => {
     if (!user) return;
     
     try {
@@ -64,7 +65,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         setLoading(true);
       }
       setError(null);
-      setConnectionStatus('connected');
       
       const data = await get<{ success: boolean; data: Notification[] }>('/notifications');
       
@@ -83,53 +83,65 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
             : notification.data || {},
         }));
 
-        // Check for new notifications (not in current list)
-        const currentIds = new Set(notifications.map(n => n.id));
-        const newNotifications = loadedNotifications.filter(n => !currentIds.has(n.id));
-        
-        // Show toast for new notifications
-        newNotifications.forEach(notification => {
-          if (
-            notification.data &&
-            typeof notification.data === 'object' &&
-            (notification.data as Record<string, unknown>).eventType === 'review_submitted'
-          ) {
-            toast.info(notification.title || 'New review submitted');
-          } else {
-            toast.info(notification.title || 'New notification');
-          }
+        // Check for truly new notifications using functional update to avoid dependency
+        setNotifications(prevNotifications => {
+          const currentIds = new Set(prevNotifications.map(n => n.id));
+          const newNotifications = loadedNotifications.filter(n => 
+            !currentIds.has(n.id) && !shownNotificationIdsRef.current.has(n.id)
+          );
           
-          // Show browser notification if enabled
-          if (userSettings?.notifications?.pushNotifications && 'Notification' in window) {
-            if (Notification.permission === 'granted') {
-              new Notification(notification.title, {
-                body: notification.message,
-                icon: '/sun-lms-logo-compact.png',
-                tag: notification.id
-              });
+          // Show toast ONLY for new notifications that haven't been shown before
+          newNotifications.forEach(notification => {
+            // Mark as shown to prevent re-showing
+            shownNotificationIdsRef.current.add(notification.id);
+            
+            // Only show toast for notifications created recently (within last 5 minutes)
+            // This prevents showing toasts for old notifications on first load
+            const notificationDate = new Date(notification.createdAt);
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+            
+            if (notificationDate >= fiveMinutesAgo) {
+              if (
+                notification.data &&
+                typeof notification.data === 'object' &&
+                (notification.data as Record<string, unknown>).eventType === 'review_submitted'
+              ) {
+                toast.info(notification.title || 'New review submitted');
+              } else {
+                toast.info(notification.title || 'New notification');
+              }
+              
+              // Show browser notification if enabled
+              if (userSettings?.notifications?.pushNotifications && 'Notification' in window) {
+                if (Notification.permission === 'granted') {
+                  new Notification(notification.title, {
+                    body: notification.message,
+                    icon: '/sun-lms-logo-compact.png',
+                    tag: notification.id
+                  });
+                }
+              }
             }
-          }
-        });
+          });
 
-        setNotifications(loadedNotifications);
+          return loadedNotifications;
+        });
+        
         lastCheckRef.current = new Date();
       }
     } catch (err) {
       console.error('Error loading notifications:', err);
       setError('Failed to load notifications');
-      setConnectionStatus('disconnected');
     } finally {
       if (showLoading) {
         setLoading(false);
       }
     }
-  };
+  }, [user, userSettings, toast]);
 
   // Start polling for notifications
   useEffect(() => {
     if (user && profile) {
-      setConnectionStatus('connecting');
-      
       // Load immediately
       loadNotifications(true);
       
@@ -143,7 +155,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
           clearInterval(pollingIntervalRef.current);
           pollingIntervalRef.current = null;
         }
-        setConnectionStatus('disconnected');
       };
     } else {
       // Clean up when user logs out
@@ -152,9 +163,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         pollingIntervalRef.current = null;
       }
       setNotifications([]);
-      setConnectionStatus('disconnected');
+      shownNotificationIdsRef.current.clear(); // Clear shown notifications on logout
     }
-  }, [user, profile]);
+  }, [user, profile, loadNotifications]);
 
   // Request notification permission
   useEffect(() => {

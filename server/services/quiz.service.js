@@ -9,7 +9,7 @@ import notificationsService from './notifications.service.js';
 /**
  * Create quiz
  */
-export async function createQuiz(quizData, tenantId, isSuperAdmin = false, io = null) {
+export async function createQuiz(quizData, tenantId, isSuperAdmin = false) {
   const {
     module_id,
     title,
@@ -96,7 +96,7 @@ export async function createQuiz(quizData, tenantId, isSuperAdmin = false, io = 
           title: notif.title,
           message: notif.body,
           link: notif.link
-        }, io);
+        });
 
         if (isEmailConfigured() && row.email) {
           await sendTemplatedEmail('quiz_assigned', {
@@ -361,7 +361,7 @@ export async function listQuizzesByModule(moduleId, tenantId, isSuperAdmin = fal
 /**
  * Update quiz
  */
-export async function updateQuiz(quizId, updates, tenantId, isSuperAdmin = false, io = null) {
+export async function updateQuiz(quizId, updates, tenantId, isSuperAdmin = false) {
   // Get current quiz data for comparison
   const currentQuizResult = await query(
     `SELECT q.*, m.title as module_title, c.title as course_title, c.id as course_id
@@ -421,88 +421,86 @@ export async function updateQuiz(quizId, updates, tenantId, isSuperAdmin = false
   const updatedQuiz = result.rows[0];
 
   // Send notifications for quiz updates
-  if (io) {
-    try {
-      const { notifyQuizStudents } = await import('./notifications.service.js');
-      
-      // Determine notification type and content
-      let notificationType = 'quiz_update';
-      let notificationTitle = 'Quiz Updated';
-      let notificationMessage = `The quiz "${updatedQuiz.title}" in course "${currentQuiz.course_title}" has been updated.`;
-      let updateDetails = '';
+  try {
+    const { notifyQuizStudents } = await import('./notifications.service.js');
+    
+    // Determine notification type and content
+    let notificationType = 'quiz_update';
+    let notificationTitle = 'Quiz Updated';
+    let notificationMessage = `The quiz "${updatedQuiz.title}" in course "${currentQuiz.course_title}" has been updated.`;
+    let updateDetails = '';
 
-      // Check what was updated
-      const changes = [];
-      if (title !== undefined && title !== currentQuiz.title) {
-        changes.push('title');
-      }
-      if (description !== undefined && description !== currentQuiz.description) {
-        changes.push('description');
-      }
-      if (passing_score !== undefined && passing_score !== currentQuiz.passing_score) {
-        changes.push('passing score');
-      }
-      if (time_limit_minutes !== undefined && time_limit_minutes !== currentQuiz.time_limit_minutes) {
-        changes.push('time limit');
-      }
-      if (max_attempts !== undefined && max_attempts !== currentQuiz.max_attempts) {
-        changes.push('max attempts');
-      }
-      if (randomize_questions !== undefined && randomize_questions !== currentQuiz.randomize_questions) {
-        changes.push('question randomization');
-      }
-      if (randomize_answers !== undefined && randomize_answers !== currentQuiz.randomize_answers) {
-        changes.push('answer randomization');
-      }
-      if (show_feedback !== undefined && show_feedback !== currentQuiz.show_feedback) {
-        changes.push('feedback settings');
-      }
-
-      // Handle status changes
-      if (status !== undefined && status !== currentQuiz.status) {
-        if (status === 'published' && currentQuiz.status === 'draft') {
-          notificationType = 'quiz_published';
-          notificationTitle = 'New Quiz Available';
-          notificationMessage = `A new quiz "${updatedQuiz.title}" is now available in course "${currentQuiz.course_title}".`;
-        } else {
-          changes.push(`status (${currentQuiz.status} → ${status})`);
-        }
-      }
-
-      if (changes.length > 0) {
-        updateDetails = `Updated: ${changes.join(', ')}`;
-      }
-
-      // Create notification data
-      const notificationData = {
-        type: notificationType,
-        title: notificationTitle,
-        message: notificationMessage,
-        link: `/courses/${currentQuiz.course_id}/quizzes/${quizId}`,
-        data: {
-          quizId,
-          courseId: currentQuiz.course_id,
-          quizName: updatedQuiz.title,
-          courseName: currentQuiz.course_title,
-          moduleName: currentQuiz.module_title,
-          changes: changes
-        },
-        emailData: {
-          quizName: updatedQuiz.title,
-          courseName: currentQuiz.course_title,
-          quizUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/courses/${currentQuiz.course_id}/quizzes/${quizId}`,
-          updateDetails: updateDetails
-        }
-      };
-
-      // Notify students enrolled in the course
-      await notifyQuizStudents(quizId, notificationData, io);
-      
-      console.log(`Quiz update notifications sent for quiz ${quizId}`);
-    } catch (error) {
-      console.error('Error sending quiz update notifications:', error);
-      // Don't fail the quiz update if notifications fail
+    // Check what was updated
+    const changes = [];
+    if (title !== undefined && title !== currentQuiz.title) {
+      changes.push('title');
     }
+    if (description !== undefined && description !== currentQuiz.description) {
+      changes.push('description');
+    }
+    if (passing_score !== undefined && passing_score !== currentQuiz.passing_score) {
+      changes.push('passing score');
+    }
+    if (time_limit_minutes !== undefined && time_limit_minutes !== currentQuiz.time_limit_minutes) {
+      changes.push('time limit');
+    }
+    if (max_attempts !== undefined && max_attempts !== currentQuiz.max_attempts) {
+      changes.push('max attempts');
+    }
+    if (randomize_questions !== undefined && randomize_questions !== currentQuiz.randomize_questions) {
+      changes.push('question randomization');
+    }
+    if (randomize_answers !== undefined && randomize_answers !== currentQuiz.randomize_answers) {
+      changes.push('answer randomization');
+    }
+    if (show_feedback !== undefined && show_feedback !== currentQuiz.show_feedback) {
+      changes.push('feedback settings');
+    }
+
+    // Handle status changes
+    if (status !== undefined && status !== currentQuiz.status) {
+      if (status === 'published' && currentQuiz.status === 'draft') {
+        notificationType = 'quiz_published';
+        notificationTitle = 'New Quiz Available';
+        notificationMessage = `A new quiz "${updatedQuiz.title}" is now available in course "${currentQuiz.course_title}".`;
+      } else {
+        changes.push(`status (${currentQuiz.status} → ${status})`);
+      }
+    }
+
+    if (changes.length > 0) {
+      updateDetails = `Updated: ${changes.join(', ')}`;
+    }
+
+    // Create notification data
+    const notificationData = {
+      type: notificationType,
+      title: notificationTitle,
+      message: notificationMessage,
+      link: `/courses/${currentQuiz.course_id}/quizzes/${quizId}`,
+      data: {
+        quizId,
+        courseId: currentQuiz.course_id,
+        quizName: updatedQuiz.title,
+        courseName: currentQuiz.course_title,
+        moduleName: currentQuiz.module_title,
+        changes: changes
+      },
+      emailData: {
+        quizName: updatedQuiz.title,
+        courseName: currentQuiz.course_title,
+        quizUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/courses/${currentQuiz.course_id}/quizzes/${quizId}`,
+        updateDetails: updateDetails
+      }
+    };
+
+    // Notify students enrolled in the course
+    await notifyQuizStudents(quizId, notificationData);
+    
+    console.log(`Quiz update notifications sent for quiz ${quizId}`);
+  } catch (error) {
+    console.error('Error sending quiz update notifications:', error);
+    // Don't fail the quiz update if notifications fail
   }
 
   return updatedQuiz;

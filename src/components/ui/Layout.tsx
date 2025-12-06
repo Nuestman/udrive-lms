@@ -4,8 +4,6 @@ import { ChevronDown, LogOut, Menu, X, User, Settings as SettingsIcon } from 'lu
 import ThemeToggle from '../common/ThemeToggle';
 import NotificationDropdown from '../common/NotificationDropdown';
 import RoleSwitcher from '../common/RoleSwitcher';
-import { useNotifications } from '../../contexts/NotificationContext';
-import { Wifi, WifiOff } from 'lucide-react';
 import { useWhiteLabel } from '../../contexts/WhiteLabelContext';
 
 // Layout component
@@ -42,7 +40,6 @@ export const Header: React.FC<HeaderProps> = ({ title, userProfile, onMenuToggle
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { getBrandingConfig } = useWhiteLabel();
   const branding = getBrandingConfig();
-  const { connectionStatus } = useNotifications();
 
   const roleLabels = {
     super_admin: 'Super Admin',
@@ -86,24 +83,6 @@ export const Header: React.FC<HeaderProps> = ({ title, userProfile, onMenuToggle
             </div>
           </div>
         <div className="flex items-center gap-2">
-          {/* Socket connection status */}
-          <div className="hidden sm:flex items-center text-xs mr-2">
-            {connectionStatus === 'connected' && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary-50 text-primary-700 border border-primary-200">
-                <Wifi size={12} className="mr-1" /> Live
-              </span>
-            )}
-            {connectionStatus === 'connecting' && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200">
-                <Wifi size={12} className="mr-1 animate-pulse" /> Connecting
-              </span>
-            )}
-            {connectionStatus === 'disconnected' && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
-                <WifiOff size={12} className="mr-1" /> Offline
-              </span>
-            )}
-          </div>
             <RoleSwitcher />
             <NotificationDropdown />
             <ThemeToggle />

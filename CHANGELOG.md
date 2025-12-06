@@ -12,6 +12,82 @@ All notable changes to SunLMS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2025-01-XX
+
+### 🚨 BREAKING CHANGES
+
+#### Notification System Migration
+- **Socket.IO Removed**: Complete removal of Socket.IO and WebSocket-based real-time notifications
+- **HTTP Polling Implementation**: Notifications now delivered via HTTP polling (30-second interval)
+- **Frontend Updates Required**: All Socket.IO client code must be removed and replaced with polling implementation
+- **Backend Simplification**: Socket.IO server setup removed from `server/index.js`
+- **Service Layer Changes**: Notification services no longer accept `io` parameter
+
+### ✨ Added
+
+#### Notification Polling System
+- **HTTP Polling**: Reliable notification delivery via periodic HTTP requests
+- **Configurable Polling Interval**: Default 30 seconds, adjustable based on needs
+- **Automatic Polling Management**: Polling starts on authentication, stops on logout
+- **Error Handling**: Graceful error handling with automatic retry on next interval
+
+### 🔄 Changed
+
+#### Notification Architecture
+- **Real-time to Polling**: Migrated from WebSocket real-time delivery to HTTP polling
+- **Simplified Deployment**: No WebSocket server configuration required
+- **Better Reliability**: Works behind firewalls, proxies, and restrictive networks
+- **Reduced Complexity**: Eliminated connection state management and reconnection logic
+
+#### Backend Services
+- **Notification Service**: Removed all Socket.IO dependencies and `io` parameter requirements
+- **Route Handlers**: Removed socket event emissions from all notification-related routes
+- **Database-Only Notifications**: Notifications stored in database and fetched via polling
+
+### 🐛 Fixed
+
+#### Notification System
+- **Connection Issues**: Eliminated WebSocket connection problems and authentication timing issues
+- **Network Compatibility**: Improved compatibility with restrictive network environments
+- **Deployment Complexity**: Simplified deployment by removing WebSocket server requirements
+
+### 📚 Documentation
+
+#### Updated Documentation
+- **Notification System Guide**: Complete rewrite of notification documentation to reflect polling architecture
+- **Migration Guide**: Added migration guide for upgrading from Socket.IO to polling
+- **Polling Best Practices**: Added polling implementation guidelines and best practices
+
+### 🔒 Security
+
+#### Simplified Security Model
+- **No WebSocket Authentication**: Removed complex WebSocket authentication middleware
+- **Standard HTTP Authentication**: Uses standard JWT-based HTTP authentication
+- **Reduced Attack Surface**: Fewer moving parts means fewer potential security vulnerabilities
+
+### 🚀 Performance
+
+#### Polling Optimization
+- **Efficient Queries**: Optimized notification queries with proper pagination and filtering
+- **Database Indexes**: Proper indexes ensure fast notification retrieval
+- **Configurable Interval**: Balance between real-time feel and server load
+
+### ⚠️ Migration Required
+
+#### Breaking Changes
+- **Frontend Code**: Remove all Socket.IO client code and dependencies
+- **Backend Code**: Remove Socket.IO server setup and socket event emissions
+- **Dependencies**: Remove `socket.io` and `socket.io-client` from `package.json`
+
+#### Upgrade Steps
+1. Remove Socket.IO dependencies: `npm uninstall socket.io socket.io-client`
+2. Update frontend notification context to use polling (already done in v3.0.0)
+3. Remove any custom Socket.IO connection code
+4. Update backend services to remove `io` parameter (already done in v3.0.0)
+5. Test notification polling functionality
+
+---
+
 ## [2.8.0] - 2025-01-XX
 
 ### 🎓 SCORM 1.2 Integration
@@ -1043,6 +1119,7 @@ This major release introduces a unified approach to learning content, treating l
 
 | Version | Release Date | Major Features |
 |---------|--------------|----------------|
+| 3.0.0   | 2025-01-XX   | Notification System Migration (Socket.IO → HTTP Polling), Breaking Changes |
 | 2.8.0   | 2025-01-XX   | SCORM 1.2 Integration, Package Upload & Management, SCORM Runtime API, Content Delivery System |
 | 2.4.0   | 2025-11-06   | Contact Messages System, Public Contact Form, Admin Message Management, Email Notifications |
 | 2.3.0   | 2025-11-05   | Active role switcher, certificates UX (modals/notes), verification fixes, RBAC/tenant hardening |

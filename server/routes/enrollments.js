@@ -131,7 +131,6 @@ router.post('/', asyncHandler(async (req, res) => {
   const enrollment = await enrollmentsService.enrollStudent(
     payload, 
     req.tenantId, 
-    req.app.get('io'),
     req.user.activeRole === 'student' ? req.user.id : null, // Pass authenticated user id if in student mode
     req.isSuperAdmin // Pass super admin flag to allow cross-tenant enrollment
   );

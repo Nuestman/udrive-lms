@@ -112,7 +112,7 @@ export async function getStudentById(studentId, tenantId, isSuperAdmin = false) 
 /**
  * Create new student
  */
-export async function createStudent(studentData, tenantId, io = null) {
+export async function createStudent(studentData, tenantId) {
   const { email, password, first_name, last_name, phone, address } = studentData;
 
   // Check if email already exists

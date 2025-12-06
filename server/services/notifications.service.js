@@ -3,9 +3,10 @@ import { sendTemplatedEmail, isEmailConfigured } from '../utils/mailer.js';
 import { buildEmail } from '../utils/emailTemplates.js';
 
 /**
- * Create a notification with optional email and Socket.IO delivery
+ * Create a notification with optional email delivery
+ * Socket.IO removed - notifications now use polling
  */
-export async function createNotification(userId, { type, title, message, link = null, data = {} }, io = null) {
+export async function createNotification(userId, { type, title, message, link = null, data = {} }) {
   try {
     console.log('📨 [NOTIFICATION] Creating notification:', { userId, type, title });
     
@@ -19,26 +20,7 @@ export async function createNotification(userId, { type, title, message, link = 
     const notification = result.rows[0];
     console.log('✅ [NOTIFICATION] Notification created successfully:', notification.id);
     
-    // Emit Socket.IO event if io instance is provided
-    if (io) {
-      try {
-        const socketPayload = {
-          id: notification.id,
-          type: notification.type,
-          title: notification.title,
-          message: notification.message,
-          link: notification.link,
-          data: notification.data ? (typeof notification.data === 'string' ? JSON.parse(notification.data) : notification.data) : {},
-          read: false,
-          createdAt: notification.created_at
-        };
-        
-        io.to(`user_${userId}`).emit('notification', socketPayload);
-        console.log(`📡 [SOCKET] Notification emitted to user_${userId}:`, notification.title);
-      } catch (error) {
-        console.error('❌ [SOCKET] Error emitting Socket.IO notification:', error);
-      }
-    }
+    // Socket.IO removed - notifications are delivered via polling
     
     return { success: true, notification };
   } catch (error) {
@@ -50,11 +32,11 @@ export async function createNotification(userId, { type, title, message, link = 
 /**
  * Create notification with email delivery for course/module/quiz updates
  */
-export async function createUpdateNotification(userId, notificationData, io = null) {
+export async function createUpdateNotification(userId, notificationData) {
   const { type, title, message, link = null, data = {}, emailData = {} } = notificationData;
   
   // Create in-app notification
-  const result = await createNotification(userId, { type, title, message, link, data }, io);
+  const result = await createNotification(userId, { type, title, message, link, data });
   
   // Send email notification if user has email notifications enabled
   try {
@@ -138,7 +120,7 @@ function getUpdateEmailTemplate(type) {
 /**
  * Notify enrolled students about course updates
  */
-export async function notifyEnrolledStudents(courseId, notificationData, io = null) {
+export async function notifyEnrolledStudents(courseId, notificationData) {
   try {
     // Get all enrolled students for the course
     const result = await query(
@@ -153,8 +135,7 @@ export async function notifyEnrolledStudents(courseId, notificationData, io = nu
     for (const student of result.rows) {
       const notification = await createUpdateNotification(
         student.student_id,
-        notificationData,
-        io
+        notificationData
       );
       notifications.push(notification);
     }
@@ -170,7 +151,7 @@ export async function notifyEnrolledStudents(courseId, notificationData, io = nu
 /**
  * Notify students about module updates
  */
-export async function notifyModuleStudents(moduleId, notificationData, io = null) {
+export async function notifyModuleStudents(moduleId, notificationData) {
   try {
     // Get all students enrolled in the course that contains this module
     const result = await query(
@@ -186,8 +167,7 @@ export async function notifyModuleStudents(moduleId, notificationData, io = null
     for (const student of result.rows) {
       const notification = await createUpdateNotification(
         student.student_id,
-        notificationData,
-        io
+        notificationData
       );
       notifications.push(notification);
     }
@@ -203,7 +183,7 @@ export async function notifyModuleStudents(moduleId, notificationData, io = null
 /**
  * Notify students about quiz updates
  */
-export async function notifyQuizStudents(quizId, notificationData, io = null) {
+export async function notifyQuizStudents(quizId, notificationData) {
   try {
     // Get all students enrolled in the course that contains this quiz
     const result = await query(
@@ -220,8 +200,7 @@ export async function notifyQuizStudents(quizId, notificationData, io = null) {
     for (const student of result.rows) {
       const notification = await createUpdateNotification(
         student.student_id,
-        notificationData,
-        io
+        notificationData
       );
       notifications.push(notification);
     }
@@ -237,7 +216,7 @@ export async function notifyQuizStudents(quizId, notificationData, io = null) {
 /**
  * Notify students about lesson updates
  */
-export async function notifyLessonStudents(lessonId, notificationData, io = null) {
+export async function notifyLessonStudents(lessonId, notificationData) {
   try {
     const result = await query(
       `SELECT DISTINCT e.student_id, u.email, u.first_name, u.last_name, u.settings
@@ -253,8 +232,7 @@ export async function notifyLessonStudents(lessonId, notificationData, io = null
     for (const student of result.rows) {
       const notification = await createUpdateNotification(
         student.student_id,
-        notificationData,
-        io
+        notificationData
       );
       notifications.push(notification);
     }

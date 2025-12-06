@@ -8,7 +8,7 @@ import notificationsService from './notifications.service.js';
 /**
  * Generate certificate for completed course
  */
-export async function generateCertificate(enrollmentId, tenantId, isSuperAdmin = false, userId = null, io = null) {
+export async function generateCertificate(enrollmentId, tenantId, isSuperAdmin = false, userId = null) {
   // Get enrollment details with instructor information
   let enrollmentQuery;
   

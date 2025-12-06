@@ -73,7 +73,7 @@ export async function getLessonById(lessonId, tenantId, isSuperAdmin = false) {
 /**
  * Create new lesson
  */
-export async function createLesson(lessonData, tenantId, isSuperAdmin = false, io = null) {
+export async function createLesson(lessonData, tenantId, isSuperAdmin = false) {
   const { module_id, title, content, lesson_type, video_url, document_url, scorm_sco_id, estimated_duration_minutes, status } = lessonData;
   
   // Verify module belongs to tenant (skip for super admin)
@@ -155,8 +155,8 @@ export async function createLesson(lessonData, tenantId, isSuperAdmin = false, i
   
   const lesson = result.rows[0];
 
-  // If published on creation, notify students with course/module details
-  if ((status || 'draft') === 'published' && io) {
+  // If published on creation, notify students with course/module details (via polling, not socket.io)
+  if ((status || 'draft') === 'published') {
     try {
       const meta = await query(
         `SELECT l.id as lesson_id, l.title as lesson_title, m.id as module_id, m.title as module_title, c.id as course_id, c.title as course_title
@@ -185,7 +185,7 @@ export async function createLesson(lessonData, tenantId, isSuperAdmin = false, i
             lessonUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/courses/${row.course_id}/modules/${row.module_id}/lessons/${row.lesson_id}`
           }
         };
-        await notifyLessonStudents(lesson.id, notificationData, io);
+        await notifyLessonStudents(lesson.id, notificationData);
       }
     } catch (e) {
       console.error('Notify lesson publish error:', e?.message || e);
@@ -200,7 +200,7 @@ export async function createLesson(lessonData, tenantId, isSuperAdmin = false, i
  * - Super Admin: Can update any lesson
  * - Others: Only if lesson is in their school
  */
-export async function updateLesson(lessonId, lessonData, tenantId, isSuperAdmin = false, io = null) {
+export async function updateLesson(lessonId, lessonData, tenantId, isSuperAdmin = false) {
   const { title, content, lesson_type, video_url, document_url, scorm_sco_id, estimated_duration_minutes, status } = lessonData;
   
   // Verify lesson access
@@ -271,52 +271,51 @@ export async function updateLesson(lessonId, lessonData, tenantId, isSuperAdmin 
   const updated = result.rows[0];
 
   // Send detailed notifications on update
-  if (io) {
-    try {
-      const meta = await query(
-        `SELECT l.id as lesson_id, l.title as lesson_title, m.id as module_id, m.title as module_title, c.id as course_id, c.title as course_title
-         FROM lessons l
-         JOIN modules m ON l.module_id = m.id
-         JOIN courses c ON m.course_id = c.id
-         WHERE l.id = $1`,
-        [lessonId]
-      );
-      if (meta.rows.length) {
-        const row = meta.rows[0];
-        const changes = [];
-        if (title !== undefined) changes.push('title');
-        if (content !== undefined) changes.push('content');
-        if (lesson_type !== undefined) changes.push('type');
-        if (video_url !== undefined) changes.push('video');
-        if (document_url !== undefined) changes.push('document');
-        if (scorm_sco_id !== undefined) changes.push('scorm_sco');
-        if (estimated_duration_minutes !== undefined) changes.push('duration');
-        if (status !== undefined) changes.push('status');
-        const updateDetails = changes.length ? `Updated: ${changes.join(', ')}` : '';
-        const notificationData = {
-          type: 'lesson_update',
-          title: 'Lesson Updated',
-          message: `The lesson "${row.lesson_title}" in module "${row.module_title}" (course "${row.course_title}") has been updated.`,
-          link: `/courses/${row.course_id}/modules/${row.module_id}/lessons/${row.lesson_id}`,
-          data: {
-            lessonId: row.lesson_id,
-            moduleId: row.module_id,
-            courseId: row.course_id,
-            changes
-          },
-          emailData: {
-            lessonName: row.lesson_title,
-            moduleName: row.module_title,
-            courseName: row.course_title,
-            lessonUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/courses/${row.course_id}/modules/${row.module_id}/lessons/${row.lesson_id}`,
-            updateDetails
-          }
-        };
-        await notifyLessonStudents(lessonId, notificationData, io);
-      }
-    } catch (e) {
-      console.error('Notify lesson update error:', e?.message || e);
+  // Send notifications for lesson updates (via polling, not socket.io)
+  try {
+    const meta = await query(
+      `SELECT l.id as lesson_id, l.title as lesson_title, m.id as module_id, m.title as module_title, c.id as course_id, c.title as course_title
+       FROM lessons l
+       JOIN modules m ON l.module_id = m.id
+       JOIN courses c ON m.course_id = c.id
+       WHERE l.id = $1`,
+      [lessonId]
+    );
+    if (meta.rows.length) {
+      const row = meta.rows[0];
+      const changes = [];
+      if (title !== undefined) changes.push('title');
+      if (content !== undefined) changes.push('content');
+      if (lesson_type !== undefined) changes.push('type');
+      if (video_url !== undefined) changes.push('video');
+      if (document_url !== undefined) changes.push('document');
+      if (scorm_sco_id !== undefined) changes.push('scorm_sco');
+      if (estimated_duration_minutes !== undefined) changes.push('duration');
+      if (status !== undefined) changes.push('status');
+      const updateDetails = changes.length ? `Updated: ${changes.join(', ')}` : '';
+      const notificationData = {
+        type: 'lesson_update',
+        title: 'Lesson Updated',
+        message: `The lesson "${row.lesson_title}" in module "${row.module_title}" (course "${row.course_title}") has been updated.`,
+        link: `/courses/${row.course_id}/modules/${row.module_id}/lessons/${row.lesson_id}`,
+        data: {
+          lessonId: row.lesson_id,
+          moduleId: row.module_id,
+          courseId: row.course_id,
+          changes
+        },
+        emailData: {
+          lessonName: row.lesson_title,
+          moduleName: row.module_title,
+          courseName: row.course_title,
+          lessonUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/courses/${row.course_id}/modules/${row.module_id}/lessons/${row.lesson_id}`,
+          updateDetails
+        }
+      };
+      await notifyLessonStudents(lessonId, notificationData);
     }
+  } catch (e) {
+    console.error('Notify lesson update error:', e?.message || e);
   }
 
   return updated;
